@@ -145,10 +145,12 @@ export default function ProductsPage() {
         let successCount = 0;
         toast.info(`Đang xử lý ${jsonData.length} sản phẩm...`);
 
+        let currentInventory = [...products];
+
         for (const row of jsonData) {
           // 1. Lấy dữ liệu từ các cột (hỗ trợ nhiều cách đặt tên cột)
           const name = row['Tên'] || row['name'] || row['Sản phẩm'];
-          let category = String(row['Loại'] || row['category'] || 'food').toLowerCase().trim();
+          let categoryFromExcel = String(row['Loại'] || row['category'] || 'food').toLowerCase().trim();
           const price = parseFloat(row['Giá'] || row['price'] || 0);
           const note = row['Ghi chú'] || row['note'] || '';
 
@@ -168,8 +170,11 @@ export default function ProductsPage() {
             'khăn lạnh': 'towel'
           };
 
-          if (categoryMap[category]) {
-            category = categoryMap[category];
+          let category: Product['category'] = 'food';
+          if (categoryMap[categoryFromExcel]) {
+            category = categoryMap[categoryFromExcel] as Product['category'];
+          } else if (['food', 'drink', 'dry', 'towel'].includes(categoryFromExcel)) {
+            category = categoryFromExcel as Product['category'];
           }
 
           // 3. Tính toán số lượng (Thùng -> Lon hoặc số lẻ)
@@ -178,21 +183,49 @@ export default function ProductsPage() {
           const spec = parseInt(row['Quy cách'] || row['conversion'] || 24);
           const finalQuantity = cases > 0 ? (cases * spec) : rawQty;
 
-          // 4. Gửi lên API
-          const res = await fetch('/api/products', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              storeId: selectedStoreId,
-              name,
-              category,
-              price,
-              quantity: finalQuantity,
-              note,
-              logNote: 'Nhập từ file Excel'
-            }),
-          });
-          if (res.ok) successCount++;
+          // 4. Kiểm tra tồn tại để Upsert (Cập nhật nếu có, thêm mới nếu không)
+          const existing = currentInventory.find(p => p.name.toLowerCase().trim() === (name || '').toString().toLowerCase().trim());
+
+          if (existing) {
+            const res = await fetch('/api/products', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: existing.id,
+                name: existing.name,
+                category: category || existing.category,
+                price: price || existing.price,
+                quantity: existing.quantity + finalQuantity,
+                note: note || existing.note,
+                logNote: `Cộng dồn từ Excel (+${finalQuantity})`
+              }),
+            });
+            if (res.ok) {
+              const updated = await res.json();
+              // Cập nhật danh sách tạm thời để các dòng tiếp theo trong Excel nếu trùng tên sẽ cộng dồn tiếp
+              currentInventory = currentInventory.map(p => p.id === updated.id ? updated : p);
+              successCount++;
+            }
+          } else {
+            const res = await fetch('/api/products', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                storeId: selectedStoreId,
+                name,
+                category,
+                price,
+                quantity: finalQuantity,
+                note,
+                logNote: 'Nhập mới từ file Excel'
+              }),
+            });
+            if (res.ok) {
+              const newlyCreated = await res.json();
+              currentInventory.push(newlyCreated);
+              successCount++;
+            }
+          }
         }
 
         toast.success(`Đã nhập thành công ${successCount}/${jsonData.length} sản phẩm`);
@@ -288,6 +321,34 @@ export default function ProductsPage() {
           handleCloseDialog();
         }
       } else {
+        // Kiểm tra xem tên sản phẩm đã tồn tại trong kho chưa (cho trường hợp nhấn Thêm mới nhưng nhập tên cũ)
+        const existing = products.find(p => p.name.toLowerCase().trim() === formData.name.toLowerCase().trim());
+
+        if (existing) {
+          // Tự động chuyển sang chế độ Update (Cộng dồn)
+          const res = await fetch('/api/products', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: existing.id,
+              name: formData.name,
+              category: formData.category,
+              price: parseFloat(formData.price),
+              quantity: (existing.quantity || 0) + inputQty,
+              note: formData.note,
+              logNote: formData.logNote || 'Thêm nhanh từ form (Tự động cộng dồn)',
+            }),
+          });
+
+          if (res.ok) {
+            const updated = await res.json();
+            setProducts(products.map((p) => (p.id === updated.id ? updated : p)));
+            toast.success(`Sản phẩm "${formData.name}" đã tồn tại. Đã tự động cộng dồn ${inputQty} vào kho.`);
+            handleCloseDialog();
+            return;
+          }
+        }
+
         // Create new product
         const res = await fetch('/api/products', {
           method: 'POST',
