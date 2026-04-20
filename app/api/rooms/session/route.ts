@@ -1,0 +1,132 @@
+import { prisma } from '@/lib/prisma';
+
+export async function POST(request: Request) {
+  try {
+    const { roomId, storeId } = await request.json();
+
+    // Check if room exists and is empty
+    const room = await prisma.room.findUnique({
+      where: { Id: roomId },
+    });
+
+    if (!room) {
+      return Response.json({ error: 'Room not found' }, { status: 404 });
+    }
+
+    if (room.Status !== 'empty') {
+      return Response.json({ error: 'Room is not available' }, { status: 400 });
+    }
+
+    // Create room session
+    const session = await prisma.roomSession.create({
+      data: {
+        Id: Date.now().toString(),
+        RoomId: roomId,
+        StoreId: storeId,
+        StartTime: new Date(),
+        Status: 'pending', // Mặc định là pending để nhân viên có thể order trước mà chưa tính tiền giờ
+      },
+    });
+
+    // Update room status to occupied
+    await prisma.room.update({
+      where: { Id: roomId },
+      data: { Status: 'occupied' },
+    });
+
+    return Response.json({
+      id: session.Id,
+      roomId: session.RoomId,
+      storeId: session.StoreId,
+      startTime: session.StartTime,
+      status: session.Status,
+    });
+  } catch (error) {
+    console.error('Error creating room session:', error);
+    return Response.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const roomId = searchParams.get('roomId');
+
+    if (!roomId) {
+      return Response.json({ error: 'roomId is required' }, { status: 400 });
+    }
+
+    // Lấy session mới nhất của phòng (bao gồm cả trạng thái đang chờ hoặc đang hát)
+    const session = await prisma.roomSession.findFirst({
+      where: {
+        RoomId: roomId,
+        Status: { in: ['active', 'pending'] },
+      },
+      orderBy: {
+        StartTime: 'desc',      // ưu tiên session mới nhất
+      },
+    });
+
+    if (session) {
+      return Response.json({
+        id: session.Id,
+        roomId: session.RoomId,
+        storeId: session.StoreId,
+        startTime: session.StartTime,
+        status: session.Status,
+        customerName: session.CustomerName ?? 'Khách lẻ',
+      });
+    }
+
+    return Response.json(null);
+  } catch (error) {
+    console.error('Error fetching room session:', error);
+    return Response.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, startTime, StartTime, status, Status, customerName, CustomerName } = body;
+
+    if (!id) {
+      return Response.json({ error: 'Session ID is required' }, { status: 400 });
+    }
+
+    const updateData: any = {};
+
+    // Cập nhật thời gian bắt đầu nếu có
+    if (startTime || StartTime) {
+      updateData.StartTime = new Date(startTime || StartTime);
+    }
+
+    // Cập nhật trạng thái nếu có
+    if (status || Status) {
+      updateData.Status = status || Status;
+    }
+
+    // ✅ THÊM: Cập nhật tên khách hàng nếu có
+    const nameValue = customerName ?? CustomerName;
+    if (nameValue !== undefined) {
+      updateData.CustomerName = nameValue || 'Khách lẻ';
+    }
+
+    const session = await prisma.roomSession.update({
+      where: { Id: id },
+      data: updateData,
+    });
+
+    return Response.json({
+      id: session.Id,
+      roomId: session.RoomId,
+      storeId: session.StoreId,
+      startTime: session.StartTime,
+      status: session.Status,
+      customerName: session.CustomerName, // ✅ THÊM: trả về tên khách hàng
+    });
+  } catch (error) {
+    console.error('Error updating room session:', error);
+    return Response.json({ error: 'Server error' }, { status: 500 });
+  }
+}

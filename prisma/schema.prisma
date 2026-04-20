@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  Id            String         @id @default(cuid()) @db.VarChar(50)
+  StoreId       String         @db.VarChar(50)
+  Name          String         @db.Text
+  Category      String         @db.VarChar(20)
+  Price         Decimal        @db.Decimal(10, 2)
+  Quantity      Int            @default(0)
+  CreatedAt     DateTime       @default(now())
+  UpdatedAt     DateTime       @updatedAt
+  Note          String?        @db.Text
+  InventoryLogs InventoryLog[]
+  OrderItems    OrderItem[]
+  Store         Store          @relation(fields: [StoreId], references: [Id], onDelete: Cascade)
+
+  @@map("Products")
+}
+
+model Store {
+  Id            String         @id @default(cuid()) @db.VarChar(50)
+  Name          String         @db.Text
+  Address       String         @db.Text
+  Phone         String         @db.VarChar(20)
+  CreatedAt     DateTime       @default(now())
+  UpdatedAt     DateTime       @updatedAt
+  InventoryLogs InventoryLog[]
+  Products      Product[]
+  Rooms         Room[]
+  Users         User[]
+}
+
+model Room {
+  Id           String        @id @default(cuid()) @db.VarChar(50)
+  StoreId      String        @db.VarChar(50)
+  RoomNumber   String        @db.VarChar(20)
+  Capacity     Int
+  Status       String        @default("empty") @db.VarChar(20)
+  PricePerHour Decimal       @db.Decimal(10, 2)
+  CreatedAt    DateTime      @default(now())
+  UpdatedAt    DateTime      @updatedAt
+  Store        Store         @relation(fields: [StoreId], references: [Id], onDelete: Cascade)
+  RoomSessions RoomSession[]
+}
+
+model RoomSession {
+  Id           String      @id @default(cuid()) @db.VarChar(50)
+  RoomId       String      @db.VarChar(50)
+  StoreId      String      @db.VarChar(50)
+  StartTime    DateTime
+  EndTime      DateTime?
+  Status       String      @default("active") @db.VarChar(20)
+  CustomerName String?     @default("Khách lẻ") @db.Text
+  CreatedAt    DateTime    @default(now())
+  UpdatedAt    DateTime    @updatedAt
+  Invoice      Invoice?
+  OrderItems   OrderItem[]
+  Room         Room        @relation(fields: [RoomId], references: [Id], onDelete: Cascade)
+
+  @@map("RoomSessions")
+}
+
+model OrderItem {
+  Id            String      @id @default(cuid()) @db.VarChar(50)
+  RoomSessionId String      @db.VarChar(50)
+  ProductId     String      @db.VarChar(50)
+  ProductName   String      @db.Text
+  Price         Decimal     @db.Decimal(10, 2)
+  Quantity      Int
+  OrderedAt     DateTime    @default(now())
+  CreatedAt     DateTime    @default(now())
+  product       Product     @relation(fields: [ProductId], references: [Id], onUpdate: NoAction)
+  RoomSession   RoomSession @relation(fields: [RoomSessionId], references: [Id], onDelete: Cascade)
+
+  @@map("OrderItems")
+}
+
+model InventoryLog {
+  Id        String   @id @default(cuid()) @db.VarChar(50)
+  ProductId String   @db.VarChar(50)
+  StoreId   String   @db.VarChar(50)
+  Quantity  Int
+  Type      String   @db.VarChar(20)
+  CreatedAt DateTime @default(now())
+  Note      String?  @db.Text
+  product   Product  @relation(fields: [ProductId], references: [Id], onDelete: Cascade)
+  store     Store    @relation(fields: [StoreId], references: [Id], onUpdate: NoAction)
+
+  @@map("InventoryLogs")
+}
+
+model User {
+  Id        String   @id @default(cuid()) @db.VarChar(50)
+  Email     String   @unique @db.VarChar(100)
+  Password  String   @db.VarChar(255)
+  Name      String   @db.Text
+  Role      String   @default("user") @db.VarChar(20)
+  StoreId   String?  @db.VarChar(50)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
+  Store     Store?   @relation(fields: [StoreId], references: [Id])
+
+  @@map("Users")
+}
+
+model Invoice {
+  Id            String      @id @default(cuid()) @db.VarChar(50)
+  RoomSessionId String      @unique @db.VarChar(50)
+  StoreId       String      @db.VarChar(50)
+  RoomId        String      @db.VarChar(50)
+  StartTime     DateTime
+  EndTime       DateTime
+  RoomCost      Decimal     @db.Decimal(10, 2)
+  TotalPrice    Decimal     @db.Decimal(10, 2)
+  Status        String      @default("pending") @db.VarChar(20)
+  CreatedAt     DateTime    @default(now())
+  UpdatedAt     DateTime    @updatedAt
+  CustomerName  String?     @default("Khách lẻ") @db.Text
+  DeletedAt     DateTime?
+  RoomSession   RoomSession @relation(fields: [RoomSessionId], references: [Id], onDelete: Cascade)
+
+  @@map("Invoices")
+}
