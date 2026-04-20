@@ -33,7 +33,7 @@ interface Product {
   id: string;
   storeId: string;
   name: string;
-  category: 'food' | 'drink' | 'dry' | 'towel';
+  category: 'food' | 'drink' | 'dry';
   price: number;
   quantity: number;
   note?: string;
@@ -44,7 +44,6 @@ const categoryOptions = [
   { value: 'food', label: 'Đồ Ăn', icon: <Utensils className="w-4 h-4" />, color: 'bg-orange-400' },
   { value: 'drink', label: 'Đồ uống, bia', icon: <Beaker className="w-4 h-4" />, color: 'bg-blue-400' },
   { value: 'dry', label: 'Đồ Khô', icon: <Package className="w-4 h-4" />, color: 'bg-amber-600' },
-  { value: 'towel', label: 'Khăn Lạnh', icon: <Layers className="w-4 h-4" />, color: 'bg-cyan-400' },
 ] as const;
 
 export default function ProductsPage() {
@@ -166,14 +165,12 @@ export default function ProductsPage() {
             'nước ngọt': 'drink',
             'đồ khô': 'dry',
             'khô': 'dry',
-            'khăn': 'towel',
-            'khăn lạnh': 'towel'
           };
 
           let category: Product['category'] = 'food';
           if (categoryMap[categoryFromExcel]) {
             category = categoryMap[categoryFromExcel] as Product['category'];
-          } else if (['food', 'drink', 'dry', 'towel'].includes(categoryFromExcel)) {
+          } else if (['food', 'drink', 'dry'].includes(categoryFromExcel)) {
             category = categoryFromExcel as Product['category'];
           }
 

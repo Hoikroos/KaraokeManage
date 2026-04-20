@@ -34,7 +34,7 @@ export interface Product {
   id: string;
   storeId: string;
   name: string;
-  category: 'food' | 'drink' | 'dry' | 'towel' | 'cake';
+  category: 'food' | 'drink' | 'dry' | 'cake';
   price: number;
   quantity: number;
   createdAt: Date;
@@ -74,7 +74,7 @@ export interface Invoice {
   status: 'pending' | 'paid';
   createdAt: Date;
   updatedAt: Date;
-   customerName?: string;
+  customerName?: string;
 }
 
 // In-memory database storage
@@ -210,15 +210,6 @@ class Database {
       category: 'dry',
       price: 50000,
       quantity: 20,
-      createdAt: new Date(),
-    },
-    {
-      id: '6',
-      storeId: '1',
-      name: 'Khăn lạnh',
-      category: 'towel',
-      price: 10000,
-      quantity: 50,
       createdAt: new Date(),
     },
     {
