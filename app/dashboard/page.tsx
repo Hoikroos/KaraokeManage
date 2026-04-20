@@ -9,6 +9,9 @@ import Link from 'next/link';
 import { Room, Store, RoomSession } from '@/lib/db';
 import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, Mic, Home, BarChart3 } from 'lucide-react';
 
+// Ép trang này và các fetch bên trong chạy tại region Singapore để gần Database
+export const preferredRegion = 'sin1';
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
