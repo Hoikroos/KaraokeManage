@@ -348,7 +348,7 @@ export default function Dashboard() {
                                     }
                                   }
                                   const productTotal = sessionTotals[room.id] || 0;
-                                  return Math.round(roomCharge + productTotal).toLocaleString('vi-VN');
+                                  return (Math.ceil((roomCharge + productTotal) / 1000) * 1000).toLocaleString('vi-VN');
                                 })()} <span className="text-[10px] font-normal">đ</span>
                               </span>
                             </div>

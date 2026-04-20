@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 // import { AuthContext } from '@/app/context';
 // import { useContext } from 'react';
 import { useAuth } from '@/app/context';
@@ -26,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Edit2, Trash2, ArrowLeft, ListOrdered, Search, Filter, Package, ShoppingBag, Utensils, Beaker, Cookie, Layers, CheckCircle2, AlertCircle, Store as StoreIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, ListOrdered, Search, Filter, Package, ShoppingBag, Utensils, Beaker, Cookie, Layers, CheckCircle2, AlertCircle, Store as StoreIcon, FileSpreadsheet, Upload } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -122,6 +123,91 @@ export default function ProductsPage() {
 
     fetchProducts();
   }, [selectedStoreId]);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedStoreId) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) {
+          toast.error('File Excel không có dữ liệu');
+          return;
+        }
+
+        let successCount = 0;
+        toast.info(`Đang xử lý ${jsonData.length} sản phẩm...`);
+
+        for (const row of jsonData) {
+          // 1. Lấy dữ liệu từ các cột (hỗ trợ nhiều cách đặt tên cột)
+          const name = row['Tên'] || row['name'] || row['Sản phẩm'];
+          let category = String(row['Loại'] || row['category'] || 'food').toLowerCase().trim();
+          const price = parseFloat(row['Giá'] || row['price'] || 0);
+          const note = row['Ghi chú'] || row['note'] || '';
+
+          if (!name) continue; // Bỏ qua dòng trống tên
+
+          // 2. Map tên tiếng Việt sang key hệ thống (để tránh lỗi Invalid Category)
+          const categoryMap: Record<string, string> = {
+            'đồ ăn': 'food',
+            'thức ăn': 'food',
+            'đồ uống': 'drink',
+            'nước': 'drink',
+            'bia': 'drink',
+            'nước ngọt': 'drink',
+            'đồ khô': 'dry',
+            'khô': 'dry',
+            'khăn': 'towel',
+            'khăn lạnh': 'towel'
+          };
+
+          if (categoryMap[category]) {
+            category = categoryMap[category];
+          }
+
+          // 3. Tính toán số lượng (Thùng -> Lon hoặc số lẻ)
+          const rawQty = parseInt(row['Số lượng'] || row['quantity'] || 0);
+          const cases = parseInt(row['Số lượng thùng'] || row['cases'] || 0);
+          const spec = parseInt(row['Quy cách'] || row['conversion'] || 24);
+          const finalQuantity = cases > 0 ? (cases * spec) : rawQty;
+
+          // 4. Gửi lên API
+          const res = await fetch('/api/products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              storeId: selectedStoreId,
+              name,
+              category,
+              price,
+              quantity: finalQuantity,
+              note,
+              logNote: 'Nhập từ file Excel'
+            }),
+          });
+          if (res.ok) successCount++;
+        }
+
+        toast.success(`Đã nhập thành công ${successCount}/${jsonData.length} sản phẩm`);
+
+        // Refresh danh sách sản phẩm
+        const res = await fetch(`/api/products?storeId=${selectedStoreId}`);
+        const updated = await res.json();
+        setProducts(updated);
+      } catch (error) {
+        console.error('Excel Import Error:', error);
+        toast.error('Lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {

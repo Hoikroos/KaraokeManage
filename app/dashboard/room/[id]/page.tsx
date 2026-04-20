@@ -85,6 +85,13 @@ export default function RoomPage() {
   const [showTimeDetails, setShowTimeDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({
+    name: '',
+    category: 'food',
+    price: '',
+    quantity: '0'
+  });
 
   const isFirstRender = useRef(true);
 
@@ -440,6 +447,40 @@ export default function RoomPage() {
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
   };
 
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!room || !newProductForm.name || !newProductForm.price) return;
+
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId: room.storeId,
+          name: newProductForm.name,
+          category: newProductForm.category,
+          price: parseFloat(newProductForm.price),
+          quantity: parseInt(newProductForm.quantity) || 0,
+          logNote: `Thêm nhanh từ phòng ${room.roomNumber}`,
+        }),
+      });
+
+      if (res.ok) {
+        const newProduct = await res.json();
+        setProducts(prev => [...prev, newProduct]);
+        setIsAddProductModalOpen(false);
+        setNewProductForm({ name: '', category: 'food', price: '', quantity: '0' });
+        toast.success('Đã thêm sản phẩm mới vào danh mục');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Lỗi khi thêm sản phẩm');
+      }
+    } catch (err) {
+      console.error('Error creating product:', err);
+      toast.error('Lỗi kết nối máy chủ');
+    }
+  };
+
   const handleUpdateQuantity = async (index: number, newQuantity: number) => {
     const item = orderItems[index];
     if (!item) return;
@@ -534,7 +575,7 @@ export default function RoomPage() {
           startTime: new Date(selectedStartTime).toISOString(),
           endTime: new Date(selectedEndTime).toISOString(),
           roomCost: Math.round(roomChargeTotal),
-          totalPrice: Math.round(total),
+          totalPrice: Math.ceil(total / 1000) * 1000,
           customerName: customerName.trim() || 'Khách lẻ',
         }),
       });
@@ -712,8 +753,8 @@ export default function RoomPage() {
                 {/* ── Tab: Menu ── */}
                 {mobileTab === 'menu' && (
                   <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-                    <div className="px-4 py-3 bg-white border-b">
-                      <div className="relative group">
+                    <div className="px-4 py-3 bg-white border-b flex gap-2">
+                      <div className="relative flex-1 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition" />
                         <input
                           type="text"
@@ -729,6 +770,12 @@ export default function RoomPage() {
                           </button>
                         )}
                       </div>
+                      <button
+                        onClick={() => setIsAddProductModalOpen(true)}
+                        className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center active:scale-90 transition-all border border-indigo-100"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
                     </div>
                     {/* CATEGORY */}
                     <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar bg-white border-b">
@@ -1048,7 +1095,7 @@ export default function RoomPage() {
                               Tổng cộng
                             </p>
                             <p className="text-2xl font-bold text-black">
-                              {Math.round(total).toLocaleString('vi-VN')}đ
+                              {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
                             </p>
                           </div>
                         </div>
@@ -1116,6 +1163,48 @@ export default function RoomPage() {
                 <p className="col-span-2 text-center py-8 text-slate-500 italic text-sm">Không có phòng nào đang trống</p>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Quick Add Product Modal (Mobile) ── */}
+        <Dialog open={isAddProductModalOpen} onOpenChange={setIsAddProductModalOpen}>
+          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Thêm sản phẩm mới</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateProduct} className="space-y-4 mt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
+                <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="VD: Pepsi..." className="rounded-xl h-11" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
+                  <select
+                    value={newProductForm.category}
+                    onChange={e => setNewProductForm({ ...newProductForm, category: e.target.value })}
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  >
+                    <option value="food">Đồ ăn</option>
+                    <option value="drink">Đồ uống</option>
+                    <option value="dry">Đồ khô</option>
+                    <option value="towel">Khăn lạnh</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
+                  <Input required type="number" value={newProductForm.price} onChange={e => setNewProductForm({ ...newProductForm, price: e.target.value })} placeholder="0" className="rounded-xl h-11" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng nhập kho</label>
+                <Input type="number" value={newProductForm.quantity} onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })} className="rounded-xl h-11" />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold">Lưu & Thêm</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsAddProductModalOpen(false)} className="h-12 rounded-xl">Hủy</Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
       </>
@@ -1312,7 +1401,7 @@ export default function RoomPage() {
                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Tổng thanh toán</span>
                       <div className="flex items-baseline gap-1 text-indigo-600">
                         <span className="text-2xl lg:text-3xl font-black tracking-tighter leading-none">
-                          {Math.round(total).toLocaleString('vi-VN')}
+                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}
                         </span>
                         <span className="text-xs font-bold uppercase">đ</span>
                       </div>
@@ -1344,6 +1433,12 @@ export default function RoomPage() {
                       className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200"
                     />
                   </div>
+                  <Button
+                    onClick={() => setIsAddProductModalOpen(true)}
+                    className="h-12 w-12 lg:w-auto bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" /> <span className="hidden lg:inline font-bold">Thêm món mới</span>
+                  </Button>
                   <div className="flex gap-2 overflow-x-auto no-scrollbar">
                     {DESKTOP_CATEGORIES.map((cat) => (
                       <button
@@ -1474,7 +1569,7 @@ export default function RoomPage() {
           </table>
           <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
             <div className="flex justify-between text-[11px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
-              <span>Tổng Hàng hóa:</span><span>{total.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+              <span>Tổng Hàng hóa:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
             </div>
           </div>
           <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
@@ -1484,7 +1579,7 @@ export default function RoomPage() {
           </div>
           <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
             <div className="flex justify-between text-[16px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
-              <span className="text-[12px]">TỔNG:</span><span>{total.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+              <span className="text-[12px]">TỔNG:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
             </div>
           </div>
           <div className="text-center text-gray-700 mt-4" style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8, fontSize: 11, breakInside: 'avoid' }}>
@@ -1572,6 +1667,46 @@ export default function RoomPage() {
               <p className="col-span-2 text-center py-8 text-slate-500 italic text-sm">Không có phòng nào đang trống</p>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Quick Add Product Modal (Desktop) ── */}
+      <Dialog open={isAddProductModalOpen} onOpenChange={setIsAddProductModalOpen}>
+        <DialogContent className="max-w-md rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Thêm sản phẩm mới</DialogTitle>
+            <DialogDescription className="font-medium">Tạo món mới nhanh chóng mà không cần rời trang order.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateProduct} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
+              <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="Nhập tên món..." className="rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
+                <select
+                  value={newProductForm.category}
+                  onChange={e => setNewProductForm({ ...newProductForm, category: e.target.value })}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  <option value="food">Đồ ăn</option>
+                  <option value="drink">Đồ uống</option>
+                  <option value="dry">Đồ khô</option>
+                  <option value="towel">Khăn lạnh</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
+                <Input required type="number" value={newProductForm.price} onChange={e => setNewProductForm({ ...newProductForm, price: e.target.value })} placeholder="0" className="rounded-xl" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng nhập kho</label>
+              <Input type="number" value={newProductForm.quantity} onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })} className="rounded-xl" />
+            </div>
+            <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-100">Lưu sản phẩm</Button>
+          </form>
         </DialogContent>
       </Dialog>
     </>
