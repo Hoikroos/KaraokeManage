@@ -41,10 +41,25 @@ export default function Dashboard() {
       const data: Room[] = await response.json();
       setRooms(data);
 
-      // Sắp xếp các phòng theo số phòng một cách tự nhiên (1, 2, ..., 10, 11)
-      const sortedData = data.sort((a, b) =>
-        String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true })
-      );
+      // === SỬA Ở ĐÂY ===
+      const sortedData = [...data].sort((a, b) => {
+        // Ưu tiên sắp xếp theo số phòng tự nhiên: P.VIP1, P.VIP2, ..., P.VIP10, P.VIP11, P.PARTY
+        const numA = parseInt(a.roomNumber?.toString().replace(/\D/g, '') || '0');
+        const numB = parseInt(b.roomNumber?.toString().replace(/\D/g, '') || '0');
+
+        // Nếu cả hai đều là số thì so sánh số
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+
+        // Nếu một cái có chữ (như P.PARTY) thì đẩy xuống cuối
+        if (!isNaN(numA) && isNaN(numB)) return -1;
+        if (isNaN(numA) && !isNaN(numB)) return 1;
+
+        // So sánh chuỗi bình thường nếu không phải số
+        return String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true });
+      });
+
       setRooms(sortedData);
       // Lấy thông tin phiên hoạt động cho các phòng đang sử dụng để tính thời gian và tiền
       const occupiedRooms = data.filter(r => r.status === 'occupied');
