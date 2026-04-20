@@ -177,21 +177,34 @@ export default function ProductsPage() {
             category = categoryFromExcel as Product['category'];
           }
 
-          // 3. Tính toán số lượng thông minh (Hỗ trợ chữ "thùng")
-          const qtyStr = String(row['Số lượng'] || row['quantity'] || '0').toLowerCase();
-          const unitStr = String(row['Đơn vị'] || row['unit'] || '').toLowerCase();
-          const spec = parseInt(row['Quy cách'] || row['conversion'] || 24);
+          // 3. Tính toán số lượng thông minh (Hỗ trợ quy đổi "thùng")
+          // Tìm giá trị ở các cột Số Lượng, Số lượng, quantity...
+          const rawQty = row['Số Lượng'] || row['Số lượng'] || row['quantity'] || '0';
+          const qtyStr = String(rawQty).toLowerCase().trim();
+          const unitStr = String(row['Đơn vị'] || row['unit'] || row['ĐVT'] || '').toLowerCase().trim();
+          const spec = parseInt(row['Quy cách'] || row['conversion'] || row['Quy đổi'] || 24);
+
+          const isCase = qtyStr.includes('thùng') || unitStr.includes('thùng') || !!row['Số lượng thùng'] || !!row['cases'];
+          
+          // Trích xuất con số từ chuỗi (ví dụ: "24 thùng" lấy được 24, "63" lấy được 63)
+          let num = 0;
+          const match = qtyStr.match(/[\d.]+/); // Tìm số nguyên hoặc số thập phân
+          
+          if (match) {
+            num = parseFloat(match[0]);
+          } else if (row['Số lượng thùng'] !== undefined || row['cases'] !== undefined) {
+            num = parseFloat(row['Số lượng thùng'] || row['cases'] || 0);
+          } else if (isCase) {
+            num = 1; // Nếu chỉ ghi chữ "thùng" không kèm số thì mặc định là 1 thùng
+          }
 
           let finalQuantity = 0;
-          const isCase = qtyStr.includes('thùng') || unitStr.includes('thùng') || row['Số lượng thùng'] || row['cases'];
-          const numericValue = parseInt(qtyStr.replace(/[^\d]/g, '')) || parseInt(row['Số lượng thùng'] || row['cases'] || 0);
-
           if (isCase) {
             // Nếu có chữ "thùng", nhân với quy cách (mặc định 24)
-            finalQuantity = numericValue * spec;
+            finalQuantity = num * spec;
           } else {
-            // Nếu là chữ khác hoặc chỉ có số, giữ nguyên số lượng
-            finalQuantity = numericValue;
+            // Nếu là chữ khác (lon, chai, dĩa) hoặc chỉ có số, giữ nguyên số lượng
+            finalQuantity = num;
           }
 
           // 4. Kiểm tra tồn tại để Upsert (Cập nhật nếu có, thêm mới nếu không)
