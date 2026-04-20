@@ -309,7 +309,7 @@ export default function ProductsPage() {
                 placeholder="Tìm nhanh món ăn, đồ uống..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 h-10 bg-slate-100 border-none rounded-full focus:ring-2 focus:ring-indigo-200 w-full text-sm"
+                className="pl-12 h-10 bg-slate-100 border-none rounded-full focus:ring-2 focus:ring-indigo-200 w-full text-base md:text-sm"
               />
             </div>
           </div>
@@ -380,7 +380,7 @@ export default function ProductsPage() {
                         setFormData({ ...formData, name: e.target.value })
                       }
                       required
-                      className="bg-slate-50 border-slate-100 h-11"
+                      className="bg-slate-50 border-slate-100 h-11 text-base md:text-sm"
                     />
                   </div>
                   {editingProduct && (
@@ -392,7 +392,7 @@ export default function ProductsPage() {
                         placeholder="Ví dụ: Hàng bị vỡ, khách làm mất, trả hàng NCC..."
                         value={formData.logNote}
                         onChange={(e) => setFormData({ ...formData, logNote: e.target.value })}
-                        className="bg-indigo-50 border-indigo-100 h-11 font-medium"
+                        className="bg-indigo-50 border-indigo-100 h-11 font-medium text-base md:text-sm"
                       />
                     </div>
                   )}
@@ -453,7 +453,7 @@ export default function ProductsPage() {
                         }}
                         min="0"
                         required
-                        className="bg-slate-50 border-slate-100 h-11"
+                        className="bg-slate-50 border-slate-100 h-11 text-base md:text-sm"
                       />
                     </div>
                     <div>
@@ -468,7 +468,7 @@ export default function ProductsPage() {
                           setFormData({ ...formData, quantity: e.target.value })
                         }
                         required
-                        className="bg-indigo-50 border-indigo-100 h-11 font-bold text-indigo-700"
+                        className="bg-indigo-50 border-indigo-100 h-11 font-bold text-indigo-700 text-base md:text-sm"
                       />
                     </div>
                   </div>

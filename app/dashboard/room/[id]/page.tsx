@@ -718,7 +718,7 @@ export default function RoomPage() {
                           placeholder="Tìm món ăn, nước uống..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full bg-slate-100 rounded-full pl-12 pr-10 py-3 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:bg-white focus:ring-2 focus:ring-indigo-200 shadow-inner" />
+                          className="w-full bg-slate-100 rounded-full pl-12 pr-10 py-3 text-base font-medium text-slate-800 placeholder-slate-400 outline-none transition focus:bg-white focus:ring-2 focus:ring-indigo-200 shadow-inner" />
                         {searchTerm && (
                           <button
                             onClick={() => setSearchTerm('')}
@@ -850,7 +850,7 @@ export default function RoomPage() {
                                 value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
                                 onChange={(e) => handlePriceChange(index, e.target.value)}
                                 onBlur={() => handlePriceBlur(index)}
-                                className="text-indigo-500 text-xs mt-1 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
+                                className="text-indigo-500 text-base mt-1 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
                               />
                             </div>
 
@@ -869,7 +869,7 @@ export default function RoomPage() {
                                   value={editingQuantities[index] ?? item.quantity}
                                   onChange={(e) => handleQuantityChange(index, e.target.value)}
                                   onBlur={() => handleQuantityBlur(index)}
-                                  className="w-8 text-center font-bold text-slate-900 bg-transparent text-sm outline-none"
+                                  className="w-8 text-center font-bold text-slate-900 bg-transparent text-base outline-none"
                                 />
 
                                 <button
@@ -956,7 +956,7 @@ export default function RoomPage() {
                               type="datetime-local"
                               value={selectedStartTime}
                               onChange={(e) => setSelectedStartTime(e.target.value)}
-                              className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
+                              className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                             />
                             <button
                               onClick={handleUpdateStartTime}
@@ -974,7 +974,7 @@ export default function RoomPage() {
                             type="datetime-local"
                             value={selectedEndTime}
                             onChange={(e) => setSelectedEndTime(e.target.value)}
-                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
+                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                           />
                         </div>
 
@@ -988,7 +988,7 @@ export default function RoomPage() {
                             placeholder="Nhập tên hoặc SĐT..."
                             value={customerName}
                             onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-sm font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
+                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
                           />
                         </div>
 
@@ -1004,7 +1004,7 @@ export default function RoomPage() {
                               const val = e.target.value.replace(/\D/g, '');
                               setCustomPricePerHour(val ? parseInt(val) : 0);
                             }}
-                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-sm font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
+                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
                           />
                         </div>
                       </div>
