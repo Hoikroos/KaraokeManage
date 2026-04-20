@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import Swal from 'sweetalert2';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ export default function StaffPage() {
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingUser, setEditingUser] = useState<StaffUser | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -68,23 +70,36 @@ export default function StaffPage() {
     }
   };
 
-  const handleAddStaff = async (e: React.FormEvent) => {
+  const handleEdit = (user: StaffUser) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '', // Để trống khi bắt đầu chỉnh sửa
+      storeId: user.storeId || 'all',
+      role: user.role,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/user', {
-        method: 'POST',
+      const res = await fetch(editingUser ? '/api/admin/user' : '/api/admin/user', {
+        method: editingUser ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(editingUser ? { ...formData, id: editingUser.id } : formData),
       });
 
       if (res.ok) {
-        toast.success('Tạo tài khoản thành công');
+        toast.success(editingUser ? 'Cập nhật tài khoản thành công' : 'Tạo tài khoản thành công');
         setIsDialogOpen(false);
+        setEditingUser(null);
         setFormData({ name: '', email: '', password: '', storeId: 'all', role: 'user' });
         fetchData();
       } else {
         const data = await res.json();
-        toast.error(data.error || 'Lỗi khi tạo tài khoản');
+        toast.error(data.error || 'Lỗi khi xử lý tài khoản');
       }
     } catch (error) {
       toast.error('Lỗi kết nối máy chủ');
@@ -92,7 +107,18 @@ export default function StaffPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa tài khoản này?')) return;
+    const result = await Swal.fire({
+      title: 'Xóa tài khoản?',
+      text: 'Bạn có chắc chắn muốn xóa tài khoản này?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Xóa ngay',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
     try {
       const res = await fetch(`/api/admin/user?id=${id}`, {
         method: 'DELETE',
@@ -133,7 +159,11 @@ export default function StaffPage() {
             </div>
           </div>
           <Button
-            onClick={() => setIsDialogOpen(true)}
+            onClick={() => {
+              setEditingUser(null);
+              setFormData({ name: '', email: '', password: '', storeId: 'all', role: 'user' });
+              setIsDialogOpen(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 font-bold shadow-lg shadow-blue-100 transition-all active:scale-95 gap-2"
           >
             <Plus className="w-5 h-5" /> <span className="hidden sm:inline">Thêm nhân sự</span>
@@ -205,7 +235,12 @@ export default function StaffPage() {
                         {staff.role === 'admin' ? 'Admin' : 'Nhân viên'}
                       </span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="w-8 h-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                        <Button
+                          onClick={() => handleEdit(staff)}
+                          variant="ghost"
+                          size="icon"
+                          className="w-8 h-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
                           <Edit2 className="w-4 h-4" />
                         </Button>
                         <Button onClick={() => handleDelete(staff.id)} variant="ghost" size="icon" className="w-8 h-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
@@ -225,11 +260,11 @@ export default function StaffPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md rounded-[2rem] p-8 border-none shadow-2xl">
           <DialogHeader className="mb-6">
-            <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tight">Đăng ký nhân sự</DialogTitle>
-            <DialogDescription className="font-bold text-slate-400">Tạo tài khoản mới cho nhân viên hoặc quản trị viên.</DialogDescription>
+            <DialogTitle className="text-2xl font-black text-slate-900 uppercase tracking-tight">{editingUser ? 'Cập nhật nhân sự' : 'Đăng ký nhân sự'}</DialogTitle>
+            <DialogDescription className="font-bold text-slate-400">{editingUser ? 'Chỉnh sửa thông tin tài khoản nhân viên.' : 'Tạo tài khoản mới cho nhân viên hoặc quản trị viên.'}</DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleAddStaff} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Họ và tên</label>
@@ -258,8 +293,8 @@ export default function StaffPage() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="••••••••"
-                  required
+                  placeholder={editingUser ? "Để trống nếu không muốn đổi" : "••••••••"}
+                  required={!editingUser}
                   className="bg-slate-50 border-slate-100 h-12 rounded-xl focus:ring-blue-500"
                 />
               </div>
@@ -296,7 +331,7 @@ export default function StaffPage() {
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)} className="flex-1 h-12 rounded-xl font-bold text-slate-500">Hủy bỏ</Button>
-              <Button type="submit" className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-100">Xác nhận tạo</Button>
+              <Button type="submit" className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-100">{editingUser ? 'Lưu thay đổi' : 'Xác nhận tạo'}</Button>
             </div>
           </form>
         </DialogContent>
