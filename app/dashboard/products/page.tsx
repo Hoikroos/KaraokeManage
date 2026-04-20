@@ -494,7 +494,23 @@ export default function ProductsPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={handleImportExcel}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                id="excel-upload"
+              />
+              <Button
+                variant="outline"
+                className="h-10 sm:h-11 px-3 sm:px-6 rounded-xl font-bold gap-2 border-slate-200 text-slate-600 hover:bg-slate-50"
+              >
+                <Upload className="w-5 h-5" />
+                <span className="hidden sm:inline">Nhập Excel</span>
+              </Button>
+            </div>
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
               <DialogTrigger asChild>
                 <Button
