@@ -41,6 +41,11 @@ export default function Dashboard() {
       const data: Room[] = await response.json();
       setRooms(data);
 
+      // Sắp xếp các phòng theo số phòng một cách tự nhiên (1, 2, ..., 10, 11)
+      const sortedData = data.sort((a, b) =>
+        String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true })
+      );
+      setRooms(sortedData);
       // Lấy thông tin phiên hoạt động cho các phòng đang sử dụng để tính thời gian và tiền
       const occupiedRooms = data.filter(r => r.status === 'occupied');
       const sessionData: Record<string, RoomSession> = {};
