@@ -766,8 +766,8 @@ export default function RoomPage() {
                 {/* ── Tab: Menu ── */}
                 {mobileTab === 'menu' && (
                   <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-                    <div className="px-4 py-3 bg-white border-b flex items-center gap-2">
-                      <div className="relative flex-1">
+                    <div className="px-4 py-3 bg-white border-b">
+                      <div className="relative w-full">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition" />
                         <input
                           type="text"
@@ -783,15 +783,17 @@ export default function RoomPage() {
                           </button>
                         )}
                       </div>
+                    </div>
+                    {/* CATEGORY */}
+                    <div className="px-4 py-3 flex gap-2 items-center overflow-x-auto no-scrollbar bg-white border-b">
                       <button
                         onClick={handleOpenAddProduct}
-                        className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center active:scale-90 transition-all border border-indigo-100"
+                        className="flex items-center justify-center w-10 h-10 shrink-0 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 active:scale-95 transition"
+                        title="Thêm món nhanh"
                       >
                         <Plus className="w-5 h-5" />
                       </button>
-                    </div>
-                    {/* CATEGORY */}
-                    <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar bg-white border-b">
+                      <div className="w-[1px] h-6 bg-slate-200 shrink-0 mx-1" />
                       {MOBILE_CATEGORIES.map(cat => (
                         <button
                           key={cat.id}
@@ -1219,7 +1221,15 @@ export default function RoomPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                  <Input required type="number" value={newProductForm.price} onChange={e => setNewProductForm({ ...newProductForm, price: e.target.value })} placeholder="0" className="rounded-xl h-11" />
+                  <Input
+                    required
+                    type="text"
+                    value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setNewProductForm({ ...newProductForm, price: val });
+                    }}
+                    placeholder="0" className="rounded-xl h-11" />
                 </div>
               </div>
               <div className="space-y-1">
@@ -1459,13 +1469,16 @@ export default function RoomPage() {
                       className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200"
                     />
                   </div>
-                  <Button
-                    onClick={handleOpenAddProduct}
-                    className="h-12 w-12 lg:w-auto bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" /> <span className="hidden lg:inline font-bold">Thêm món mới</span>
-                  </Button>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <Button
+                      variant="outline"
+                      onClick={handleOpenAddProduct}
+                      className="h-10 w-10 p-0 shrink-0 bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm transition-all flex items-center justify-center"
+                      title="Thêm sản phẩm mới"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </Button>
+                    <div className="w-[1px] h-8 bg-slate-100 shrink-0 mx-1" />
                     {DESKTOP_CATEGORIES.map((cat) => (
                       <button
                         key={cat.id}
@@ -1742,7 +1755,15 @@ export default function RoomPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                <Input required type="number" value={newProductForm.price} onChange={e => setNewProductForm({ ...newProductForm, price: e.target.value })} placeholder="0" className="rounded-xl" />
+                <Input
+                  required
+                  type="text"
+                  value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setNewProductForm({ ...newProductForm, price: val });
+                  }}
+                  placeholder="0" className="rounded-xl" />
               </div>
             </div>
             <div className="space-y-1">
