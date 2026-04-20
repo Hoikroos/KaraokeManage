@@ -14,6 +14,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
   Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft,
@@ -447,6 +450,16 @@ export default function RoomPage() {
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
   };
 
+  const handleOpenAddProduct = () => {
+    setNewProductForm({
+      name: searchTerm,
+      category: 'food',
+      price: '',
+      quantity: '0'
+    });
+    setIsAddProductModalOpen(true);
+  };
+
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!room || !newProductForm.name || !newProductForm.price) return;
@@ -753,8 +766,8 @@ export default function RoomPage() {
                 {/* ── Tab: Menu ── */}
                 {mobileTab === 'menu' && (
                   <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-                    <div className="px-4 py-3 bg-white border-b flex gap-2">
-                      <div className="relative flex-1 group">
+                    <div className="px-4 py-3 bg-white border-b flex items-center gap-2">
+                      <div className="relative flex-1">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition" />
                         <input
                           type="text"
@@ -771,7 +784,7 @@ export default function RoomPage() {
                         )}
                       </div>
                       <button
-                        onClick={() => setIsAddProductModalOpen(true)}
+                        onClick={handleOpenAddProduct}
                         className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center active:scale-90 transition-all border border-indigo-100"
                       >
                         <Plus className="w-5 h-5" />
@@ -851,9 +864,18 @@ export default function RoomPage() {
                         })}
 
                         {mobileFiltered.length === 0 && (
-                          <div className="col-span-2 py-16 text-center text-slate-400">
+                          <div className="col-span-2 py-12 text-center text-slate-400">
                             <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
                             <p className="text-sm font-medium">Không tìm thấy món</p>
+                            {searchTerm && (
+                              <Button
+                                onClick={handleOpenAddProduct}
+                                variant="outline"
+                                className="mt-4 border-dashed border-2 rounded-2xl text-indigo-600 border-indigo-100 h-12 px-6 shadow-sm"
+                              >
+                                <Plus className="w-4 h-4 mr-2" /> Thêm mới "{searchTerm}"
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1180,16 +1202,20 @@ export default function RoomPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                  <select
+                  <Select
                     value={newProductForm.category}
-                    onChange={e => setNewProductForm({ ...newProductForm, category: e.target.value })}
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                    onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
                   >
-                    <option value="food">Đồ ăn</option>
-                    <option value="drink">Đồ uống</option>
-                    <option value="dry">Đồ khô</option>
-                    <option value="towel">Khăn lạnh</option>
-                  </select>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
+                      <SelectValue placeholder="Chọn loại" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      <SelectItem value="food">Đồ ăn</SelectItem>
+                      <SelectItem value="drink">Đồ uống</SelectItem>
+                      <SelectItem value="dry">Đồ khô</SelectItem>
+                      <SelectItem value="towel">Khăn lạnh</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
@@ -1434,7 +1460,7 @@ export default function RoomPage() {
                     />
                   </div>
                   <Button
-                    onClick={() => setIsAddProductModalOpen(true)}
+                    onClick={handleOpenAddProduct}
                     className="h-12 w-12 lg:w-auto bg-white border border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
                   >
                     <Plus className="w-5 h-5" /> <span className="hidden lg:inline font-bold">Thêm món mới</span>
@@ -1498,6 +1524,20 @@ export default function RoomPage() {
                       );
                     })}
                   </div>
+                  {desktopFiltered.length === 0 && (
+                    <div className="col-span-full py-20 text-center text-slate-400 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100">
+                      <Box className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                      <p className="text-sm font-medium">Không tìm thấy sản phẩm nào khớp với từ khóa</p>
+                      {searchTerm && (
+                        <Button
+                          onClick={handleOpenAddProduct}
+                          className="mt-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl h-12 px-8 font-bold shadow-lg shadow-indigo-100"
+                        >
+                          <Plus className="w-4 h-4 mr-2" /> Tạo món mới "{searchTerm}" vào kho ngay
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -1685,16 +1725,20 @@ export default function RoomPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <select
+                <Select
                   value={newProductForm.category}
-                  onChange={e => setNewProductForm({ ...newProductForm, category: e.target.value })}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
                 >
-                  <option value="food">Đồ ăn</option>
-                  <option value="drink">Đồ uống</option>
-                  <option value="dry">Đồ khô</option>
-                  <option value="towel">Khăn lạnh</option>
-                </select>
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm">
+                    <SelectValue placeholder="Chọn loại" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="food">Đồ ăn</SelectItem>
+                    <SelectItem value="drink">Đồ uống</SelectItem>
+                    <SelectItem value="dry">Đồ khô</SelectItem>
+                    <SelectItem value="towel">Khăn lạnh</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
