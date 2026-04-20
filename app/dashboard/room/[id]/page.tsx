@@ -348,12 +348,19 @@ export default function RoomPage() {
         String(r.id ?? r.Id) !== String(room.id) &&
         String(r.storeId ?? r.StoreId) === String(currentStoreId)
       );
-      setAvailableRooms(emptyOnes.map((r: any) => ({
+      const mappedRooms = emptyOnes.map((r: any) => ({
         ...r,
         id: r.id ?? r.Id,
         roomNumber: r.roomNumber ?? r.RoomNumber,
         capacity: r.capacity ?? r.Capacity
-      })));
+      }));
+
+      // Sắp xếp số phòng theo thứ tự tự nhiên (1, 2, ..., 10, 11)
+      mappedRooms.sort((a: any, b: any) =>
+        String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true })
+      );
+
+      setAvailableRooms(mappedRooms);
       setIsTransferModalOpen(true);
     } catch (err) {
       toast.error('Không thể tải danh sách phòng trống');
@@ -418,7 +425,6 @@ export default function RoomPage() {
         if (res.ok) {
           const updated = await res.json();
           setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
-          await loadRoomData(roomId);
         }
       } else {
         const res = await fetch('/api/orders', {
@@ -429,7 +435,6 @@ export default function RoomPage() {
         if (res.ok) {
           const newItem = await res.json();
           setOrderItems([...orderItems, newItem]);
-          await loadRoomData(roomId);
         }
       }
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
@@ -448,7 +453,6 @@ export default function RoomPage() {
       if (res.ok) {
         const updated = await res.json();
         setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
-        await loadRoomData(roomId);
         setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
       } else toast.error('Lỗi khi cập nhật số lượng');
     } catch (err) { console.error('Error updating quantity:', err); toast.error('Lỗi khi cập nhật số lượng'); }
@@ -469,7 +473,6 @@ export default function RoomPage() {
       if (res.ok) {
         const updated = await res.json();
         setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
-        await loadRoomData(roomId);
         setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
       } else toast.error('Lỗi khi cập nhật giá');
     } catch (err) { console.error('Error updating price:', err); toast.error('Lỗi khi cập nhật giá'); }
@@ -515,7 +518,6 @@ export default function RoomPage() {
       });
       setOrderItems((prev) => prev.filter((i) => i.id !== item.id));
       setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
-      await loadRoomData(roomId);
     } catch (err) { console.error('Error removing item:', err); toast.error('Lỗi khi xóa sản phẩm'); }
   };
 
