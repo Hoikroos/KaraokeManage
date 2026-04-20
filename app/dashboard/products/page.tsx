@@ -177,11 +177,22 @@ export default function ProductsPage() {
             category = categoryFromExcel as Product['category'];
           }
 
-          // 3. Tính toán số lượng (Thùng -> Lon hoặc số lẻ)
-          const rawQty = parseInt(row['Số lượng'] || row['quantity'] || 0);
-          const cases = parseInt(row['Số lượng thùng'] || row['cases'] || 0);
+          // 3. Tính toán số lượng thông minh (Hỗ trợ chữ "thùng")
+          const qtyStr = String(row['Số lượng'] || row['quantity'] || '0').toLowerCase();
+          const unitStr = String(row['Đơn vị'] || row['unit'] || '').toLowerCase();
           const spec = parseInt(row['Quy cách'] || row['conversion'] || 24);
-          const finalQuantity = cases > 0 ? (cases * spec) : rawQty;
+
+          let finalQuantity = 0;
+          const isCase = qtyStr.includes('thùng') || unitStr.includes('thùng') || row['Số lượng thùng'] || row['cases'];
+          const numericValue = parseInt(qtyStr.replace(/[^\d]/g, '')) || parseInt(row['Số lượng thùng'] || row['cases'] || 0);
+
+          if (isCase) {
+            // Nếu có chữ "thùng", nhân với quy cách (mặc định 24)
+            finalQuantity = numericValue * spec;
+          } else {
+            // Nếu là chữ khác hoặc chỉ có số, giữ nguyên số lượng
+            finalQuantity = numericValue;
+          }
 
           // 4. Kiểm tra tồn tại để Upsert (Cập nhật nếu có, thêm mới nếu không)
           const existing = currentInventory.find(p => p.name.toLowerCase().trim() === (name || '').toString().toLowerCase().trim());
