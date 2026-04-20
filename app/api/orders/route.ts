@@ -146,8 +146,8 @@ export async function DELETE(request: Request) {
 }
 
 export async function GET(request: Request) {
-  console.log("REGION:", process.env.VERCEL_REGION)
   try {
+    const region = process.env.VERCEL_REGION || "unknown";
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
 
