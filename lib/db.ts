@@ -45,10 +45,15 @@ export interface RoomSession {
   roomId: string;
   storeId: string;
   startTime: Date;
+  StartTime?: Date; // Hỗ trợ PascalCase từ DB
   endTime?: Date;
-  status: 'active' | 'completed';
+  status: 'active' | 'completed' | 'paused' | 'pending' | 'cancelled';
+  Status?: 'active' | 'completed' | 'paused' | 'pending' | 'cancelled'; // Hỗ trợ PascalCase từ DB
   createdAt: Date;
   updatedAt: Date;
+  UpdatedAt?: Date; // Hỗ trợ PascalCase từ DB
+  customerName?: string;
+  CustomerName?: string;
 }
 
 export interface OrderItem {

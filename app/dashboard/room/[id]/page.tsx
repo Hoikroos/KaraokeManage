@@ -218,8 +218,9 @@ export default function RoomPage() {
             setSession(sessionData);
             setCustomerName(sessionData.customerName ?? (sessionData as any).CustomerName ?? '');
             const start = new Date(sessionData.startTime || (sessionData as any).StartTime || new Date());
+            const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
             setSelectedStartTime(formatDateTimeLocal(start));
-            setSelectedEndTime(formatDateTimeLocal(new Date()));
+            setSelectedEndTime(formatDateTimeLocal(end));
             const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
             const ordersData = await ordersRes.json();
             setOrderItems(Array.isArray(ordersData) ? ordersData : []);
@@ -315,6 +316,49 @@ export default function RoomPage() {
         toast.error('Không thể cập nhật thời gian bắt đầu');
       }
     } catch (err) { console.error('Error updating start time:', err); }
+  };
+
+  const handlePauseSession = async () => {
+    if (!session || !room) return;
+    const sessionId = session.id ?? (session as any).Id;
+    const now = new Date();
+    try {
+      const res = await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sessionId, status: 'paused' }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
+        setSelectedEndTime(formatDateTimeLocal(now));
+        toast.success('Đã tạm dừng tính giờ để thanh toán');
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleResumeSession = async () => {
+    if (!session || !room) return;
+    const sessionId = session.id ?? (session as any).Id;
+    const now = new Date();
+    const pausedAt = new Date((session as any).updatedAt || (session as any).UpdatedAt || now);
+    const pauseDurationMs = now.getTime() - pausedAt.getTime();
+    const oldStartTime = new Date(session.startTime || (session as any).StartTime);
+    const newStartTime = new Date(oldStartTime.getTime() + pauseDurationMs);
+
+    try {
+      const res = await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sessionId, status: 'active', startTime: newStartTime.toISOString() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
+        setSelectedEndTime(formatDateTimeLocal(new Date()));
+        toast.success('Đã tiếp tục tính giờ');
+      }
+    } catch (err) { console.error(err); }
   };
 
   const handleCancelSession = async () => {
@@ -1034,6 +1078,26 @@ export default function RoomPage() {
                               className="bg-indigo-100 text-indigo-600 px-4 rounded-xl text-xs font-bold active:scale-95 transition"
                             >BẮT ĐẦU</button>
                           </div>
+                          {/* Nút Tạm tính / Tiếp tục (Mobile) */}
+                          <div className="pt-2">
+                            {session.status === 'paused' || (session as any).Status === 'paused' ? (
+                              <button
+                                onClick={handleResumeSession}
+                                className="w-full bg-emerald-100 text-emerald-600 rounded-xl py-3 text-sm font-bold active:scale-95 transition flex items-center justify-center gap-2"
+                              >
+                                <Plus className="w-4 h-4" />
+                                TIẾP TỤC TÍNH GIỜ
+                              </button>
+                            ) : (
+                              <button
+                                onClick={handlePauseSession}
+                                className="w-full bg-amber-100 text-amber-600 rounded-xl py-3 text-sm font-bold active:scale-95 transition flex items-center justify-center gap-2"
+                              >
+                                <Clock className="w-4 h-4" />
+                                TẠM TÍNH (DỪNG GIỜ)
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Giờ ra */}
@@ -1330,10 +1394,21 @@ export default function RoomPage() {
                               >Bắt đầu</Button>
                             </div>
                           </div>
-                          <div>
+                          <div className="flex flex-col">
                             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Ra lúc</label>
-                            <Input type="datetime-local" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}
-                              className="h-9 text-[11px] border-slate-100 focus:ring-indigo-500 rounded-lg font-bold" />
+                            <div className="flex gap-2">
+                              <Input type="datetime-local" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}
+                                className="h-9 text-[11px] border-slate-100 focus:ring-indigo-500 rounded-lg font-bold flex-1" />
+                              {session.status === 'paused' || (session as any).Status === 'paused' ? (
+                                <Button size="sm" onClick={handleResumeSession} className="h-9 bg-emerald-600 hover:bg-emerald-700 text-[10px] font-black uppercase rounded-lg">
+                                  Tiếp tục
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" onClick={handlePauseSession} className="h-9 border-amber-200 text-amber-600 hover:bg-amber-50 text-[10px] font-black uppercase rounded-lg">
+                                  Tạm tính
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">

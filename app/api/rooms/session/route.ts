@@ -74,6 +74,7 @@ export async function GET(request: Request) {
         storeId: session.StoreId,
         startTime: session.StartTime,
         status: session.Status,
+        updatedAt: session.UpdatedAt,
         customerName: session.CustomerName ?? 'Khách lẻ',
       });
     }
@@ -123,6 +124,7 @@ export async function PUT(request: Request) {
       storeId: session.StoreId,
       startTime: session.StartTime,
       status: session.Status,
+      updatedAt: session.UpdatedAt,
       customerName: session.CustomerName, // ✅ THÊM: trả về tên khách hàng
     });
   } catch (error) {
