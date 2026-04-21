@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [sessionTotals, setSessionTotals] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
+  const [lowStockCount, setLowStockCount] = useState(0);
 
   const fetchRooms = useCallback(async (storeId: string) => {
     try {
@@ -102,6 +103,17 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchStockAlert = useCallback(async (storeId: string) => {
+    try {
+      const res = await fetch(`/api/products?storeId=${storeId}`);
+      const products: Product[] = await res.json();
+      const lowStock = products.filter(p => p.quantity <= 5).length;
+      setLowStockCount(lowStock);
+    } catch (err) {
+      console.error('Error fetching stock alert:', err);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       // Fetch stores
@@ -121,13 +133,14 @@ export default function Dashboard() {
       if (initialStoreId) {
         setSelectedStoreId(initialStoreId);
         fetchRooms(initialStoreId);
+        fetchStockAlert(initialStoreId);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [user, fetchRooms]);
+  }, [user, fetchRooms, fetchStockAlert]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -189,6 +202,13 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-slate-900 hidden md:block">QUẢN LÝ HỆ THỐNG KARAOKE</h1>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            {lowStockCount > 0 && (
+              <Link href="/dashboard/products">
+                <div className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-1">
+                  <Package className="w-3 h-3" /> {lowStockCount} món sắp hết
+                </div>
+              </Link>
+            )}
             <div className="hidden sm:flex flex-col items-end mr-2">
               <span className="text-slate-900 font-semibold text-sm">{user?.name}</span>
               <span className="text-slate-500 text-[10px] uppercase tracking-wider">{user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</span>
@@ -305,8 +325,8 @@ export default function Dashboard() {
                         </div>
                         <div
                           className={`px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap ${room.status === 'empty'
-                              ? 'bg-blue-100 text-blue-700'
-                              : ((sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')
+                            ? 'bg-blue-100 text-blue-700'
+                            : ((sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')
                             }`}
                         >
                           {room.status === 'empty' ? 'Trống' : ((sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'Tạm tính' : 'Dùng')}
