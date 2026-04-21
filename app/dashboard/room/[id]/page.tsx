@@ -1276,6 +1276,7 @@ export default function RoomPage() {
                       <SelectItem value="food">Đồ ăn</SelectItem>
                       <SelectItem value="drink">Đồ uống</SelectItem>
                       <SelectItem value="dry">Đồ khô</SelectItem>
+                      <SelectItem value="fruit">Trái cây</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1829,6 +1830,7 @@ export default function RoomPage() {
                     <SelectItem value="food">Đồ ăn</SelectItem>
                     <SelectItem value="drink">Đồ uống</SelectItem>
                     <SelectItem value="dry">Đồ khô</SelectItem>
+                    <SelectItem value="fruit">Trái cây</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
