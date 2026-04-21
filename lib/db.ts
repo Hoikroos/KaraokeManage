@@ -34,7 +34,7 @@ export interface Product {
   id: string;
   storeId: string;
   name: string;
-  category: 'food' | 'drink' | 'dry' | 'cake';
+  category: 'food' | 'drink' | 'dry' | 'cake' | 'fruit';
   price: number;
   quantity: number;
   createdAt: Date;

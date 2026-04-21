@@ -27,13 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Edit2, Trash2, ArrowLeft, ListOrdered, Search, Filter, Package, ShoppingBag, Utensils, Beaker, Cookie, Layers, CheckCircle2, AlertCircle, Store as StoreIcon, FileSpreadsheet, Upload } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowLeft, ListOrdered, Search, Filter, Package, ShoppingBag, Utensils, Beaker, Cookie, Layers, CheckCircle2, AlertCircle, Store as StoreIcon, FileSpreadsheet, Upload, Apple } from 'lucide-react';
 
 interface Product {
   id: string;
   storeId: string;
   name: string;
-  category: 'food' | 'drink' | 'dry';
+  category: 'food' | 'drink' | 'dry' | 'fruit';
   price: number;
   quantity: number;
   note?: string;
@@ -44,6 +44,7 @@ const categoryOptions = [
   { value: 'food', label: 'Đồ Ăn', icon: <Utensils className="w-4 h-4" />, color: 'bg-orange-400' },
   { value: 'drink', label: 'Đồ uống, bia', icon: <Beaker className="w-4 h-4" />, color: 'bg-blue-400' },
   { value: 'dry', label: 'Đồ Khô', icon: <Package className="w-4 h-4" />, color: 'bg-amber-600' },
+  { value: 'fruit', label: 'Trái cây', icon: <Apple className="w-4 h-4" />, color: 'bg-emerald-500' },
 ] as const;
 
 export default function ProductsPage() {
@@ -165,6 +166,8 @@ export default function ProductsPage() {
             'nước ngọt': 'drink',
             'đồ khô': 'dry',
             'khô': 'dry',
+            'trái cây': 'fruit',
+            'hoa quả': 'fruit',
           };
 
           let category: Product['category'] = 'food';

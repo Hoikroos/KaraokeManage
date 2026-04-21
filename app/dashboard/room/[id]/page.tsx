@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft,
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,6 +29,7 @@ const DESKTOP_CATEGORIES = [
   { id: 'food', name: 'Đồ ăn', icon: <Sandwich className="w-4 h-4" /> },
   { id: 'drink', name: 'Đồ uống', icon: <GlassWater className="w-4 h-4" /> },
   { id: 'dry', name: 'Đồ khô', icon: <Box className="w-4 h-4" /> },
+  { id: 'fruit', name: 'Trái cây', icon: <Apple className="w-4 h-4" /> },
 ];
 
 const MOBILE_CATEGORIES = [
@@ -36,6 +37,7 @@ const MOBILE_CATEGORIES = [
   { id: 'food', name: 'Đồ ăn', icon: <Sandwich className="w-4 h-4" />, color: 'bg-rose-500' },
   { id: 'drink', name: 'Đồ uống', icon: <GlassWater className="w-4 h-4" />, color: 'bg-blue-500' },
   { id: 'dry', name: 'Đồ khô', icon: <Box className="w-4 h-4" />, color: 'bg-amber-500' },
+  { id: 'fruit', name: 'Trái cây', icon: <Apple className="w-4 h-4" />, color: 'bg-emerald-500' },
 ];
 
 // ─── Fetch helper ─────────────────────────────────────────────────────────────

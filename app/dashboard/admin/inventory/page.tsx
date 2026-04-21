@@ -119,7 +119,11 @@ export default function InventoryStatsPage() {
             groups[s.category] = (groups[s.category] || 0) + s.totalQuantity;
         });
         return Object.entries(groups).map(([name, value]) => ({
-            name: name === 'food' ? 'Đồ ăn' : name === 'drink' ? 'Đồ uống' : name === 'dry' ? 'Đồ khô' : 'Khác',
+            name: name === 'food' ? 'Đồ ăn' 
+                : name === 'drink' ? 'Đồ uống' 
+                : name === 'dry' ? 'Đồ khô' 
+                : name === 'fruit' ? 'Trái cây' 
+                : 'Khác',
             value
         }));
     }, [stats]);

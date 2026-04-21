@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 
-const validCategories = ['food', 'drink', 'dry', 'towel', 'cake'] as const;
+const validCategories = ['food', 'drink', 'dry', 'towel', 'cake', 'fruit'] as const;
 
 type ProductCategory = (typeof validCategories)[number];
 
