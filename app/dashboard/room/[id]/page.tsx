@@ -1421,15 +1421,6 @@ export default function RoomPage() {
                             <div className="flex gap-2">
                               <Input type="datetime-local" value={selectedEndTime} onChange={(e) => setSelectedEndTime(e.target.value)}
                                 className="h-9 text-[11px] border-slate-100 focus:ring-indigo-500 rounded-lg font-bold flex-1" />
-                              {session.status === 'paused' || (session as any).Status === 'paused' ? (
-                                <Button size="sm" onClick={handleResumeSession} className="h-9 bg-emerald-600 hover:bg-emerald-700 text-[10px] font-black uppercase rounded-lg">
-                                  Tiếp tục
-                                </Button>
-                              ) : (
-                                <Button size="sm" variant="outline" onClick={handlePauseSession} className="h-9 border-amber-200 text-amber-600 hover:bg-amber-50 text-[10px] font-black uppercase rounded-lg">
-                                  Tạm tính
-                                </Button>
-                              )}
                             </div>
                           </div>
                         </div>
