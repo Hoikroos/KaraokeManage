@@ -1195,7 +1195,7 @@ export default function RoomPage() {
                         </p>
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4 pt-4 pb-10">
+                    <div className="grid grid-cols-3 gap-3 pt-4 pb-10">
                       <button
                         onClick={() => window.print()}
                         className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
@@ -1205,6 +1205,28 @@ export default function RoomPage() {
                         </div>
                         <span className="text-[11px] font-black uppercase tracking-wider">In tạm tính</span>
                       </button>
+
+                      {session.status === 'paused' || (session as any).Status === 'paused' ? (
+                        <button
+                          onClick={handleResumeSession}
+                          className="bg-emerald-500 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
+                        >
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <Plus className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handlePauseSession}
+                          className="bg-amber-400 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-amber-100 active:scale-95 transition-all"
+                        >
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <Clock className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={handleGenerateInvoice}
@@ -1516,11 +1538,22 @@ export default function RoomPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     <Button onClick={() => window.print()} variant="outline"
                       className="border-slate-200 text-slate-600 hover:bg-slate-50 gap-2 rounded-2xl font-black uppercase tracking-widest h-14 shadow-sm transition-all text-xs">
                       <ReceiptText className="w-4 h-4" /> In tạm tính
                     </Button>
+                    {session.status === 'paused' || (session as any).Status === 'paused' ? (
+                      <Button onClick={handleResumeSession}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-lg shadow-emerald-100 transition-all active:scale-95 text-xs gap-2">
+                        <Plus className="w-4 h-4" /> TIẾP TỤC
+                      </Button>
+                    ) : (
+                      <Button onClick={handlePauseSession} variant="outline"
+                        className="border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 font-black uppercase tracking-widest rounded-2xl h-14 shadow-sm transition-all active:scale-95 text-xs gap-2">
+                        <Clock className="w-4 h-4" /> TẠM TÍNH
+                      </Button>
+                    )}
                     <Button onClick={handleGenerateInvoice} disabled={!!timeError || durationMinutes === 0}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-xs">
                       <CheckCircle2 className="w-4 h-4 mr-2" /> THANH TOÁN
