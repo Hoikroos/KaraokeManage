@@ -306,10 +306,10 @@ export default function Dashboard() {
                         <div
                           className={`px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap ${room.status === 'empty'
                               ? 'bg-blue-100 text-blue-700'
-                              : (sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')
+                              : ((sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')
                             }`}
                         >
-                          {room.status === 'empty' ? 'Trống' : (sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused' ? 'Tạm tính' : 'Dùng')}
+                          {room.status === 'empty' ? 'Trống' : ((sessions[room.id]?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'Tạm tính' : 'Dùng')}
                         </div>
                       </div>
                       <div className="space-y-1.5 text-slate-600 text-sm mt-2 min-h-[52px]"> {/* ← thêm min-h-[52px] */}
@@ -320,10 +320,10 @@ export default function Dashboard() {
                               <span className="text-[11px] sm:text-sm">
                                 {(() => {
                                   const session = sessions[room.id];
-                                  if (!session || session.status === 'pending' || (session as any).Status === 'pending') return '0p';
-                                  const start = new Date(session.startTime || session.StartTime).getTime();
-                                  const isPaused = session.status === 'paused' || (session as any).Status === 'paused';
-                                  const end = isPaused ? new Date(session.updatedAt || (session as any).UpdatedAt || currentTime).getTime() : currentTime.getTime();
+                                  if (!session || session.status === 'pending' || (session as any)?.Status === 'pending') return '0p';
+                                  const start = new Date((session.startTime || (session as any).StartTime)).getTime();
+                                  const isPaused = session.status === 'paused' || (session as any)?.Status === 'paused';
+                                  const end = isPaused ? new Date((session.updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
                                   const diffMs = end - start;
                                   if (diffMs <= 0) return '0p';
                                   const totalMinutes = Math.ceil(diffMs / 60000);
@@ -340,11 +340,11 @@ export default function Dashboard() {
                                   const session = sessions[room.id] as any;
                                   if (!session) return '0';
                                   let roomCharge = 0;
-                                  const isPending = session.status === 'pending' || session.Status === 'pending';
+                                  const isPending = session.status === 'pending' || (session as any)?.Status === 'pending';
                                   if (!isPending) {
-                                    const start = new Date(session.startTime || session.StartTime).getTime();
-                                    const isPaused = session.status === 'paused' || session.Status === 'paused';
-                                    const end = isPaused ? new Date(session.updatedAt || session.UpdatedAt).getTime() : currentTime.getTime();
+                                    const start = new Date((session.startTime || (session as any).StartTime)).getTime();
+                                    const isPaused = session.status === 'paused' || (session as any)?.Status === 'paused';
+                                    const end = isPaused ? new Date((session.updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
                                     const diffMs = end - start;
                                     if (diffMs > 0) {
                                       const minutes = Math.ceil(diffMs / 60000);

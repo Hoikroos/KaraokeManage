@@ -1079,156 +1079,150 @@ export default function RoomPage() {
                             >BẮT ĐẦU</button>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Giờ ra */}
-                      <div>
-                        <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                          Giờ ra (dự kiến)
-                        </label>
-                        <input
-                          type="datetime-local"
-                          value={selectedEndTime}
-                          onChange={(e) => setSelectedEndTime(e.target.value)}
-                          className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                      </div>
+                        {/* Giờ ra */}
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
+                            Giờ ra (dự kiến)
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={selectedEndTime}
+                            onChange={(e) => setSelectedEndTime(e.target.value)}
+                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
+                          />
+                        </div>
 
-                      {/* Khách */}
-                      <div>
-                        <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                          Khách hàng
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Nhập tên hoặc SĐT..."
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
-                      </div>
+                        {/* Khách */}
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
+                            Khách hàng
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Nhập tên hoặc SĐT..."
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
+                          />
+                        </div>
 
-                      {/* Giá giờ */}
-                      <div>
-                        <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                          Giá giờ (VNĐ/giờ)
-                        </label>
-                        <input
-                          type="text"
-                          value={customPricePerHour.toLocaleString('vi-VN')}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setCustomPricePerHour(val ? parseInt(val) : 0);
-                          }}
-                          className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
-                        />
+                        {/* Giá giờ */}
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
+                            Giá giờ (VNĐ/giờ)
+                          </label>
+                          <input
+                            type="text"
+                            value={customPricePerHour.toLocaleString('vi-VN')}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '');
+                              setCustomPricePerHour(val ? parseInt(val) : 0);
+                            }}
+                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
                     {/* ===== SUMMARY ===== */}
-                <div className="bg-gradient-to-br to-blue-400 rounded-3xl p-6 text-white shadow-xl">
-                  <div className="flex items-center gap-2 text-indigo-600 mb-5">
-                    <ReceiptText className="w-4 h-4" />
-                    <span className="font-bold text-xs uppercase tracking-wider">
-                      Tóm tắt thanh toán
-                    </span>
-                  </div>
+                    <div className="bg-gradient-to-br to-blue-400 rounded-3xl p-6 text-white shadow-xl">
+                      <div className="flex items-center gap-2 text-indigo-600 mb-5">
+                        <ReceiptText className="w-4 h-4" />
+                        <span className="font-bold text-xs uppercase tracking-wider">
+                          Tóm tắt thanh toán
+                        </span>
+                      </div>
 
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-black">
-                        Tiền phòng ({durationText})
-                      </span>
-                      <span className="font-semibold text-black">
-                        {roomChargeTotal.toLocaleString('vi-VN')}đ
-                      </span>
-                    </div>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-black">
+                            Tiền phòng ({durationText})
+                          </span>
+                          <span className="font-semibold text-black">
+                            {roomChargeTotal.toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
 
-                    <div className="flex justify-between">
-                      <span className="text-black">
-                        Dịch vụ ({orderItems.length} món)
-                      </span>
-                      <span className="font-semibold text-black">
-                        {totalProductCost.toLocaleString('vi-VN')}đ
-                      </span>
-                    </div>
+                        <div className="flex justify-between">
+                          <span className="text-black">
+                            Dịch vụ ({orderItems.length} món)
+                          </span>
+                          <span className="font-semibold text-black">
+                            {totalProductCost.toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
 
-                    <div className="border-t border-slate-700 my-3" />
+                        <div className="border-t border-slate-700 my-3" />
 
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-indigo-600 text-xs uppercase tracking-wider font-bold">
-                          Tổng cộng
-                        </p>
-                        <p className="text-2xl font-bold text-black">
-                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
-                        </p>
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-indigo-600 text-xs uppercase tracking-wider font-bold">
+                              Tổng cộng
+                            </p>
+                            <p className="text-2xl font-bold text-black">
+                              {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-                {timeError && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
-                    <Info className="w-4 h-4 text-amber-500 mt-0.5" />
-                    <p className="text-amber-700 text-xs font-medium">
-                      {timeError}
-                    </p>
+                    {timeError && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                        <Info className="w-4 h-4 text-amber-500 mt-0.5" />
+                        <p className="text-amber-700 text-xs font-medium">
+                          {timeError}
+                        </p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4 pt-4 pb-10">
+                      <button
+                        onClick={() => window.print()}
+                        className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
+                      >
+                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
+                          <ReceiptText className="w-5 h-5 text-slate-500" />
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-wider">In tạm tính</span>
+                      </button>
+
+                      <button
+                        onClick={handleGenerateInvoice}
+                        disabled={!!timeError || durationMinutes === 0}
+                        className="bg-indigo-600 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-indigo-100 active:scale-95 transition-all disabled:opacity-40"
+                      >
+                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
+                      </button>
+
+                      {/* Nút Tạm tính / Tiếp tục (Mobile) - Đã dời xuống dưới */}
+                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                        <button
+                          onClick={handleResumeSession}
+                          className="col-span-2 w-full bg-emerald-100 text-emerald-600 rounded-2xl py-4 font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
+                        >
+                          <Plus className="w-4 h-4" /> TIẾP TỤC TÍNH GIỜ
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handlePauseSession}
+                          className="col-span-2 w-full bg-amber-100 text-amber-600 rounded-2xl py-4 font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
+                        >
+                          <Clock className="w-4 h-4" /> TẠM TÍNH (DỪNG GIỜ)
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
-                <div className="grid grid-cols-3 gap-3 pt-4 pb-10">
-                  <button
-                    onClick={() => window.print()}
-                    className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
-                  >
-                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                      <ReceiptText className="w-5 h-5 text-slate-500" />
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-wider">In tạm tính</span>
-                  </button>
-
-                  {session.status === 'paused' || (session as any).Status === 'paused' ? (
-                    <button
-                      onClick={handleResumeSession}
-                      className="bg-emerald-500 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
-                    >
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                        <Plus className="w-5 h-5" />
-                      </div>
-                      <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handlePauseSession}
-                      className="bg-amber-400 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-amber-100 active:scale-95 transition-all"
-                    >
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                        <Clock className="w-5 h-5" />
-                      </div>
-                      <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleGenerateInvoice}
-                    disabled={!!timeError || durationMinutes === 0}
-                    className="bg-indigo-600 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-indigo-100 active:scale-95 transition-all disabled:opacity-40"
-                  >
-                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
-                  </button>
-                </div>
               </div>
-                )}
-            </div>
-        </>
+            </>
           )}
-      </div >
+        </div>
 
-        {/* ── Transfer Room Modal (Mobile) ── */ }
-        < Dialog open = { isTransferModalOpen } onOpenChange = { setIsTransferModalOpen } >
+        {/* ── Transfer Room Modal (Mobile) ── */}
+        <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
           <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
             <DialogHeader>
               <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Chọn phòng chuyển đến</DialogTitle>
@@ -1253,60 +1247,60 @@ export default function RoomPage() {
               )}
             </div>
           </DialogContent>
-        </ >
+        </Dialog>
 
-      {/* ── Quick Add Product Modal (Mobile) ── */ }
-      < Dialog open = { isAddProductModalOpen } onOpenChange = { setIsAddProductModalOpen } >
-        <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Thêm sản phẩm mới</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateProduct} className="space-y-4 mt-2">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
-              <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="VD: Pepsi..." className="rounded-xl h-11" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        {/* ── Quick Add Product Modal (Mobile) ── */}
+        <Dialog open={isAddProductModalOpen} onOpenChange={setIsAddProductModalOpen}>
+          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Thêm sản phẩm mới</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateProduct} className="space-y-4 mt-2">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <Select
-                  value={newProductForm.category}
-                  onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
-                >
-                  <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
-                    <SelectValue placeholder="Chọn loại" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="food">Đồ ăn</SelectItem>
-                    <SelectItem value="drink">Đồ uống</SelectItem>
-                    <SelectItem value="dry">Đồ khô</SelectItem>
-                  </SelectContent>
-                </Select>
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
+                <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} placeholder="VD: Pepsi..." className="rounded-xl h-11" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
+                  <Select
+                    value={newProductForm.category}
+                    onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
+                  >
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
+                      <SelectValue placeholder="Chọn loại" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      <SelectItem value="food">Đồ ăn</SelectItem>
+                      <SelectItem value="drink">Đồ uống</SelectItem>
+                      <SelectItem value="dry">Đồ khô</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
+                  <Input
+                    required
+                    type="text"
+                    value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setNewProductForm({ ...newProductForm, price: val });
+                    }}
+                    placeholder="0" className="rounded-xl h-11" />
+                </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                <Input
-                  required
-                  type="text"
-                  value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setNewProductForm({ ...newProductForm, price: val });
-                  }}
-                  placeholder="0" className="rounded-xl h-11" />
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng nhập kho</label>
+                <Input type="number" value={newProductForm.quantity} onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })} className="rounded-xl h-11" />
               </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng nhập kho</label>
-              <Input type="number" value={newProductForm.quantity} onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })} className="rounded-xl h-11" />
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold">Lưu & Thêm</Button>
-              <Button type="button" variant="ghost" onClick={() => setIsAddProductModalOpen(false)} className="h-12 rounded-xl">Hủy</Button>
-            </div>
-          </form>
-        </DialogContent>
-        </ >
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold">Lưu & Thêm</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsAddProductModalOpen(false)} className="h-12 rounded-xl">Hủy</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -1510,26 +1504,33 @@ export default function RoomPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <Button onClick={() => window.print()} variant="outline"
                       className="border-slate-200 text-slate-600 hover:bg-slate-50 gap-2 rounded-2xl font-black uppercase tracking-widest h-14 shadow-sm transition-all text-xs">
                       <ReceiptText className="w-4 h-4" /> In tạm tính
                     </Button>
-                    {session.status === 'paused' || (session as any).Status === 'paused' ? (
-                      <Button onClick={handleResumeSession}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-lg shadow-emerald-100 transition-all active:scale-95 text-xs gap-2">
-                        <Plus className="w-4 h-4" /> TIẾP TỤC
-                      </Button>
-                    ) : (
-                      <Button onClick={handlePauseSession} variant="outline"
-                        className="border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 font-black uppercase tracking-widest rounded-2xl h-14 shadow-sm transition-all active:scale-95 text-xs gap-2">
-                        <Clock className="w-4 h-4" /> TẠM TÍNH
-                      </Button>
-                    )}
                     <Button onClick={handleGenerateInvoice} disabled={!!timeError || durationMinutes === 0}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-xs">
                       <CheckCircle2 className="w-4 h-4 mr-2" /> THANH TOÁN
                     </Button>
+
+                    {/* Nút Tạm tính / Tiếp tục (Desktop) - Đã dời xuống dưới */}
+                    {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                      <Button
+                        onClick={handleResumeSession}
+                        className="col-span-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest rounded-2xl h-12 shadow-md transition-all active:scale-95 text-[11px]"
+                      >
+                        <Plus className="w-4 h-4 mr-2" /> Tiếp tục tính giờ
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handlePauseSession}
+                        variant="outline"
+                        className="col-span-2 w-full border-amber-200 text-amber-600 hover:bg-amber-50 font-black uppercase tracking-widest rounded-2xl h-12 shadow-sm transition-all active:scale-95 text-[11px]"
+                      >
+                        <Clock className="w-4 h-4 mr-2" /> Tạm tính (Dừng giờ)
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
