@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     const session = await prisma.roomSession.findFirst({
       where: {
         RoomId: roomId,
-        Status: { in: ['active', 'pending'] },
+        Status: { in: ['active', 'pending','paused'] },
       },
       orderBy: {
         StartTime: 'desc',      // ưu tiên session mới nhất
