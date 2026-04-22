@@ -286,12 +286,43 @@ export default function RoomPage() {
   };
 
   const handleUpdateStartTime = async () => {
-    if (!session || !room || !(session.id ?? (session as any).Id)) {
+    const s = session as any;
+    if (!s || !room || !(s.id ?? s.Id)) {
       toast.error('Không tìm thấy phiên hoạt động để bắt đầu');
       return;
     }
+
+    const sessionId = String(s.id ?? s.Id);
+
+    // Nếu phòng đang hoạt động (đã bấm bắt đầu), cho phép xóa giờ hoặc hủy phòng
+    if (s.status === 'active' || s.Status === 'active') {
+      const result = await Swal.fire({
+        title: 'Xử lý giờ chơi',
+        text: 'Khách không chơi nữa hoặc bạn muốn tính lại giờ từ đầu?',
+        icon: 'question',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonColor: '#4f46e5', // Indigo
+        denyButtonColor: '#ef4444',    // Rose
+        confirmButtonText: 'Đặt lại giờ (về 0)',
+        denyButtonText: 'Hủy & Trả phòng trống',
+        cancelButtonText: 'Đóng',
+      });
+
+      if (result.isConfirmed) {
+        // Đưa về trạng thái pending (chưa tính giờ)
+        await updateSessionStatus(sessionId, 'pending');
+        toast.success('Đã xóa giờ chơi, phòng đang ở trạng thái chờ');
+        return;
+      } else if (result.isDenied) {
+        // Hủy luôn phòng
+        await handleCancelSession();
+        return;
+      }
+      return;
+    }
+
     const now = new Date();
-    const sessionId = String(session.id ?? (session as any).Id);
 
     try {
       // Cập nhật giao diện ngay lập tức để người dùng thấy 0 phút
@@ -318,6 +349,22 @@ export default function RoomPage() {
         toast.error('Không thể cập nhật thời gian bắt đầu');
       }
     } catch (err) { console.error('Error updating start time:', err); }
+  };
+
+  // Hàm phụ trợ cập nhật trạng thái session
+  const updateSessionStatus = async (sessionId: string, status: string) => {
+    try {
+      const res = await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sessionId, status }),
+      });
+      if (res.ok) {
+        await loadRoomData(roomId);
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+    }
   };
 
   const handlePauseSession = async () => {
@@ -620,7 +667,8 @@ export default function RoomPage() {
   };
 
   const handleGenerateInvoice = async () => {
-    if (!session || !room || timeError || durationMinutes === 0) return;
+    // Cho phép tạo hóa đơn nếu có tiền giờ HOẶC có sản phẩm trong giỏ hàng
+    if (!session || !room || timeError || (durationMinutes === 0 && orderItems.length === 0)) return;
     try {
       const res = await fetch('/api/invoices', {
         method: 'POST',
@@ -1078,7 +1126,11 @@ export default function RoomPage() {
                             <button
                               onClick={handleUpdateStartTime}
                               className="bg-indigo-100 text-indigo-600 px-4 rounded-xl text-xs font-bold active:scale-95 transition"
-                            >BẮT ĐẦU</button>
+                            >
+                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
+                                ? 'SỬA / XÓA GIỜ'
+                                : 'BẮT ĐẦU'}
+                            </button>
                           </div>
                         </div>
 
@@ -1190,7 +1242,7 @@ export default function RoomPage() {
 
                       <button
                         onClick={handleGenerateInvoice}
-                        disabled={!!timeError || durationMinutes === 0}
+                        disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
                         className="bg-indigo-600 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-indigo-100 active:scale-95 transition-all disabled:opacity-40"
                       >
                         <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
@@ -1391,7 +1443,11 @@ export default function RoomPage() {
                                 variant="outline"
                                 onClick={handleUpdateStartTime}
                                 className="h-9 px-3 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
-                              >Bắt đầu</Button>
+                              >
+                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
+                                  ? 'Sửa / Xóa giờ'
+                                  : 'Bắt đầu'}
+                              </Button>
                             </div>
                           </div>
                           <div className="flex flex-col">
@@ -1512,7 +1568,7 @@ export default function RoomPage() {
                       className="border-slate-200 text-slate-600 hover:bg-slate-50 gap-2 rounded-2xl font-black uppercase tracking-widest h-14 shadow-sm transition-all text-xs">
                       <ReceiptText className="w-4 h-4" /> In tạm tính
                     </Button>
-                    <Button onClick={handleGenerateInvoice} disabled={!!timeError || durationMinutes === 0}
+                    <Button onClick={handleGenerateInvoice} disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-xs">
                       <CheckCircle2 className="w-4 h-4 mr-2" /> THANH TOÁN
                     </Button>
