@@ -1774,12 +1774,12 @@ export default function RoomPage() {
             </tbody>
           </table>
           <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
-            <div className="flex justify-between text-[11px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
+            <div className="flex justify-between text-[12px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
               <span>Tổng Hàng hóa:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
             </div>
           </div>
           <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
-            <div className="flex justify-between text-[11px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
+            <div className="flex justify-between text-[12px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
               <span>Chiết Khấu:</span><span>0%</span>
             </div>
           </div>
