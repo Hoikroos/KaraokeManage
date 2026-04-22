@@ -301,7 +301,7 @@ export default function RoomPage() {
         text: 'Bạn muốn tính lại giờ từ đầu?',
         icon: 'question',
         showCancelButton: true,
-        showDenyButton: true,
+        // showDenyButton: true,
         confirmButtonColor: '#4f46e5', // Indigo
         // denyButtonColor: '#ef4444',    // Rose
         confirmButtonText: 'Đặt lại giờ (về 0)',
