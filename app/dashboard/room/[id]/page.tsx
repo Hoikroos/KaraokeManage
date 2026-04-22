@@ -1564,16 +1564,22 @@ export default function RoomPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <Button onClick={() => window.print()} variant="outline"
-                      className="border-slate-200 text-slate-600 hover:bg-slate-50 gap-2 rounded-2xl font-black uppercase tracking-widest h-14 shadow-sm transition-all text-xs">
-                      <ReceiptText className="w-4 h-4" /> In tạm tính
-                    </Button>
                     <Button onClick={handleGenerateInvoice} disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-xs">
+                      className={`bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-xs
+                        ${(session?.status === 'paused' || (session as any)?.Status === 'paused') ? '' : 'col-span-2'}
+                      `}
+                    >
                       <CheckCircle2 className="w-4 h-4 mr-2" /> THANH TOÁN
                     </Button>
-
+                    {(session?.status === 'paused' || (session as any)?.Status === 'paused') && (
+                      <Button onClick={() => window.print()} variant="outline"
+                        className="border-slate-200 text-slate-600 hover:bg-slate-50 gap-2 rounded-2xl font-black uppercase tracking-widest h-14 shadow-sm transition-all text-xs">
+                        <ReceiptText className="w-4 h-4" /> In tạm tính
+                      </Button>
+                    )}
                     {/* Nút Tạm tính / Tiếp tục (Desktop) - Đã dời xuống dưới */}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
                     {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
                       <Button
                         onClick={handleResumeSession}
