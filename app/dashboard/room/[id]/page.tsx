@@ -303,7 +303,7 @@ export default function RoomPage() {
         showCancelButton: true,
         showDenyButton: true,
         confirmButtonColor: '#4f46e5', // Indigo
-        denyButtonColor: '#ef4444',    // Rose
+        // denyButtonColor: '#ef4444',    // Rose
         confirmButtonText: 'Đặt lại giờ (về 0)',
         // denyButtonText: 'Hủy & Trả phòng trống',
         cancelButtonText: 'Đóng',
@@ -1445,7 +1445,7 @@ export default function RoomPage() {
                                 className="h-9 px-3 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
                               >
                                 {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
-                                  ? 'Sửa / Xóa giờ'
+                                  ? 'Xóa giờ'
                                   : 'Bắt đầu'}
                               </Button>
                             </div>
@@ -1563,45 +1563,49 @@ export default function RoomPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div className="grid grid-cols-2 gap-4 mt-4">
 
-                    {/* THANH TOÁN */}
+                    {/* BÊN TRÁI */}
+                    <div className="grid grid-cols-2 gap-4">
+
+                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                        <>
+                          {/* TẠM TÍNH (tiếp tục) */}
+                          <Button
+                            onClick={handleResumeSession}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase rounded-2xl h-14 text-xs"
+                          >
+                            <Plus className="w-4 h-4 mr-2" /> Tiếp tục
+                          </Button>
+
+                          {/* IN */}
+                          <Button
+                            onClick={() => window.print()}
+                            variant="outline"
+                            className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-black h-14 text-xs"
+                          >
+                            <ReceiptText className="w-4 h-4 mr-2" /> In
+                          </Button>
+                        </>
+                      ) : (
+                        /* CHƯA PAUSE → TẠM TÍNH FULL */
+                        <Button
+                          onClick={handlePauseSession}
+                          variant="outline"
+                          className="col-span-2 border-amber-200 text-amber-600 hover:bg-amber-50 font-black rounded-2xl h-14 text-xs"
+                        >
+                          <Clock className="w-4 h-4 mr-2" /> Tạm tính
+                        </Button>
+                      )}
+                    </div>
+                    {/* BÊN PHẢI: THANH TOÁN */}
                     <Button
                       onClick={handleGenerateInvoice}
                       disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 shadow-xl transition-all active:scale-95 text-xs"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase rounded-2xl h-14 shadow-xl transition-all active:scale-95 text-xs"
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2" /> THANH TOÁN
                     </Button>
-
-                    {/* IN TẠM TÍNH */}
-                    {(session?.status === 'paused' || (session as any)?.Status === 'paused') && (
-                      <Button
-                        onClick={() => window.print()}
-                        variant="outline"
-                        className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-black uppercase tracking-widest h-14 text-xs"
-                      >
-                        <ReceiptText className="w-4 h-4 mr-2" /> In tạm tính
-                      </Button>
-                    )}
-
-                    {/* TẠM TÍNH / TIẾP TỤC */}
-                    {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
-                      <Button
-                        onClick={handleResumeSession}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest rounded-2xl h-14 text-xs"
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Tiếp tục
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handlePauseSession}
-                        variant="outline"
-                        className="border-amber-200 text-amber-600 hover:bg-amber-50 font-black uppercase tracking-widest rounded-2xl h-14 text-xs"
-                      >
-                        <Clock className="w-4 h-4 mr-2" /> Tạm tính
-                      </Button>
-                    )}
                   </div>
                 </div>
               </div>
