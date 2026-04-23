@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Room, Store, RoomSession, Product } from '@/lib/db';
-import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, Mic, Home, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3 } from 'lucide-react';
 
 // Ép trang này và các fetch bên trong chạy tại region Singapore để gần Database
 export const preferredRegion = 'sin1';
@@ -304,12 +304,17 @@ export default function Dashboard() {
                           </h3>
                         </div>
                         <div
-                          className={`px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap ${room.status === 'empty'
-                              ? 'bg-blue-100 text-blue-700'
-                              : (((sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')
+                          className={`px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap flex items-center justify-center ${room.status === 'empty'
+                            ? 'bg-blue-100 text-blue-700'
+                            : (((sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')
                             }`}
                         >
-                          {room.status === 'empty' ? 'Trống' : (((sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused') ? 'Tạm tính' : 'Dùng')}
+                          {room.status === 'empty'
+                            ? 'Trống'
+                            : (((sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused')
+                              ? <ReceiptText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              : 'Dùng')
+                          }
                         </div>
                       </div>
                       <div className="space-y-1.5 text-slate-600 text-sm mt-2 min-h-[52px]"> {/* ← thêm min-h-[52px] */}

@@ -114,6 +114,11 @@ export default function CustomersPage() {
         return Object.entries(groups).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.total - a.total);
     }, [filteredInvoices]);
 
+    // Top khách hàng theo lượt đến
+    const topVisitors = useMemo(() => {
+        return [...customerStats].sort((a, b) => b.count - a.count).slice(0, 10);
+    }, [customerStats]);
+
     const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
     const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -193,28 +198,34 @@ export default function CustomersPage() {
                                 <p className="text-xl font-black text-slate-600">{customerStats.filter(c => c.name !== 'Khách lẻ').length}</p>
                             </div>
                         </div>
+                    </Card>
 
-                        <div className="mt-8">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Xếp hạng chi tiết</p>
-                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                {customerStats.filter(c => c.name !== 'Khách lẻ').map((c, i) => {
-                                    const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
-                                    return (
-                                        <div key={c.name} className="group">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-slate-400">{i + 1}.</span>
-                                                    <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                    <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
+                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">Xếp hạng chi tiết</h2>
+                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {customerStats.filter(c => c.name !== 'Khách lẻ').map((c, i) => {
+                                const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
+                                return (
+                                    <div key={c.name} className="group p-3 hover:bg-slate-50 rounded-xl transition-all">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs font-black text-slate-300 w-4">{i + 1}.</span>
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                                                    {c.name.charAt(0).toUpperCase()}
                                                 </div>
-                                                <span className="text-xs font-black text-indigo-600">{c.total.toLocaleString('vi-VN')}đ</span>
+                                                <span className="text-sm font-bold text-slate-700">{c.name}</span>
                                             </div>
-                                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${percent}%` }} />
+                                            <div className="text-right">
+                                                <div className="text-sm font-black text-indigo-600">{c.total.toLocaleString('vi-VN')}đ</div>
+                                                <div className="text-[10px] font-bold text-emerald-500 uppercase">{c.count} lượt đến</div>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden ml-11">
+                                            <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </Card>
                 </div>

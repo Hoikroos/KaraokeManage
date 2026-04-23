@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users,Package
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -87,6 +87,7 @@ export default function RoomPage() {
   const [editingQuantities, setEditingQuantities] = useState<{ [key: number]: string }>({});
   const [editingPrices, setEditingPrices] = useState<{ [key: number]: string }>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
@@ -132,6 +133,18 @@ export default function RoomPage() {
       )
       .slice(0, 5);
   }, [customerName, allCustomerNames]);
+
+  // Logic lọc gợi ý sản phẩm (Desktop)
+  const productSuggestions = useMemo(() => {
+    if (!searchTerm || searchTerm.trim().length === 0) return [];
+    const search = searchTerm.toLowerCase();
+    return products
+      .filter(p =>
+        p.name.toLowerCase().includes(search) &&
+        p.name.toLowerCase() !== search
+      )
+      .slice(0, 8);
+  }, [searchTerm, products]);
 
   // Đồng bộ tên khách hàng lên server
   useEffect(() => {
@@ -1385,6 +1398,7 @@ export default function RoomPage() {
                       <SelectItem value="drink">Đồ uống</SelectItem>
                       <SelectItem value="dry">Đồ khô</SelectItem>
                       <SelectItem value="fruit">Trái cây</SelectItem>
+                      <SelectItem value="other">Khác</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1691,16 +1705,49 @@ export default function RoomPage() {
               {/* Right column — Product menu */}
               <div className="flex-1 min-w-0 flex flex-col p-4 lg:p-6 overflow-hidden order-2 lg:order-1">
                 <div className="flex flex-col lg:flex-row gap-4 mb-6 items-stretch">
-                  <div className="relative flex-1">
+                  {/* Ô tìm kiếm mở rộng */}
+                  <div className="relative flex-[1.5] lg:min-w-[450px]">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <Input
-                      placeholder="Tìm món ăn, nước uống..."
+                      placeholder="Tìm nhanh món ăn, đồ uống (VD: Tiger, Pepsi, Khăn...)"
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setShowProductSuggestions(true);
+                      }}
+                      onFocus={() => setShowProductSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
                       className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200"
                     />
+                    {/* Danh sách gợi ý món ăn */}
+                    {showProductSuggestions && productSuggestions.length > 0 && (
+                      <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-72 overflow-auto py-2 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+                        {productSuggestions.map((product) => (
+                          <li
+                            key={product.id}
+                            onClick={() => {
+                              setSearchTerm(product.name);
+                              setShowProductSuggestions(false);
+                            }}
+                            className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors">
+                                <Package className="w-4 h-4 text-slate-400 group-hover:text-indigo-600" />
+                              </div>
+                              <span>{product.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-indigo-600 font-black">{product.price.toLocaleString('vi-VN')}đ</div>
+                              <div className="text-[10px] text-slate-400 font-bold uppercase">Kho: {product.quantity}</div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  {/* Danh mục thu gọn hơn */}
+                  <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
                     <Button
                       variant="outline"
                       onClick={handleOpenAddProduct}
