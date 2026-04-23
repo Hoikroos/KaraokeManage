@@ -1,0 +1,175 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+import { useAuth } from '@/app/context';
+import { Store } from '@/lib/db';
+import { Search, ArrowLeft, Calendar, BarChart3, Users, Wallet, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
+interface DisplayInvoice {
+    id: string;
+    totalPrice: number;
+    createdAt: string | Date;
+    customerName?: string;
+}
+
+export default function CustomersPage() {
+    const { user } = useAuth();
+    const [invoices, setInvoices] = useState<DisplayInvoice[]>([]);
+    const [stores, setStores] = useState<Store[]>([]);
+    const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => { setIsMounted(true); }, []);
+    useEffect(() => { if (user !== undefined) fetchInitialData(); }, [user]);
+
+    const fetchInitialData = async () => {
+        try {
+            const storesRes = await fetch('/api/admin/stores');
+            let storesData = (await storesRes.json()) || [];
+            if (user?.role !== 'admin' && user?.storeId) {
+                storesData = storesData.filter((s: Store) => s.id === user.storeId);
+            }
+            setStores(storesData);
+            const initialStoreId = user?.storeId || (storesData.length > 0 ? storesData[0].id : '');
+            setSelectedStoreId(initialStoreId);
+            await fetchInvoices(initialStoreId);
+        } catch (error) { console.error(error); await fetchInvoices(''); }
+    };
+
+    const fetchInvoices = async (storeId: string) => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (storeId && storeId !== 'all') params.append('storeId', storeId);
+            params.append('t', Date.now().toString()); // Tránh lấy dữ liệu cũ từ cache
+            const res = await fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' });
+            const data = await res.json();
+            const rawInvoices = Array.isArray(data) ? data : (data?.invoices || data?.data || []);
+            setInvoices(rawInvoices.map((inv: any) => ({
+                id: String(inv.id || inv.Id || ''),
+                totalPrice: Number(inv.totalPrice || inv.TotalPrice || 0),
+                createdAt: inv.createdAt || inv.CreatedAt,
+                customerName: inv.customerName || inv.CustomerName || 'Khách lẻ',
+            })));
+        } catch (error) { console.error(error); } finally { setIsLoading(false); }
+    };
+
+    const filteredInvoices = useMemo(() => invoices.filter(inv => {
+        const matchSearch = (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
+        if (!matchSearch) return false;
+        if (startDate || endDate) {
+            const invDate = new Date(inv.createdAt);
+            if (startDate && invDate < new Date(startDate)) return false;
+            if (endDate && invDate > new Date(new Date(endDate).setHours(23, 59, 59))) return false;
+        }
+        return true;
+    }), [invoices, searchTerm, startDate, endDate]);
+
+    const customerStats = useMemo(() => {
+        const groups: { [key: string]: { count: number; total: number } } = {};
+        filteredInvoices.forEach(inv => {
+            const name = inv.customerName?.trim() || 'Khách lẻ';
+            if (!groups[name]) groups[name] = { count: 0, total: 0 };
+            groups[name].count += 1;
+            groups[name].total += inv.totalPrice;
+        });
+        return Object.entries(groups).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.total - a.total);
+    }, [filteredInvoices]);
+
+    const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
+    const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+    if (!isMounted || isLoading) return <div className="p-12 text-center text-slate-400">Đang tải phân tích...</div>;
+
+    return (
+        <div className="min-h-screen bg-slate-50">
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+                <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Link href="/dashboard/invoice"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-2" /> Quay lại hóa đơn</Button></Link>
+                        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-5 h-5 text-indigo-600" /> Khách Hàng</h1>
+                    </div>
+                </div>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 items-end">
+                    <div className={user?.role !== 'admin' ? 'hidden' : ''}>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
+                        <select value={selectedStoreId} onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
+                            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
+                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
+                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label><Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
+                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-indigo-600" /> Top chi tiêu</h2>
+                        <div style={{ width: '100%', height: 400 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={customerStats.slice(0, 10)} layout="vertical" margin={{ left: 40, right: 30 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} width={120} />
+                                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} formatter={(v: any) => [v.toLocaleString('vi-VN') + 'đ', 'Chi tiêu']} />
+                                    <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={25}>
+                                        {customerStats.slice(0, 10).map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </Card>
+
+                    <Card className="p-6 border-none shadow-sm rounded-2xl">
+                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart3 className="w-5 h-5 text-indigo-600" /> Tổng hợp</h2>
+                        <div className="space-y-4">
+                            <div className="bg-indigo-50 rounded-2xl p-4 flex justify-between items-center">
+                                <p className="text-xs font-bold text-indigo-600 uppercase">Doanh thu lọc</p>
+                                <p className="text-xl font-black text-indigo-700">{totalSpendingAll.toLocaleString('vi-VN')}đ</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center">
+                                <p className="text-xs font-bold text-slate-400 uppercase">Khách định danh</p>
+                                <p className="text-xl font-black text-slate-600">{customerStats.filter(c => c.name !== 'Khách lẻ').length}</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-8">
+                            <p className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Xếp hạng chi tiết</p>
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                {customerStats.filter(c => c.name !== 'Khách lẻ').map((c, i) => {
+                                    const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
+                                    return (
+                                        <div key={c.name} className="group">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-slate-400">{i + 1}.</span>
+                                                    <span className="text-sm font-bold text-slate-700">{c.name}</span>
+                                                </div>
+                                                <span className="text-xs font-black text-indigo-600">{c.total.toLocaleString('vi-VN')}đ</span>
+                                            </div>
+                                            <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${percent}%` }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
+}

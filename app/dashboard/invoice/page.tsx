@@ -8,8 +8,7 @@ import Link from 'next/link';
 import Swal from 'sweetalert2';
 import { useAuth } from '@/app/context';
 import { Store } from '@/lib/db';
-import { History, Search, Eye, Printer, ArrowLeft, Calendar, X, BarChart3, Users, Download, Trash2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { History, Search, Eye, Printer, ArrowLeft, Calendar, X, Download, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DisplayInvoice {
@@ -108,40 +107,6 @@ export default function InvoiceHistoryPage() {
         }
         return true;
     }), [invoices, searchTerm, startDate, endDate]);
-
-    const chartData = useMemo(() => {
-        const groups: { [key: string]: { count: number; dateObj: Date } } = {};
-        filteredInvoices.forEach(inv => {
-            if (!inv.createdAt) return;
-            const date = new Date(inv.createdAt);
-            if (isNaN(date.getTime())) return;
-            const key = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-            if (!groups[key]) {
-                groups[key] = { count: 0, dateObj: new Date(date.getFullYear(), date.getMonth(), date.getDate()) };
-            }
-            groups[key].count += 1;
-        });
-        return Object.entries(groups)
-            .map(([name, data]) => ({ name, count: data.count, dateObj: data.dateObj }))
-            .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
-    }, [filteredInvoices]);
-
-    const customerStats = useMemo(() => {
-        const groups: { [key: string]: number } = {};
-        filteredInvoices.forEach(inv => {
-            const name = inv.customerName?.trim() || 'Khách lẻ';
-            groups[name] = (groups[name] || 0) + 1;
-        });
-        return Object.entries(groups)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count);
-    }, [filteredInvoices]);
-
-    const totalLe = customerStats.find(c => c.name === 'Khách lẻ')?.count || 0;
-    const totalNamed = customerStats
-        .filter(c => c.name !== 'Khách lẻ')
-        .reduce((sum, c) => sum + c.count, 0);
-    const namedCustomers = customerStats.filter(c => c.name !== 'Khách lẻ');
 
     // ✅ Chỉ xóa tạm (soft delete) — hóa đơn vào thùng rác, KHÔNG mất dữ liệu
     const handleDeleteInvoice = async (id: string) => {
@@ -257,6 +222,16 @@ export default function InvoiceHistoryPage() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* Nút sang trang Khách hàng */}
+                        <Link href="/dashboard/customers">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-100 gap-2"
+                            >
+                                <Users className="w-4 h-4" /> <span className="hidden sm:inline">Khách hàng</span>
+                            </Button>
+                        </Link>
 
                         {/* ✅ Nút thùng rác */}
                         <Link href="/dashboard/invoice/trash">
@@ -348,87 +323,6 @@ export default function InvoiceHistoryPage() {
                     </div>
                 </div>
 
-                {/* Biểu đồ lượt khách theo ngày */}
-                {isMounted && chartData.length > 0 && (
-                    <Card className="p-6 border-none shadow-sm bg-white rounded-2xl mb-6">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-blue-600" /> Thống kê lượt khách theo ngày
-                        </h2>
-                        <div style={{ width: '100%', height: 250 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
-                                    <Tooltip
-                                        cursor={{ fill: '#f8fafc' }}
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                    />
-                                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Số lượt khách" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </Card>
-                )}
-
-                {/* Thống kê khách hàng */}
-                {isMounted && filteredInvoices.length > 0 && (
-                    <Card className="p-6 border-none shadow-sm bg-white rounded-2xl mb-6">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-600" /> Thống kê khách hàng
-                        </h2>
-
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-blue-50 rounded-xl p-4 text-center">
-                                <p className="text-xs font-bold text-blue-400 uppercase mb-1">Khách hàng</p>
-                                <p className="text-3xl font-black text-blue-600">{totalNamed}</p>
-                                <p className="text-xs text-blue-400 mt-1">lượt</p>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-4 text-center">
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Khách lẻ</p>
-                                <p className="text-3xl font-black text-slate-600">{totalLe}</p>
-                                <p className="text-xs text-slate-400 mt-1">lượt</p>
-                            </div>
-                        </div>
-
-                        {namedCustomers.length > 0 && (
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-4">Chi tiết khách hàng</p>
-                                <div className="space-y-3">
-                                    {namedCustomers.map(({ name, count }) => {
-                                        const percent = Math.round((count / filteredInvoices.length) * 100);
-                                        return (
-                                            <div key={name} className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0">
-                                                    {name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-sm font-semibold text-slate-700 truncate">{name}</span>
-                                                        <span className="text-xs font-bold text-blue-600 ml-2 flex-shrink-0">{count} lượt</span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                                                            style={{ width: `${percent}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs text-slate-400 w-9 text-right flex-shrink-0">{percent}%</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {namedCustomers.length === 0 && (
-                            <p className="text-center text-slate-400 text-sm italic py-4">
-                                Tất cả đều là khách lẻ trong khoảng thời gian này
-                            </p>
-                        )}
-                    </Card>
-                )}
                 <div className="flex items-center justify-end mb-4 gap-2">
                     {/* ✅ Nút xóa tất cả */}
                     {invoices.length > 0 && (

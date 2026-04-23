@@ -294,40 +294,34 @@ export default function RoomPage() {
 
     const sessionId = String(s.id ?? s.Id);
 
-    // Nếu phòng đang hoạt động (đã bấm bắt đầu), cho phép xóa giờ hoặc hủy phòng
+    // Nếu phòng đang hoạt động (đã bấm bắt đầu), cho phép sửa hoặc xóa giờ
     if (s.status === 'active' || s.Status === 'active') {
       const result = await Swal.fire({
         title: 'Xử lý giờ chơi',
-        text: 'Bạn muốn tính lại giờ từ đầu?',
+        html: `Bạn muốn <b>cập nhật</b> giờ vào là <b>${new Date(selectedStartTime).toLocaleTimeString('vi-VN')}</b> <br/> hay <b>xóa giờ</b> để quay về trạng thái chờ?`,
         icon: 'question',
         showCancelButton: true,
-        // showDenyButton: true,
-        confirmButtonColor: '#4f46e5', // Indigo
-        // denyButtonColor: '#ef4444',    // Rose
-        confirmButtonText: 'Đặt lại giờ (về 0)',
-        // denyButtonText: 'Hủy & Trả phòng trống',
+        showDenyButton: true,
+        confirmButtonColor: '#4f46e5', // Indigo - Cập nhật
+        denyButtonColor: '#f59e0b',    // Amber - Xóa giờ
+        confirmButtonText: 'Cập nhật giờ đã chọn',
+        denyButtonText: 'Xóa giờ (về Chờ)',
         cancelButtonText: 'Đóng',
       });
 
-      if (result.isConfirmed) {
-        // Đưa về trạng thái pending (chưa tính giờ)
+      if (result.isDenied) {
         await updateSessionStatus(sessionId, 'pending');
         toast.success('Đã xóa giờ chơi, phòng đang ở trạng thái chờ');
         return;
-      } else if (result.isDenied) {
-        // Hủy luôn phòng
-        await handleCancelSession();
-        return;
       }
-      return;
+      if (!result.isConfirmed) return;
     }
 
-    const now = new Date();
+    // Sử dụng giá trị từ input picker (nếu có), nếu không có mới dùng giờ hiện tại
+    const startTimeToSet = selectedStartTime ? new Date(selectedStartTime) : new Date();
 
     try {
-      // Cập nhật giao diện ngay lập tức để người dùng thấy 0 phút
-      setSelectedStartTime(formatDateTimeLocal(now));
-      setSelectedEndTime(formatDateTimeLocal(now));
+      setSelectedEndTime(formatDateTimeLocal(new Date()));
 
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
@@ -335,18 +329,16 @@ export default function RoomPage() {
         body: JSON.stringify({
           id: sessionId,
           roomId: String(room.id),
-          startTime: now.toISOString(),
-          StartTime: now.toISOString(), // Gửi cả 2 định dạng để chắc chắn Backend nhận được
+          startTime: startTimeToSet.toISOString(),
           status: 'active'
         }),
       });
 
       if (res.ok) {
-        toast.success('Đã xác nhận thời điểm bắt đầu tính tiền');
-        // Quan trọng: Tải lại dữ liệu từ Server để đảm bảo các lần load sau không bị nhảy lại giờ cũ
+        toast.success(s.status === 'active' || s.Status === 'active' ? 'Đã cập nhật giờ vào' : 'Đã bắt đầu tính tiền giờ');
         await loadRoomData(roomId);
       } else {
-        toast.error('Không thể cập nhật thời gian bắt đầu');
+        toast.error('Không thể cập nhật thời gian');
       }
     } catch (err) { console.error('Error updating start time:', err); }
   };
@@ -389,17 +381,12 @@ export default function RoomPage() {
   const handleResumeSession = async () => {
     if (!session || !room) return;
     const sessionId = session.id ?? (session as any).Id;
-    const now = new Date();
-    const pausedAt = new Date((session as any).updatedAt || (session as any).UpdatedAt || now);
-    const pauseDurationMs = now.getTime() - pausedAt.getTime();
-    const oldStartTime = new Date(session.startTime || (session as any).StartTime);
-    const newStartTime = new Date(oldStartTime.getTime() + pauseDurationMs);
 
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: sessionId, status: 'active', startTime: newStartTime.toISOString() }),
+        body: JSON.stringify({ id: sessionId, status: 'active' }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -1128,7 +1115,7 @@ export default function RoomPage() {
                               className="bg-indigo-100 text-indigo-600 px-4 rounded-xl text-xs font-bold active:scale-95 transition"
                             >
                               {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
-                                ? 'XÓA GIỜ'
+                                ? 'SỬA GIỜ'
                                 : 'BẮT ĐẦU'}
                             </button>
                           </div>
@@ -1445,7 +1432,7 @@ export default function RoomPage() {
                                 className="h-9 px-3 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
                               >
                                 {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
-                                  ? 'Xóa giờ'
+                                  ? 'Sửa/Xóa'
                                   : 'Bắt đầu'}
                               </Button>
                             </div>
