@@ -203,6 +203,16 @@ export default function Dashboard() {
                 <span className="hidden md:inline">Lịch sử</span>
               </Button>
             </Link>
+            <Link href="/dashboard/customers">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-600 hover:text-indigo-600 gap-2"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden md:inline">Khách hàng</span>
+              </Button>
+            </Link>
             <Link href="/dashboard/products">
               <Button
                 variant="ghost"
