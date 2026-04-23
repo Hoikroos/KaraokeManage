@@ -2028,6 +2028,7 @@ export default function RoomPage() {
                     <SelectItem value="drink">Đồ uống</SelectItem>
                     <SelectItem value="dry">Đồ khô</SelectItem>
                     <SelectItem value="fruit">Trái cây</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
