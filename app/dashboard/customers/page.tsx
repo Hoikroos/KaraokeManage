@@ -149,15 +149,20 @@ export default function CustomersPage() {
             .sort((a, b) => b.total - a.total);
     }, [filteredInvoices]);
 
+    const namedCustomers = useMemo(
+        () => customerStats.filter(c => c.name !== 'Khách lẻ'),
+        [customerStats]
+    );
+
     const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
-    const avgPerCustomer = customerStats.length > 0
-        ? Math.round(customerStats.reduce((s, c) => s + c.total, 0) / customerStats.length)
+    const avgPerCustomer = namedCustomers.length > 0
+        ? Math.round(namedCustomers.reduce((s, c) => s + c.total, 0) / namedCustomers.length)
         : 0;
 
     // ─── VẼ BIỂU ĐỒ DUAL-AXIS: cột (số lần) + đường (tổng tiền) ───
     const drawDualChart = useCallback(() => {
         if (!chartReady || !spendingChartRef.current) return;
-        const top10 = customerStats.slice(0, 10);
+        const top10 = namedCustomers.slice(0, 10);
         if (top10.length === 0) return;
 
         const labels = top10.map(c => {
@@ -165,7 +170,7 @@ export default function CustomersPage() {
             return parts.slice(-2).join(' ');
         });
         const countData = top10.map(c => c.count);
-        const totalData = top10.map(c => Math.round(c.total / 1000));  // nghìn đồng
+        const totalData = top10.map(c => parseFloat((c.total / 1_000_000).toFixed(2)));  // triệu đồng
 
         if (spendingChartInstance.current) spendingChartInstance.current.destroy();
 
@@ -185,7 +190,7 @@ export default function CustomersPage() {
                     },
                     {
                         type: 'line',
-                        label: 'Tổng Chỉ tiêu',
+                        label: 'Tổng chi tiêu',
                         data: totalData,
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16,185,129,0.08)',
@@ -221,7 +226,8 @@ export default function CustomersPage() {
                                 if (item.datasetIndex === 0)
                                     return `  Số lần ghé: ${item.raw} lần`;
                                 const raw = top10[item.dataIndex];
-                               return `  Chỉ tiêu: ${raw?.total.toLocaleString('vi-VN')}đ`;
+                                const m = (raw?.total / 1_000_000).toFixed(2);
+                                return `  Chi tiêu: ${m}M (${raw?.total.toLocaleString('vi-VN')}đ)`;
                             },
                         },
                     },
@@ -259,7 +265,7 @@ export default function CustomersPage() {
                         position: 'right',
                         title: {
                             display: true,
-                            text: 'Chỉ tiêu',
+                            text: 'Chi tiêu (triệu đ)',
                             color: '#10b981',
                             font: { size: 11 },
                         },
@@ -268,18 +274,18 @@ export default function CustomersPage() {
                         ticks: {
                             font: { size: 11 },
                             color: '#10b981',
-                            callback: (v: number) => `${v.toLocaleString('vi-VN')}k`,
+                            callback: (v: number) => `${v.toLocaleString('vi-VN')}M`,
                         },
                     },
                 },
             },
         });
-    }, [chartReady, customerStats ]);
+    }, [chartReady, namedCustomers]);
 
     // ─── VẼ BIỂU ĐỒ NGANG: top lượt ghé ───
     const drawVisitsChart = useCallback(() => {
         if (!chartReady || !visitsChartRef.current) return;
-        const top10 = [...customerStats].sort((a, b) => b.count - a.count).slice(0, 10);
+        const top10 = [...namedCustomers].sort((a, b) => b.count - a.count).slice(0, 10);
         if (top10.length === 0) return;
 
         const labels = top10.map(c => c.name.trim().split(' ').slice(-2).join(' '));
@@ -349,7 +355,7 @@ export default function CustomersPage() {
                 },
             },
         });
-    }, [chartReady, customerStats]);
+    }, [chartReady, namedCustomers]);
 
     useEffect(() => { drawDualChart(); }, [drawDualChart]);
     useEffect(() => { drawVisitsChart(); }, [drawVisitsChart]);
@@ -453,8 +459,8 @@ export default function CustomersPage() {
                         <p className="text-xl font-black text-emerald-700">{filteredInvoices.length}</p>
                     </div>
                     <div className="bg-violet-50 rounded-2xl p-4">
-                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Tổng nhóm khách</p>
-                        <p className="text-xl font-black text-violet-700">{customerStats.length}</p>
+                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Khách định danh</p>
+                        <p className="text-xl font-black text-violet-700">{namedCustomers.length}</p>
                     </div>
                     <div className="bg-amber-50 rounded-2xl p-4">
                         <p className="text-xs font-bold text-amber-600 uppercase mb-1">TB / khách</p>
@@ -468,7 +474,7 @@ export default function CustomersPage() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                                 <TrendingUp className="w-4 h-4 text-indigo-600" />
-                                Số lần ghé &amp; Chỉ tiêu',
+                                Số lần ghé &amp; Chi tiêu (top 10)
                             </h2>
                             <div className="flex items-center gap-4 text-xs text-slate-500">
                                 <span className="flex items-center gap-1.5">
@@ -477,19 +483,24 @@ export default function CustomersPage() {
                                 </span>
                                 <span className="flex items-center gap-1.5">
                                     <span className="w-6 h-0.5 bg-emerald-500 inline-block rounded" />
-                                    Chỉ tiêu',
+                                    Chi tiêu
                                 </span>
                             </div>
                         </div>
-                        <div style={{ position: 'relative', width: '100%', height: 360 }}>
-                            <canvas
-                                ref={spendingChartRef}
-                                role="img"
-                                aria-label="Biểu đồ cột số lần ghé và đường tổng Chỉ tiêu',ch hàng"
-                            />
-                        </div>
-                        {customerStats.length === 0 && (
-                            <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu giao dịch</p>
+                        {namedCustomers.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-300">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                                <p className="text-sm text-slate-400 font-medium">Không có dữ liệu trong khoảng thời gian này</p>
+                                <p className="text-xs text-slate-300">Thử chọn khoảng ngày khác</p>
+                            </div>
+                        ) : (
+                            <div style={{ position: 'relative', width: '100%', height: 360 }}>
+                                <canvas
+                                    ref={spendingChartRef}
+                                    role="img"
+                                    aria-label="Biểu đồ cột số lần ghé và đường tổng chi tiêu của top 10 khách hàng"
+                                />
+                            </div>
                         )}
                     </Card>
 
@@ -499,15 +510,19 @@ export default function CustomersPage() {
                             <BarChart3 className="w-4 h-4 text-indigo-600" />
                             Top lượt ghé
                         </h2>
-                        <div style={{ position: 'relative', width: '100%', height: Math.max(customerStats.slice(0, 10).length * 40 + 40, 200) }}>
-                            <canvas
-                                ref={visitsChartRef}
-                                role="img"
-                                aria-label="Biểu đồ ngang số lần ghé của top 10 khách hàng"
-                            />
-                        </div>
-                        {customerStats.length === 0 && (
-                            <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu</p>
+                        {namedCustomers.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-300">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <p className="text-xs text-slate-400">Chưa có dữ liệu</p>
+                            </div>
+                        ) : (
+                            <div style={{ position: 'relative', width: '100%', height: Math.max(namedCustomers.slice(0, 10).length * 40 + 40, 200) }}>
+                                <canvas
+                                    ref={visitsChartRef}
+                                    role="img"
+                                    aria-label="Biểu đồ ngang số lần ghé của top 10 khách hàng"
+                                />
+                            </div>
                         )}
                     </Card>
 
@@ -515,7 +530,7 @@ export default function CustomersPage() {
                     <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
                         <h2 className="text-base font-bold text-slate-800 mb-4">Xếp hạng chi tiết</h2>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                            {customerStats.map((c, i) => {
+                            {namedCustomers.map((c, i) => {
                                 const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
                                 const initials = c.name.trim().split(' ').slice(-2).map((w: string) => w[0]).join('').toUpperCase();
                                 return (
@@ -523,11 +538,7 @@ export default function CustomersPage() {
                                         <div className="flex justify-between items-center mb-2">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xs font-black text-slate-300 w-4">{i + 1}.</span>
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                                                    c.name === 'Khách lẻ' 
-                                                    ? 'bg-slate-100 text-slate-500' 
-                                                    : 'bg-indigo-100 text-indigo-600'
-                                                }`}>
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold flex-shrink-0">
                                                     {initials}
                                                 </div>
                                                 <span className="text-sm font-bold text-slate-700">{c.name}</span>
@@ -546,8 +557,8 @@ export default function CustomersPage() {
                                     </div>
                                 );
                             })}
-                            {customerStats.length === 0 && (
-                                <p className="text-center text-sm text-slate-400 py-8">Không có khách hàng trong khoảng thời gian này</p>
+                            {namedCustomers.length === 0 && (
+                                <p className="text-center text-sm text-slate-400 py-8">Không có khách hàng định danh trong khoảng thời gian này</p>
                             )}
                         </div>
                     </Card>
