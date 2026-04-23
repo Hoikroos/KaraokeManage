@@ -154,7 +154,7 @@ export default function CustomersPage() {
         ? Math.round(customerStats.reduce((s, c) => s + c.total, 0) / customerStats.length)
         : 0;
 
-    // ─── VẼ BIỂU ĐỒ DUAL-AXIS: cột (số lần) + đường (tổng tiền) ───
+    // ─── VẼ BIỂU ĐỒ GROUPED BAR: số lần ghé + chi tiêu ───
     const drawDualChart = useCallback(() => {
         if (!chartReady || !spendingChartRef.current) return;
         const top10 = customerStats.slice(0, 10);
@@ -165,39 +165,30 @@ export default function CustomersPage() {
             return parts.slice(-2).join(' ');
         });
         const countData = top10.map(c => c.count);
-        const totalData = top10.map(c => parseFloat((c.total / 1_000_000).toFixed(2)));  // triệu đồng
+        const totalData = top10.map(c => parseFloat((c.total / 1_000_000).toFixed(2)));
 
         if (spendingChartInstance.current) spendingChartInstance.current.destroy();
 
         spendingChartInstance.current = new (window as any).Chart(spendingChartRef.current, {
+            type: 'bar',
             data: {
                 labels,
                 datasets: [
                     {
-                        type: 'bar',
                         label: 'Số lần ghé',
                         data: countData,
-                        backgroundColor: 'rgba(79,70,229,0.75)',
+                        backgroundColor: 'rgba(79,70,229,0.78)',
                         borderRadius: 5,
                         borderSkipped: false,
                         yAxisID: 'yCount',
-                        order: 2,
                     },
                     {
-                        type: 'line',
-                        label: 'Tổng chi tiêu',
+                        label: 'Chi tiêu (triệu đ)',
                         data: totalData,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16,185,129,0.08)',
-                        borderWidth: 2.5,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#10b981',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        fill: true,
-                        tension: 0.35,
+                        backgroundColor: 'rgba(16,185,129,0.72)',
+                        borderRadius: 5,
+                        borderSkipped: false,
                         yAxisID: 'yTotal',
-                        order: 1,
                     },
                 ],
             },
@@ -241,35 +232,21 @@ export default function CustomersPage() {
                     yCount: {
                         type: 'linear',
                         position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Số lần ghé',
-                            color: '#4f46e5',
-                            font: { size: 11 },
-                        },
+                        title: { display: true, text: 'Số lần ghé', color: '#4f46e5', font: { size: 11 } },
                         grid: { color: '#f1f5f9' },
                         border: { display: false },
-                        ticks: {
-                            font: { size: 11 },
-                            color: '#4f46e5',
-                            stepSize: 1,
-                        },
+                        ticks: { font: { size: 11 }, color: '#4f46e5', stepSize: 1 },
                     },
                     yTotal: {
                         type: 'linear',
                         position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Chi tiêu (triệu đ)',
-                            color: '#10b981',
-                            font: { size: 11 },
-                        },
+                        title: { display: true, text: 'Chi tiêu (triệu đ)', color: '#10b981', font: { size: 11 } },
                         grid: { display: false },
                         border: { display: false },
                         ticks: {
                             font: { size: 11 },
                             color: '#10b981',
-                            callback: (v: number) => `${v.toLocaleString('vi-VN')}M`,
+                            callback: (v: number) => `${Number(v).toFixed(1)}M`,
                         },
                     },
                 },
@@ -477,7 +454,7 @@ export default function CustomersPage() {
                                     Số lần ghé
                                 </span>
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-6 h-0.5 bg-emerald-500 inline-block rounded" />
+                                    <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
                                     Chi tiêu
                                 </span>
                             </div>
