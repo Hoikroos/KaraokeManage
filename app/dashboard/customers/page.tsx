@@ -149,20 +149,15 @@ export default function CustomersPage() {
             .sort((a, b) => b.total - a.total);
     }, [filteredInvoices]);
 
-    const namedCustomers = useMemo(
-        () => customerStats.filter(c => c.name !== 'Khách lẻ'),
-        [customerStats]
-    );
-
     const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
-    const avgPerCustomer = namedCustomers.length > 0
-        ? Math.round(namedCustomers.reduce((s, c) => s + c.total, 0) / namedCustomers.length)
+    const avgPerCustomer = customerStats.length > 0
+        ? Math.round(customerStats.reduce((s, c) => s + c.total, 0) / customerStats.length)
         : 0;
 
     // ─── VẼ BIỂU ĐỒ DUAL-AXIS: cột (số lần) + đường (tổng tiền) ───
     const drawDualChart = useCallback(() => {
         if (!chartReady || !spendingChartRef.current) return;
-        const top10 = namedCustomers.slice(0, 10);
+        const top10 = customerStats.slice(0, 10);
         if (top10.length === 0) return;
 
         const labels = top10.map(c => {
@@ -226,7 +221,7 @@ export default function CustomersPage() {
                                 if (item.datasetIndex === 0)
                                     return `  Số lần ghé: ${item.raw} lần`;
                                 const raw = top10[item.dataIndex];
-                                return `  Chỉ tiêu',toLocaleString('vi-VN')}đ`;
+                               return `  Chỉ tiêu: ${raw?.total.toLocaleString('vi-VN')}đ`;
                             },
                         },
                     },
@@ -279,12 +274,12 @@ export default function CustomersPage() {
                 },
             },
         });
-    }, [chartReady, namedCustomers]);
+    }, [chartReady, customerStats ]);
 
     // ─── VẼ BIỂU ĐỒ NGANG: top lượt ghé ───
     const drawVisitsChart = useCallback(() => {
         if (!chartReady || !visitsChartRef.current) return;
-        const top10 = [...namedCustomers].sort((a, b) => b.count - a.count).slice(0, 10);
+        const top10 = [...customerStats].sort((a, b) => b.count - a.count).slice(0, 10);
         if (top10.length === 0) return;
 
         const labels = top10.map(c => c.name.trim().split(' ').slice(-2).join(' '));
@@ -354,7 +349,7 @@ export default function CustomersPage() {
                 },
             },
         });
-    }, [chartReady, namedCustomers]);
+    }, [chartReady, customerStats]);
 
     useEffect(() => { drawDualChart(); }, [drawDualChart]);
     useEffect(() => { drawVisitsChart(); }, [drawVisitsChart]);
@@ -458,8 +453,8 @@ export default function CustomersPage() {
                         <p className="text-xl font-black text-emerald-700">{filteredInvoices.length}</p>
                     </div>
                     <div className="bg-violet-50 rounded-2xl p-4">
-                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Khách định danh</p>
-                        <p className="text-xl font-black text-violet-700">{namedCustomers.length}</p>
+                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Tổng nhóm khách</p>
+                        <p className="text-xl font-black text-violet-700">{customerStats.length}</p>
                     </div>
                     <div className="bg-amber-50 rounded-2xl p-4">
                         <p className="text-xs font-bold text-amber-600 uppercase mb-1">TB / khách</p>
@@ -493,8 +488,8 @@ export default function CustomersPage() {
                                 aria-label="Biểu đồ cột số lần ghé và đường tổng Chỉ tiêu',ch hàng"
                             />
                         </div>
-                        {namedCustomers.length === 0 && (
-                            <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu khách hàng định danh</p>
+                        {customerStats.length === 0 && (
+                            <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu giao dịch</p>
                         )}
                     </Card>
 
@@ -504,14 +499,14 @@ export default function CustomersPage() {
                             <BarChart3 className="w-4 h-4 text-indigo-600" />
                             Top lượt ghé
                         </h2>
-                        <div style={{ position: 'relative', width: '100%', height: Math.max(namedCustomers.slice(0, 10).length * 40 + 40, 200) }}>
+                        <div style={{ position: 'relative', width: '100%', height: Math.max(customerStats.slice(0, 10).length * 40 + 40, 200) }}>
                             <canvas
                                 ref={visitsChartRef}
                                 role="img"
                                 aria-label="Biểu đồ ngang số lần ghé của top 10 khách hàng"
                             />
                         </div>
-                        {namedCustomers.length === 0 && (
+                        {customerStats.length === 0 && (
                             <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu</p>
                         )}
                     </Card>
@@ -520,7 +515,7 @@ export default function CustomersPage() {
                     <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
                         <h2 className="text-base font-bold text-slate-800 mb-4">Xếp hạng chi tiết</h2>
                         <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                            {namedCustomers.map((c, i) => {
+                            {customerStats.map((c, i) => {
                                 const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
                                 const initials = c.name.trim().split(' ').slice(-2).map((w: string) => w[0]).join('').toUpperCase();
                                 return (
@@ -528,7 +523,11 @@ export default function CustomersPage() {
                                         <div className="flex justify-between items-center mb-2">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xs font-black text-slate-300 w-4">{i + 1}.</span>
-                                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold flex-shrink-0">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                                    c.name === 'Khách lẻ' 
+                                                    ? 'bg-slate-100 text-slate-500' 
+                                                    : 'bg-indigo-100 text-indigo-600'
+                                                }`}>
                                                     {initials}
                                                 </div>
                                                 <span className="text-sm font-bold text-slate-700">{c.name}</span>
@@ -547,8 +546,8 @@ export default function CustomersPage() {
                                     </div>
                                 );
                             })}
-                            {namedCustomers.length === 0 && (
-                                <p className="text-center text-sm text-slate-400 py-8">Không có khách hàng định danh trong khoảng thời gian này</p>
+                            {customerStats.length === 0 && (
+                                <p className="text-center text-sm text-slate-400 py-8">Không có khách hàng trong khoảng thời gian này</p>
                             )}
                         </div>
                     </Card>
