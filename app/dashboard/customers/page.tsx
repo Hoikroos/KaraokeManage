@@ -1,20 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useAuth } from '@/app/context';
 import { Store } from '@/lib/db';
-import { Search, ArrowLeft, Calendar, BarChart3, Users, Wallet, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { ArrowLeft, Users, BarChart3, TrendingUp } from 'lucide-react';
+
+// Chart.js được load qua CDN script tag bên dưới, dùng window.Chart
+declare const Chart: any;
 
 interface DisplayInvoice {
     id: string;
     totalPrice: number;
     createdAt: string | Date;
     customerName?: string;
+}
+
+interface CustomerStat {
+    name: string;
+    count: number;
+    total: number;
 }
 
 export default function CustomersPage() {
@@ -26,8 +34,27 @@ export default function CustomersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [reportType, setReportType] = useState<'custom' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('custom');
+    const [reportType, setReportType] = useState<'custom' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
     const [isMounted, setIsMounted] = useState(false);
+    const [chartReady, setChartReady] = useState(false);
+
+    // Refs cho 2 canvas
+    const spendingChartRef = useRef<HTMLCanvasElement>(null);
+    const visitsChartRef = useRef<HTMLCanvasElement>(null);
+    const spendingChartInstance = useRef<any>(null);
+    const visitsChartInstance = useRef<any>(null);
+
+    // Load Chart.js từ CDN một lần duy nhất
+    useEffect(() => {
+        if (typeof window !== 'undefined' && !(window as any).Chart) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+            script.onload = () => setChartReady(true);
+            document.head.appendChild(script);
+        } else {
+            setChartReady(true);
+        }
+    }, []);
 
     useEffect(() => { setIsMounted(true); }, []);
     useEffect(() => { if (user !== undefined) fetchInitialData(); }, [user]);
@@ -43,7 +70,10 @@ export default function CustomersPage() {
             const initialStoreId = user?.storeId || (storesData.length > 0 ? storesData[0].id : '');
             setSelectedStoreId(initialStoreId);
             await fetchInvoices(initialStoreId);
-        } catch (error) { console.error(error); await fetchInvoices(''); }
+        } catch (error) {
+            console.error(error);
+            await fetchInvoices('');
+        }
     };
 
     const fetchInvoices = async (storeId: string) => {
@@ -51,7 +81,7 @@ export default function CustomersPage() {
         try {
             const params = new URLSearchParams();
             if (storeId && storeId !== 'all') params.append('storeId', storeId);
-            params.append('t', Date.now().toString()); // Tránh lấy dữ liệu cũ từ cache
+            params.append('t', Date.now().toString());
             const res = await fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' });
             const data = await res.json();
             const rawInvoices = Array.isArray(data) ? data : (data?.invoices || data?.data || []);
@@ -61,7 +91,11 @@ export default function CustomersPage() {
                 createdAt: inv.createdAt || inv.CreatedAt,
                 customerName: inv.customerName || inv.CustomerName || 'Khách lẻ',
             })));
-        } catch (error) { console.error(error); } finally { setIsLoading(false); }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Tự động cập nhật ngày khi chọn bộ lọc nhanh
@@ -73,13 +107,12 @@ export default function CustomersPage() {
             const d = String(date.getDate()).padStart(2, '0');
             return `${y}-${m}-${d}`;
         };
-
         if (reportType === 'daily') {
             setStartDate(formatDate(now));
             setEndDate(formatDate(now));
         } else if (reportType === 'weekly') {
             const first = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
-            const firstDay = new Date(now.setDate(first));
+            const firstDay = new Date(new Date(now).setDate(first));
             setStartDate(formatDate(firstDay));
             setEndDate(formatDate(new Date()));
         } else if (reportType === 'monthly') {
@@ -103,7 +136,7 @@ export default function CustomersPage() {
         return true;
     }), [invoices, searchTerm, startDate, endDate]);
 
-    const customerStats = useMemo(() => {
+    const customerStats = useMemo((): CustomerStat[] => {
         const groups: { [key: string]: { count: number; total: number } } = {};
         filteredInvoices.forEach(inv => {
             const name = inv.customerName?.trim() || 'Khách lẻ';
@@ -111,45 +144,285 @@ export default function CustomersPage() {
             groups[name].count += 1;
             groups[name].total += inv.totalPrice;
         });
-        return Object.entries(groups).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.total - a.total);
+        return Object.entries(groups)
+            .map(([name, data]) => ({ name, ...data }))
+            .sort((a, b) => b.total - a.total);
     }, [filteredInvoices]);
 
-    // Top khách hàng theo lượt đến
-    const topVisitors = useMemo(() => {
-        return [...customerStats].sort((a, b) => b.count - a.count).slice(0, 10);
-    }, [customerStats]);
+    const namedCustomers = useMemo(
+        () => customerStats.filter(c => c.name !== 'Khách lẻ'),
+        [customerStats]
+    );
 
     const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
-    const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+    const avgPerCustomer = namedCustomers.length > 0
+        ? Math.round(namedCustomers.reduce((s, c) => s + c.total, 0) / namedCustomers.length)
+        : 0;
 
-    if (!isMounted || isLoading) return <div className="p-12 text-center text-slate-400">Đang tải phân tích...</div>;
+    // ─── VẼ BIỂU ĐỒ DUAL-AXIS: cột (số lần) + đường (tổng tiền) ───
+    const drawDualChart = useCallback(() => {
+        if (!chartReady || !spendingChartRef.current) return;
+        const top10 = namedCustomers.slice(0, 10);
+        if (top10.length === 0) return;
+
+        const labels = top10.map(c => {
+            const parts = c.name.trim().split(' ');
+            return parts.slice(-2).join(' ');
+        });
+        const countData = top10.map(c => c.count);
+        const totalData = top10.map(c => Math.round(c.total / 1000));  // nghìn đồng
+
+        if (spendingChartInstance.current) spendingChartInstance.current.destroy();
+
+        spendingChartInstance.current = new (window as any).Chart(spendingChartRef.current, {
+            data: {
+                labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Số lần ghé',
+                        data: countData,
+                        backgroundColor: 'rgba(79,70,229,0.75)',
+                        borderRadius: 5,
+                        borderSkipped: false,
+                        yAxisID: 'yCount',
+                        order: 2,
+                    },
+                    {
+                        type: 'line',
+                        label: 'Tổng Chỉ tiêu',
+                        data: totalData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.08)',
+                        borderWidth: 2.5,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        fill: true,
+                        tension: 0.35,
+                        yAxisID: 'yTotal',
+                        order: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#fff',
+                        titleColor: '#1e293b',
+                        bodyColor: '#475569',
+                        borderColor: '#e2e8f0',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            title: (items: any[]) => top10[items[0].dataIndex]?.name || '',
+                            label: (item: any) => {
+                                if (item.datasetIndex === 0)
+                                    return `  Số lần ghé: ${item.raw} lần`;
+                                const raw = top10[item.dataIndex];
+                                return `  Chỉ tiêu',toLocaleString('vi-VN')}đ`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#64748b',
+                            maxRotation: 30,
+                            autoSkip: false,
+                        },
+                    },
+                    yCount: {
+                        type: 'linear',
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Số lần ghé',
+                            color: '#4f46e5',
+                            font: { size: 11 },
+                        },
+                        grid: { color: '#f1f5f9' },
+                        border: { display: false },
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#4f46e5',
+                            stepSize: 1,
+                        },
+                    },
+                    yTotal: {
+                        type: 'linear',
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Chỉ tiêu',
+                            color: '#10b981',
+                            font: { size: 11 },
+                        },
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: {
+                            font: { size: 11 },
+                            color: '#10b981',
+                            callback: (v: number) => `${v.toLocaleString('vi-VN')}k`,
+                        },
+                    },
+                },
+            },
+        });
+    }, [chartReady, namedCustomers]);
+
+    // ─── VẼ BIỂU ĐỒ NGANG: top lượt ghé ───
+    const drawVisitsChart = useCallback(() => {
+        if (!chartReady || !visitsChartRef.current) return;
+        const top10 = [...namedCustomers].sort((a, b) => b.count - a.count).slice(0, 10);
+        if (top10.length === 0) return;
+
+        const labels = top10.map(c => c.name.trim().split(' ').slice(-2).join(' '));
+
+        if (visitsChartInstance.current) visitsChartInstance.current.destroy();
+
+        visitsChartInstance.current = new (window as any).Chart(visitsChartRef.current, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Số lần ghé',
+                        data: top10.map(c => c.count),
+                        backgroundColor: top10.map((_, i) => {
+                            const palette = [
+                                'rgba(79,70,229,0.8)',
+                                'rgba(16,185,129,0.8)',
+                                'rgba(245,158,11,0.8)',
+                                'rgba(239,68,68,0.8)',
+                                'rgba(139,92,246,0.8)',
+                                'rgba(236,72,153,0.8)',
+                                'rgba(6,182,212,0.8)',
+                                'rgba(234,179,8,0.8)',
+                                'rgba(20,184,166,0.8)',
+                                'rgba(249,115,22,0.8)',
+                            ];
+                            return palette[i % palette.length];
+                        }),
+                        borderRadius: [0, 4, 4, 0] as any,
+                        borderSkipped: false,
+                        barThickness: 22,
+                    },
+                ],
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#fff',
+                        titleColor: '#1e293b',
+                        bodyColor: '#475569',
+                        borderColor: '#e2e8f0',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 10,
+                        callbacks: {
+                            title: (items: any[]) => top10[items[0].dataIndex]?.name || '',
+                            label: (item: any) => `  Số lần ghé: ${item.raw} lần`,
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#f1f5f9' },
+                        border: { display: false },
+                        ticks: { font: { size: 11 }, color: '#64748b', stepSize: 1 },
+                    },
+                    y: {
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: { font: { size: 11, weight: '500' as any }, color: '#334155' },
+                    },
+                },
+            },
+        });
+    }, [chartReady, namedCustomers]);
+
+    useEffect(() => { drawDualChart(); }, [drawDualChart]);
+    useEffect(() => { drawVisitsChart(); }, [drawVisitsChart]);
+
+    // Cleanup khi unmount
+    useEffect(() => {
+        return () => {
+            spendingChartInstance.current?.destroy();
+            visitsChartInstance.current?.destroy();
+        };
+    }, []);
+
+    if (!isMounted || isLoading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-slate-400">Đang tải phân tích...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const QUICK_FILTERS = [
+        { id: 'daily', label: 'Ngày' },
+        { id: 'weekly', label: 'Tuần' },
+        { id: 'monthly', label: 'Tháng' },
+        { id: 'yearly', label: 'Năm' },
+    ];
 
     return (
         <div className="min-h-screen bg-slate-50">
+            {/* Header */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
                 <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Link href="/dashboard/invoice"><Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-2" /> Quay lại hóa đơn</Button></Link>
-                        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-5 h-5 text-indigo-600" /> Khách Hàng</h1>
+                        <Link href="/dashboard/invoice">
+                            <Button variant="ghost" size="sm">
+                                <ArrowLeft className="w-4 h-4 mr-2" />
+                                Quay lại hóa đơn
+                            </Button>
+                        </Link>
+                        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <Users className="w-5 h-5 text-indigo-600" />
+                            Khách Hàng
+                        </h1>
                     </div>
                 </div>
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
+                {/* Bộ lọc */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8 items-end">
-                    <div className={`md:col-span-3 ${user?.role !== 'admin' ? 'hidden' : ''}`}>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
-                        <select value={selectedStoreId} onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
-                            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
+                    {user?.role === 'admin' && (
+                        <div className="md:col-span-3">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
+                            <select
+                                value={selectedStoreId}
+                                onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none"
+                            >
+                                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="md:col-span-3 flex bg-white p-1 rounded-xl border border-slate-200 h-10">
-                        {[
-                            { id: 'daily', label: 'Ngày' },
-                            { id: 'weekly', label: 'Tuần' },
-                            { id: 'monthly', label: 'Tháng' },
-                            { id: 'yearly', label: 'Năm' }
-                        ].map(type => (
+                        {QUICK_FILTERS.map(type => (
                             <button
                                 key={type.id}
                                 onClick={() => setReportType(type.id as any)}
@@ -159,73 +432,124 @@ export default function CustomersPage() {
                             </button>
                         ))}
                     </div>
-                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label><Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setReportType('custom'); }} /></div>
-                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label><Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setReportType('custom'); }} /></div>
-                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label><Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label>
+                        <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setReportType('custom'); }} />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label>
+                        <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setReportType('custom'); }} />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label>
+                        <Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                </div>
+
+                {/* Stat cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                    <div className="bg-indigo-50 rounded-2xl p-4">
+                        <p className="text-xs font-bold text-indigo-500 uppercase mb-1">Doanh thu</p>
+                        <p className="text-xl font-black text-indigo-700">{totalSpendingAll.toLocaleString('vi-VN')}đ</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-2xl p-4">
+                        <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Tổng lượt</p>
+                        <p className="text-xl font-black text-emerald-700">{filteredInvoices.length}</p>
+                    </div>
+                    <div className="bg-violet-50 rounded-2xl p-4">
+                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Khách định danh</p>
+                        <p className="text-xl font-black text-violet-700">{namedCustomers.length}</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-2xl p-4">
+                        <p className="text-xs font-bold text-amber-600 uppercase mb-1">TB / khách</p>
+                        <p className="text-xl font-black text-amber-700">{avgPerCustomer.toLocaleString('vi-VN')}đ</p>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* ── Biểu đồ dual-axis: số lần + tổng tiền ── */}
                     <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-indigo-600" /> Top chi tiêu</h2>
-                        <div style={{ width: '100%', height: 400 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={customerStats.slice(0, 10)} layout="vertical" margin={{ left: 40, right: 30 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} width={120} />
-                                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} formatter={(v: any) => [v.toLocaleString('vi-VN') + 'đ', 'Chi tiêu']} />
-                                    <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={25}>
-                                        {customerStats.slice(0, 10).map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                                Số lần ghé &amp; Chỉ tiêu',
+                            </h2>
+                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />
+                                    Số lần ghé
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-6 h-0.5 bg-emerald-500 inline-block rounded" />
+                                    Chỉ tiêu',
+                                </span>
+                            </div>
                         </div>
+                        <div style={{ position: 'relative', width: '100%', height: 360 }}>
+                            <canvas
+                                ref={spendingChartRef}
+                                role="img"
+                                aria-label="Biểu đồ cột số lần ghé và đường tổng Chỉ tiêu',ch hàng"
+                            />
+                        </div>
+                        {namedCustomers.length === 0 && (
+                            <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu khách hàng định danh</p>
+                        )}
                     </Card>
 
+                    {/* ── Panel tổng hợp + top lượt ghé ngang ── */}
                     <Card className="p-6 border-none shadow-sm rounded-2xl">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart3 className="w-5 h-5 text-indigo-600" /> Tổng hợp</h2>
-                        <div className="space-y-4">
-                            <div className="bg-indigo-50 rounded-2xl p-4 flex justify-between items-center">
-                                <p className="text-xs font-bold text-indigo-600 uppercase">Doanh thu lọc</p>
-                                <p className="text-xl font-black text-indigo-700">{totalSpendingAll.toLocaleString('vi-VN')}đ</p>
-                            </div>
-                            <div className="bg-emerald-50 rounded-2xl p-4 flex justify-between items-center">
-                                <p className="text-xs font-bold text-emerald-600 uppercase">Tổng lượt khách</p>
-                                <p className="text-xl font-black text-emerald-700">{filteredInvoices.length}</p>
-                            </div>
-                            <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center">
-                                <p className="text-xs font-bold text-slate-400 uppercase">Khách định danh</p>
-                                <p className="text-xl font-black text-slate-600">{customerStats.filter(c => c.name !== 'Khách lẻ').length}</p>
-                            </div>
+                        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-indigo-600" />
+                            Top lượt ghé
+                        </h2>
+                        <div style={{ position: 'relative', width: '100%', height: Math.max(namedCustomers.slice(0, 10).length * 40 + 40, 200) }}>
+                            <canvas
+                                ref={visitsChartRef}
+                                role="img"
+                                aria-label="Biểu đồ ngang số lần ghé của top 10 khách hàng"
+                            />
                         </div>
+                        {namedCustomers.length === 0 && (
+                            <p className="text-center text-sm text-slate-400 mt-4">Chưa có dữ liệu</p>
+                        )}
                     </Card>
 
+                    {/* ── Xếp hạng chi tiết ── */}
                     <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
-                        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">Xếp hạng chi tiết</h2>
-                        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {customerStats.filter(c => c.name !== 'Khách lẻ').map((c, i) => {
+                        <h2 className="text-base font-bold text-slate-800 mb-4">Xếp hạng chi tiết</h2>
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                            {namedCustomers.map((c, i) => {
                                 const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
+                                const initials = c.name.trim().split(' ').slice(-2).map((w: string) => w[0]).join('').toUpperCase();
                                 return (
                                     <div key={c.name} className="group p-3 hover:bg-slate-50 rounded-xl transition-all">
                                         <div className="flex justify-between items-center mb-2">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-xs font-black text-slate-300 w-4">{i + 1}.</span>
-                                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
-                                                    {c.name.charAt(0).toUpperCase()}
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold flex-shrink-0">
+                                                    {initials}
                                                 </div>
                                                 <span className="text-sm font-bold text-slate-700">{c.name}</span>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right flex-shrink-0 ml-2">
                                                 <div className="text-sm font-black text-indigo-600">{c.total.toLocaleString('vi-VN')}đ</div>
-                                                <div className="text-[10px] font-bold text-emerald-500 uppercase">{c.count} lượt đến</div>
+                                                <div className="text-[10px] font-bold text-emerald-500 uppercase">{c.count} lượt ghé</div>
                                             </div>
                                         </div>
                                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden ml-11">
-                                            <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                                            <div
+                                                className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                                                style={{ width: `${percent}%` }}
+                                            />
                                         </div>
                                     </div>
                                 );
                             })}
+                            {namedCustomers.length === 0 && (
+                                <p className="text-center text-sm text-slate-400 py-8">Không có khách hàng định danh trong khoảng thời gian này</p>
+                            )}
                         </div>
                     </Card>
                 </div>

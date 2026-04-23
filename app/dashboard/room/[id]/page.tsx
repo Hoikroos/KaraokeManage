@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users,Package
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1203,7 +1203,7 @@ export default function RoomPage() {
                             className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
                           />
                           {showSuggestions && customerSuggestions.length > 0 && (
-                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-xl max-h-48 overflow-auto py-1">
+                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-48 overflow-auto py-1 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
                               {customerSuggestions.map((name) => (
                                 <li
                                   key={name}
@@ -1705,11 +1705,11 @@ export default function RoomPage() {
               {/* Right column — Product menu */}
               <div className="flex-1 min-w-0 flex flex-col p-4 lg:p-6 overflow-hidden order-2 lg:order-1">
                 <div className="flex flex-col lg:flex-row gap-4 mb-6 items-stretch">
-                  {/* Ô tìm kiếm mở rộng */}
-                  <div className="relative flex-[1.5] lg:min-w-[450px]">
+                  {/* Ô tìm kiếm */}
+                  <div className="relative flex-1 lg:max-w-sm">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <Input
-                      placeholder="Tìm nhanh món ăn, đồ uống (VD: Tiger, Pepsi, Khăn...)"
+                      placeholder="Tìm món ăn, đồ uống..."
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
