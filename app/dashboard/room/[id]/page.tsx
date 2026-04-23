@@ -263,11 +263,13 @@ export default function RoomPage() {
 
   const handleStartSession = async () => {
     if (!room) return;
+    const rId = room.id ?? (room as any).Id;
+    const sId = room.storeId ?? (room as any).StoreId;
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId: room.id, storeId: room.storeId }),
+        body: JSON.stringify({ roomId: rId, storeId: sId }),
       });
       if (res.ok) {
         const newSession = await res.json();
@@ -278,9 +280,11 @@ export default function RoomPage() {
         await fetch('/api/admin/rooms', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: room.id, roomNumber: room.roomNumber, capacity: room.capacity, pricePerHour: room.pricePerHour, status: 'occupied' }),
+          body: JSON.stringify({ id: rId, roomNumber: room.roomNumber, capacity: room.capacity, pricePerHour: room.pricePerHour, status: 'occupied' }),
         });
         setRoom({ ...room, status: 'occupied' });
+      } else {
+        toast.error('Không thể mở phòng. Vui lòng thử lại.');
       }
     } catch (err) { console.error('Error starting session:', err); }
   };
@@ -328,7 +332,7 @@ export default function RoomPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: sessionId,
-          roomId: String(room.id),
+          roomId: String(room.id ?? (room as any).Id),
           startTime: startTimeToSet.toISOString(),
           status: 'active'
         }),
@@ -413,10 +417,11 @@ export default function RoomPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: sessionId, status: 'cancelled' }),
       });
+      const rId = room.id ?? (room as any).Id;
       const res = await fetch('/api/admin/rooms', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: room.id, roomNumber: room.roomNumber, capacity: room.capacity, pricePerHour: room.pricePerHour, status: 'empty' }),
+        body: JSON.stringify({ id: rId, roomNumber: room.roomNumber, capacity: room.capacity, pricePerHour: room.pricePerHour, status: 'empty' }),
       });
       if (res.ok) { toast.success('Đã hủy phòng và đưa về trạng thái trống'); router.push('/dashboard'); }
       else toast.error('Lỗi khi hủy phòng');
@@ -430,10 +435,11 @@ export default function RoomPage() {
       const currentStoreId = room.storeId ?? (room as any).StoreId;
       const roomsRes = await fetchFresh(`/api/admin/rooms?storeId=${currentStoreId}&t=${ts}`);
       const roomsData = await roomsRes.json();
+      const rId = room.id ?? (room as any).Id;
       // Lọc các phòng trống, cùng chi nhánh và không phải phòng hiện tại
       const emptyOnes = roomsData.filter((r: any) =>
         (r.status === 'empty' || r.Status === 'empty') &&
-        String(r.id ?? r.Id) !== String(room.id) &&
+        String(r.id ?? r.Id) !== String(rId) &&
         String(r.storeId ?? r.StoreId) === String(currentStoreId)
       );
       const mappedRooms = emptyOnes.map((r: any) => ({
@@ -458,6 +464,7 @@ export default function RoomPage() {
   const handleTransferRoom = async (newRoomId: string) => {
     if (!session || !room) return;
     const sessionId = session.id ?? (session as any).Id;
+    const rId = room.id ?? (room as any).Id;
 
     const result = await Swal.fire({
       title: 'Xác nhận chuyển phòng?',
@@ -475,7 +482,7 @@ export default function RoomPage() {
       const res = await fetch('/api/rooms/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: String(sessionId), oldRoomId: String(room.id), newRoomId: String(newRoomId) }),
+        body: JSON.stringify({ sessionId: String(sessionId), oldRoomId: String(rId), newRoomId: String(newRoomId) }),
       });
 
       // Kiểm tra xem phản hồi có phải là JSON không để tránh lỗi crash khi server trả về HTML error
@@ -542,12 +549,13 @@ export default function RoomPage() {
     e.preventDefault();
     if (!room || !newProductForm.name || !newProductForm.price) return;
 
+    const sId = room.storeId ?? (room as any).StoreId;
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          storeId: room.storeId,
+          storeId: sId,
           name: newProductForm.name,
           category: newProductForm.category,
           price: parseFloat(newProductForm.price),
@@ -1217,16 +1225,30 @@ export default function RoomPage() {
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-4 pt-4 pb-10">
-                      <button
-                        onClick={() => window.print()}
-                        className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
-                      >
-                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                          <ReceiptText className="w-5 h-5 text-slate-500" />
-                        </div>
-                        <span className="text-[11px] font-black uppercase tracking-wider">In tạm tính</span>
-                      </button>
+                      {/* Cột 1: Tạm tính hoặc Tiếp tục (Dựa vào trạng thái session) */}
+                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                        <button
+                          onClick={handleResumeSession}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
+                        >
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <ChevronRight className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handlePauseSession}
+                          className="bg-amber-100 hover:bg-amber-200 text-amber-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
+                        >
+                          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                            <Clock className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
+                        </button>
+                      )}
 
+                      {/* Cột 2: Nút Thanh toán (Luôn hiển thị cùng hàng) */}
                       <button
                         onClick={handleGenerateInvoice}
                         disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
@@ -1238,20 +1260,16 @@ export default function RoomPage() {
                         <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
                       </button>
 
-                      {/* Nút Tạm tính / Tiếp tục (Mobile) - Đã dời xuống dưới */}
-                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                      {/* Hàng 2: Nút In (Chỉ xuất hiện khi đã nhấn Tạm tính) */}
+                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') && (
                         <button
-                          onClick={handleResumeSession}
-                          className="col-span-2 w-full bg-emerald-100 text-emerald-600 rounded-2xl py-4 font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
+                          onClick={() => window.print()}
+                          className="col-span-2 bg-white border border-slate-200 text-slate-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
                         >
-                          <Plus className="w-4 h-4" /> TIẾP TỤC TÍNH GIỜ
-                        </button>
-                      ) : (
-                        <button
-                          onClick={handlePauseSession}
-                          className="col-span-2 w-full bg-amber-100 text-amber-600 rounded-2xl py-4 font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 transition shadow-sm"
-                        >
-                          <Clock className="w-4 h-4" /> TẠM TÍNH (DỪNG GIỜ)
+                          <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
+                            <ReceiptText className="w-5 h-5 text-slate-500" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider">In</span>
                         </button>
                       )}
                     </div>
