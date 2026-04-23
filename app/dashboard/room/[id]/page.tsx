@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple,
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ const DESKTOP_CATEGORIES = [
   { id: 'drink', name: 'Đồ uống', icon: <GlassWater className="w-4 h-4" /> },
   { id: 'dry', name: 'Đồ khô', icon: <Box className="w-4 h-4" /> },
   { id: 'fruit', name: 'Trái cây', icon: <Apple className="w-4 h-4" /> },
+  { id: 'other', name: 'Khác', icon: <Layers className="w-4 h-4" /> },
 ];
 
 const MOBILE_CATEGORIES = [
@@ -38,6 +39,7 @@ const MOBILE_CATEGORIES = [
   { id: 'drink', name: 'Đồ uống', icon: <GlassWater className="w-4 h-4" />, color: 'bg-blue-500' },
   { id: 'dry', name: 'Đồ khô', icon: <Box className="w-4 h-4" />, color: 'bg-amber-500' },
   { id: 'fruit', name: 'Trái cây', icon: <Apple className="w-4 h-4" />, color: 'bg-emerald-500' },
+  { id: 'other', name: 'Khác', icon: <Layers className="w-4 h-4" />, color: 'bg-slate-500' },
 ];
 
 // ─── Fetch helper ─────────────────────────────────────────────────────────────
@@ -89,6 +91,8 @@ export default function RoomPage() {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [allCustomerNames, setAllCustomerNames] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
     name: '',
     category: 'food',
@@ -102,6 +106,32 @@ export default function RoomPage() {
   useEffect(() => {
     isFirstRender.current = true;
   }, [session?.id ?? (session as any)?.Id]);
+
+  // Tải danh sách tên khách hàng cũ để gợi ý
+  useEffect(() => {
+    const fetchUniqueNames = async () => {
+      try {
+        const res = await fetch('/api/invoices');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data?.invoices || data?.data || []);
+        const names = Array.from(new Set(list.map((inv: any) => inv.customerName || inv.CustomerName).filter(Boolean))) as string[];
+        setAllCustomerNames(names.filter(n => n !== 'Khách lẻ'));
+      } catch (e) { console.error('Lỗi lấy danh sách khách hàng:', e); }
+    };
+    fetchUniqueNames();
+  }, []);
+
+  // Logic lọc gợi ý
+  const customerSuggestions = useMemo(() => {
+    if (!customerName || customerName.trim().length === 0) return [];
+    const search = customerName.toLowerCase();
+    return allCustomerNames
+      .filter(name =>
+        name.toLowerCase().includes(search) &&
+        name.toLowerCase() !== search
+      )
+      .slice(0, 5);
+  }, [customerName, allCustomerNames]);
 
   // Đồng bộ tên khách hàng lên server
   useEffect(() => {
@@ -1143,7 +1173,7 @@ export default function RoomPage() {
                         </div>
 
                         {/* Khách */}
-                        <div>
+                        <div className="relative">
                           <label className="text-xs font-semibold text-slate-500 mb-1 block">
                             Khách hàng
                           </label>
@@ -1151,9 +1181,30 @@ export default function RoomPage() {
                             type="text"
                             placeholder="Nhập tên hoặc SĐT..."
                             value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
+                            onChange={(e) => {
+                              setCustomerName(e.target.value);
+                              setShowSuggestions(true);
+                            }}
+                            onFocus={() => setShowSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                             className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
                           />
+                          {showSuggestions && customerSuggestions.length > 0 && (
+                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-xl max-h-48 overflow-auto py-1">
+                              {customerSuggestions.map((name) => (
+                                <li
+                                  key={name}
+                                  onClick={() => {
+                                    setCustomerName(name);
+                                    setShowSuggestions(false);
+                                  }}
+                                  className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2"
+                                >
+                                  <Users className="w-3 h-3 text-slate-400" /> {name}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
 
                         {/* Giá giờ */}
@@ -1473,11 +1524,33 @@ export default function RoomPage() {
                               }}
                               className="h-9 text-xs border-slate-100 focus:ring-indigo-500 rounded-lg font-black text-indigo-600" />
                           </div>
-                          <div>
+                          <div className="relative">
                             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Tên khách</label>
                             <Input type="text" placeholder="Tên hoặc SĐT..."
-                              value={customerName} onChange={(e) => setCustomerName(e.target.value)}
+                              value={customerName}
+                              onChange={(e) => {
+                                setCustomerName(e.target.value);
+                                setShowSuggestions(true);
+                              }}
+                              onFocus={() => setShowSuggestions(true)}
+                              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                               className="h-9 text-xs border-slate-100 focus:ring-indigo-500 rounded-lg font-bold" />
+                            {showSuggestions && customerSuggestions.length > 0 && (
+                              <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-2xl max-h-40 overflow-auto py-1 ring-1 ring-black/5">
+                                {customerSuggestions.map((name) => (
+                                  <li
+                                    key={name}
+                                    onClick={() => {
+                                      setCustomerName(name);
+                                      setShowSuggestions(false);
+                                    }}
+                                    className="px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2"
+                                  >
+                                    <Users className="w-3 h-3 text-slate-400" /> {name}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1580,7 +1653,7 @@ export default function RoomPage() {
                             onClick={handleResumeSession}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase rounded-2xl h-14 text-xs"
                           >
-                            <Plus className="w-4 h-4 mr-2" /> Tiếp tục
+                            <Play className="w-4 h-4 mr-2 fill-current" /> Tiếp tục
                           </Button>
 
                           {/* IN */}

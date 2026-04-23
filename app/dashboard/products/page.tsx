@@ -33,7 +33,7 @@ interface Product {
   id: string;
   storeId: string;
   name: string;
-  category: 'food' | 'drink' | 'dry' | 'fruit';
+  category: 'food' | 'drink' | 'dry' | 'fruit' | 'other';
   price: number;
   quantity: number;
   note?: string;
@@ -45,6 +45,7 @@ const categoryOptions = [
   { value: 'drink', label: 'Đồ uống, bia', icon: <Beaker className="w-4 h-4" />, color: 'bg-blue-400' },
   { value: 'dry', label: 'Đồ Khô', icon: <Package className="w-4 h-4" />, color: 'bg-amber-600' },
   { value: 'fruit', label: 'Trái cây', icon: <Apple className="w-4 h-4" />, color: 'bg-emerald-500' },
+  { value: 'other', label: 'Khác', icon: <Layers className="w-4 h-4" />, color: 'bg-slate-400' },
 ] as const;
 
 export default function ProductsPage() {

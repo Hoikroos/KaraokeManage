@@ -89,7 +89,7 @@ export default function InvoicePage() {
       if (response.ok) {
         toast.success('Thanh toán hoàn tất');
         router.refresh();
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
       } else {
         toast.error('Có lỗi xảy ra khi hoàn tất phòng');
       }

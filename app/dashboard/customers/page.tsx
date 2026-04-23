@@ -26,6 +26,7 @@ export default function CustomersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [reportType, setReportType] = useState<'custom' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('custom');
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => { setIsMounted(true); }, []);
@@ -62,6 +63,34 @@ export default function CustomersPage() {
             })));
         } catch (error) { console.error(error); } finally { setIsLoading(false); }
     };
+
+    // Tự động cập nhật ngày khi chọn bộ lọc nhanh
+    useEffect(() => {
+        const now = new Date();
+        const formatDate = (date: Date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        if (reportType === 'daily') {
+            setStartDate(formatDate(now));
+            setEndDate(formatDate(now));
+        } else if (reportType === 'weekly') {
+            const first = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
+            const firstDay = new Date(now.setDate(first));
+            setStartDate(formatDate(firstDay));
+            setEndDate(formatDate(new Date()));
+        } else if (reportType === 'monthly') {
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            setStartDate(formatDate(firstDay));
+            setEndDate(formatDate(new Date()));
+        } else if (reportType === 'yearly') {
+            setStartDate(`${now.getFullYear()}-01-01`);
+            setEndDate(formatDate(new Date()));
+        }
+    }, [reportType]);
 
     const filteredInvoices = useMemo(() => invoices.filter(inv => {
         const matchSearch = (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -102,16 +131,32 @@ export default function CustomersPage() {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 items-end">
-                    <div className={user?.role !== 'admin' ? 'hidden' : ''}>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8 items-end">
+                    <div className={`md:col-span-3 ${user?.role !== 'admin' ? 'hidden' : ''}`}>
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
                         <select value={selectedStoreId} onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }} className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
                             {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
-                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
-                    <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label><Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                    <div className="md:col-span-3 flex bg-white p-1 rounded-xl border border-slate-200 h-10">
+                        {[
+                            { id: 'daily', label: 'Ngày' },
+                            { id: 'weekly', label: 'Tuần' },
+                            { id: 'monthly', label: 'Tháng' },
+                            { id: 'yearly', label: 'Năm' }
+                        ].map(type => (
+                            <button
+                                key={type.id}
+                                onClick={() => setReportType(type.id as any)}
+                                className={`flex-1 rounded-lg text-xs font-bold transition-all ${reportType === type.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                {type.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label><Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setReportType('custom'); }} /></div>
+                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label><Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setReportType('custom'); }} /></div>
+                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label><Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -138,6 +183,10 @@ export default function CustomersPage() {
                             <div className="bg-indigo-50 rounded-2xl p-4 flex justify-between items-center">
                                 <p className="text-xs font-bold text-indigo-600 uppercase">Doanh thu lọc</p>
                                 <p className="text-xl font-black text-indigo-700">{totalSpendingAll.toLocaleString('vi-VN')}đ</p>
+                            </div>
+                            <div className="bg-emerald-50 rounded-2xl p-4 flex justify-between items-center">
+                                <p className="text-xs font-bold text-emerald-600 uppercase">Tổng lượt khách</p>
+                                <p className="text-xl font-black text-emerald-700">{filteredInvoices.length}</p>
                             </div>
                             <div className="bg-slate-50 rounded-2xl p-4 flex justify-between items-center">
                                 <p className="text-xs font-bold text-slate-400 uppercase">Khách định danh</p>

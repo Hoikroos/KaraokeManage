@@ -88,7 +88,8 @@ export default function InventoryStatsPage() {
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                setStats(Array.isArray(data.stats) ? data.stats : []);
+                const statsData = Array.isArray(data.stats) ? data.stats : [];
+                setStats(statsData);
                 setLogs(Array.isArray(data.logs) ? data.logs : []);
             } else {
                 setStats([]);
@@ -119,11 +120,11 @@ export default function InventoryStatsPage() {
             groups[s.category] = (groups[s.category] || 0) + s.totalQuantity;
         });
         return Object.entries(groups).map(([name, value]) => ({
-            name: name === 'food' ? 'Đồ ăn' 
-                : name === 'drink' ? 'Đồ uống' 
-                : name === 'dry' ? 'Đồ khô' 
-                : name === 'fruit' ? 'Trái cây' 
-                : 'Khác',
+            name: name === 'food' ? 'Đồ ăn'
+                : name === 'drink' ? 'Đồ uống'
+                    : name === 'dry' ? 'Đồ khô'
+                        : name === 'fruit' ? 'Trái cây'
+                            : 'Khác',
             value
         }));
     }, [stats]);
