@@ -34,7 +34,7 @@ export default function CustomersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [reportType, setReportType] = useState<'custom' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+    const [reportType, setReportType] = useState<'custom' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
     const [isMounted, setIsMounted] = useState(false);
     const [chartReady, setChartReady] = useState(false);
 
