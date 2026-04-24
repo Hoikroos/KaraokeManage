@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package,Edit2
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package, Edit2
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1000,12 +1000,11 @@ export default function RoomPage() {
                           const unavail = available <= 0;
 
                           return (
-                            <button
+                            <div
                               key={product.id}
-                              disabled={unavail}
-                              onClick={() => handleAddProduct(product.id, 1)}
+                              onClick={() => !unavail && handleAddProduct(product.id, 1)}
                               className={`bg-white rounded-2xl p-3 text-left shadow-sm border transition active:scale-95 flex flex-col justify-between
-                ${unavail ? 'opacity-40' : 'hover:shadow-md'}
+                ${unavail ? 'opacity-40' : 'hover:shadow-md cursor-pointer'}
                 ${inCart > 0 ? 'border-indigo-500' : 'border-transparent'}
               `}
                             >
@@ -1053,7 +1052,7 @@ export default function RoomPage() {
                                   )}
                                 </div>
                               </div>
-                            </button>
+                            </div>
                           );
                         })}
 
@@ -1858,11 +1857,10 @@ export default function RoomPage() {
                       const available = product.quantity - inCart;
 
                       return (
-                        <button
+                        <div
                           key={product.id}
-                          disabled={product.quantity <= 0}
-                          onClick={() => handleAddProduct(product.id, 1)}
-                          className="group bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition flex flex-col justify-between text-left relative overflow-hidden disabled:opacity-50"
+                          onClick={() => product.quantity > 0 && handleAddProduct(product.id, 1)}
+                          className={`group bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition flex flex-col justify-between text-left relative overflow-hidden ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <div>
                             <div className="font-semibold text-slate-800 text-sm line-clamp-2 mb-1">
@@ -1899,7 +1897,7 @@ export default function RoomPage() {
                               </div>
                             </div>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -2140,6 +2138,15 @@ export default function RoomPage() {
                   }}
                   className="rounded-xl h-11 font-bold text-indigo-600" />
               </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng kho (Hiện có)</label>
+                <Input
+                  type="number"
+                  value={newProductForm.quantity}
+                  onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })}
+                  className="rounded-xl h-11 font-bold"
+                />
+              </div>
             </div>
             <div className="flex gap-3 pt-4">
               <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold text-sm">Cập nhật</Button>
@@ -2191,6 +2198,15 @@ export default function RoomPage() {
                     setNewProductForm({ ...newProductForm, price: val });
                   }}
                   className="rounded-xl font-bold text-indigo-600" />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng kho (Hiện có)</label>
+                <Input
+                  type="number"
+                  value={newProductForm.quantity}
+                  onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })}
+                  className="rounded-xl font-bold"
+                />
               </div>
             </div>
             <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-100">Cập nhật thông tin</Button>
