@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // Calculate items cost
     const itemsCost = items.reduce((total, item) => total + Number(item.Price) * item.Quantity, 0);
     const subtotal = roomCost + itemsCost;
-    const totalPrice = subtotal;
+    const totalPrice = Math.ceil(subtotal / 1000) * 1000;
 
     // Thực hiện trong transaction để đảm bảo tính nhất quán dữ liệu
     const [invoice] = await prisma.$transaction([
@@ -190,7 +190,6 @@ export async function DELETE(request: NextRequest) {
 
     return Response.json({ success: true });
   } catch (error) {
-  }   console.error('Invoice delete error:');
-    return Response.json({ error: 'Server error' }, { status: 500 });
-  }
-
+  } console.error('Invoice delete error:');
+  return Response.json({ error: 'Server error' }, { status: 500 });
+}
