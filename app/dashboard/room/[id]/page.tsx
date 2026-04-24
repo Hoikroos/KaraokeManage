@@ -367,8 +367,10 @@ export default function RoomPage() {
       if (!result.isConfirmed) return;
     }
 
-    // Sử dụng giá trị từ input picker (nếu có), nếu không có mới dùng giờ hiện tại
-    const startTimeToSet = selectedStartTime ? new Date(selectedStartTime) : new Date();
+    // Nếu đang từ trạng thái chờ (pending) chuyển sang bắt đầu, mặc định lấy giờ hiện tại (Now)
+    // Nếu đang hoạt động (active) mà nhấn sửa, thì lấy giá trị từ ô nhập (input picker)
+    const isPending = s.status === 'pending' || s.Status === 'pending';
+    const startTimeToSet = isPending ? new Date() : (selectedStartTime ? new Date(selectedStartTime) : new Date());
 
     try {
       setSelectedEndTime(formatDateTimeLocal(new Date()));
