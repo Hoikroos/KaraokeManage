@@ -319,16 +319,21 @@ export default function RoomPage() {
       });
       if (res.ok) {
         const newSession = await res.json();
-        setSession(newSession); setOrderItems([]);
+        // Cập nhật state local ngay lập tức để UI phản hồi nhanh
+        setSession(newSession);
+        setOrderItems([]);
+        setRoom({ ...room, status: 'occupied' });
+
         const start = new Date(newSession.startTime || newSession.StartTime || new Date());
         setSelectedStartTime(formatDateTimeLocal(start));
         setSelectedEndTime(formatDateTimeLocal(start)); // Để mặc định 0 phút khi mới mở phòng
+
         await fetch('/api/admin/rooms', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: rId, roomNumber: room.roomNumber, capacity: room.capacity, pricePerHour: room.pricePerHour, status: 'occupied' }),
+          keepalive: true, // Đảm bảo yêu cầu hoàn thành kể cả khi chuyển trang nhanh
         });
-        setRoom({ ...room, status: 'occupied' });
       } else {
         toast.error('Không thể mở phòng. Vui lòng thử lại.');
       }
@@ -367,8 +372,10 @@ export default function RoomPage() {
       if (!result.isConfirmed) return;
     }
 
-    // Sử dụng giá trị từ input picker (nếu có), nếu không có mới dùng giờ hiện tại
-    const startTimeToSet = selectedStartTime ? new Date(selectedStartTime) : new Date();
+    // Nếu đang từ trạng thái chờ (pending) chuyển sang bắt đầu, mặc định lấy giờ hiện tại (Now)
+    // Nếu đang hoạt động (active) mà nhấn sửa, thì lấy giá trị từ ô nhập (input picker)
+    const isPending = s.status === 'pending' || s.Status === 'pending';
+    const startTimeToSet = isPending ? new Date() : (selectedStartTime ? new Date(selectedStartTime) : new Date());
 
     try {
       setSelectedEndTime(formatDateTimeLocal(new Date()));
