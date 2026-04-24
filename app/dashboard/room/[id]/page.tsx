@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package,Edit2
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package, Edit2
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1141,7 +1141,10 @@ export default function RoomPage() {
                             {/* DELETE */}
                             <div className="flex flex-col gap-1">
                               <button
-                                onClick={() => handleOpenEditItem(index)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditItem(index);
+                                }}
                                 className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-600 active:scale-90"
                               >
                                 <Edit2 className="w-4 h-4" />
@@ -1654,7 +1657,10 @@ export default function RoomPage() {
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-bold text-slate-900 text-sm line-clamp-2">{item.productName}</span>
                           <div className="flex items-center gap-1">
-                            <button onClick={() => handleOpenEditItem(index)} className="p-1 rounded-md text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditItem(index);
+                            }} className="p-1 rounded-md text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
@@ -2016,7 +2022,10 @@ export default function RoomPage() {
                         {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleOpenEditItem(index)} className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditItem(index);
+                        }} className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
