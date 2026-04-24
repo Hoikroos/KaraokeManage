@@ -1053,6 +1053,11 @@ export default function RoomPage() {
                                   </button>
                                   {!unavail && (
                                     <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        handleAddProduct(product.id, 1);
+                                      }}
                                       type="button"
                                       className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center active:scale-95 transition"
                                     >
@@ -1496,6 +1501,63 @@ export default function RoomPage() {
               <div className="flex gap-3 pt-4">
                 <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold">Lưu & Thêm</Button>
                 <Button type="button" variant="ghost" onClick={() => setIsAddProductModalOpen(false)} className="h-12 rounded-xl">Hủy</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Quick Edit Product Modal (Mobile) ── */}
+        <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
+          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6 z-[150]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Sửa thông tin sản phẩm</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateProductFromMenu} className="space-y-4 mt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
+                <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} className="rounded-xl h-11" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
+                  <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
+                      <SelectValue placeholder="Chọn loại" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      <SelectItem value="food">Đồ ăn</SelectItem>
+                      <SelectItem value="drink">Đồ uống</SelectItem>
+                      <SelectItem value="dry">Đồ khô</SelectItem>
+                      <SelectItem value="fruit">Trái cây</SelectItem>
+                      <SelectItem value="other">Khác</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
+                  <Input
+                    required
+                    type="text"
+                    value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setNewProductForm({ ...newProductForm, price: val });
+                    }}
+                    className="rounded-xl h-11 font-bold text-indigo-600" />
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng kho (Hiện có)</label>
+                  <Input
+                    type="number"
+                    value={newProductForm.quantity}
+                    onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })}
+                    className="rounded-xl h-11 font-bold"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold text-sm">Cập nhật</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsEditProductModalOpen(false)} className="h-12 rounded-xl text-sm">Hủy</Button>
               </div>
             </form>
           </DialogContent>
@@ -2108,63 +2170,6 @@ export default function RoomPage() {
               <p className="col-span-2 text-center py-8 text-slate-500 italic text-sm">Không có phòng nào đang trống</p>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Quick Edit Product Modal (Mobile) ── */}
-      <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
-        <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6 z-[150]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Sửa thông tin sản phẩm</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdateProductFromMenu} className="space-y-4 mt-2">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
-              <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} className="rounded-xl h-11" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
-                  <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
-                    <SelectValue placeholder="Chọn loại" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    <SelectItem value="food">Đồ ăn</SelectItem>
-                    <SelectItem value="drink">Đồ uống</SelectItem>
-                    <SelectItem value="dry">Đồ khô</SelectItem>
-                    <SelectItem value="fruit">Trái cây</SelectItem>
-                    <SelectItem value="other">Khác</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                <Input
-                  required
-                  type="text"
-                  value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setNewProductForm({ ...newProductForm, price: val });
-                  }}
-                  className="rounded-xl h-11 font-bold text-indigo-600" />
-              </div>
-              <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng kho (Hiện có)</label>
-                <Input
-                  type="number"
-                  value={newProductForm.quantity}
-                  onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })}
-                  className="rounded-xl h-11 font-bold"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold text-sm">Cập nhật</Button>
-              <Button type="button" variant="ghost" onClick={() => setIsEditProductModalOpen(false)} className="h-12 rounded-xl text-sm">Hủy</Button>
-            </div>
-          </form>
         </DialogContent>
       </Dialog>
 
