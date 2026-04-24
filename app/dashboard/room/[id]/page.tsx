@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package,Edit2
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -86,6 +86,13 @@ export default function RoomPage() {
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [editingQuantities, setEditingQuantities] = useState<{ [key: number]: string }>({});
   const [editingPrices, setEditingPrices] = useState<{ [key: number]: string }>({});
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [editItemForm, setEditItemForm] = useState({
+    productName: '',
+    price: '',
+    quantity: ''
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
@@ -547,6 +554,47 @@ export default function RoomPage() {
       console.error('Error transferring room:', err);
       toast.error(err.message === 'Máy chủ phản hồi không đúng định dạng' ? 'Lỗi máy chủ (API Error)' : 'Lỗi kết nối máy chủ');
     }
+  };
+
+  const handleOpenEditItem = (index: number) => {
+    const item = orderItems[index];
+    setEditingItemIndex(index);
+    setEditItemForm({
+      productName: item.productName,
+      price: item.price.toString(),
+      quantity: item.quantity.toString()
+    });
+    setIsEditItemModalOpen(true);
+  };
+
+  const handleSaveEditItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingItemIndex === null) return;
+    const item = orderItems[editingItemIndex];
+    const qty = parseInt(editItemForm.quantity);
+    if (qty < 1) {
+      await handleRemoveItem(editingItemIndex);
+      setIsEditItemModalOpen(false);
+      return;
+    }
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: item.id,
+          productName: editItemForm.productName,
+          price: parseFloat(editItemForm.price),
+          quantity: qty
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOrderItems(orderItems.map((i, idx) => idx === editingItemIndex ? updated : i));
+        setIsEditItemModalOpen(false);
+        toast.success('Cập nhật món thành công');
+      } else toast.error('Lỗi khi cập nhật');
+    } catch (err) { toast.error('Lỗi kết nối'); }
   };
 
   const handleAddProduct = async (productId: string, quantity: number) => {
@@ -1091,12 +1139,20 @@ export default function RoomPage() {
                             </div>
                           </div> */}
                             {/* DELETE */}
-                            <button
-                              onClick={() => handleRemoveItem(index)}
-                              className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex flex-col gap-1">
+                              <button
+                                onClick={() => handleOpenEditItem(index)}
+                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-600 active:scale-90"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveItem(index)}
+                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
 
                           </div>
                         ))
@@ -1597,9 +1653,14 @@ export default function RoomPage() {
                       <div key={item.id ?? index} className="group relative flex flex-col p-3.5 rounded-2xl border border-transparent hover:border-slate-100 hover:bg-slate-50/50 transition-all">
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-bold text-slate-900 text-sm line-clamp-2">{item.productName}</span>
-                          <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleOpenEditItem(index)} className="p-1 rounded-md text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center bg-white shadow-sm ring-1 ring-slate-100 rounded-lg overflow-hidden">
@@ -1954,9 +2015,14 @@ export default function RoomPage() {
                       <div className="min-w-[80px] text-right font-black text-indigo-600 text-sm sm:text-base">
                         {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
                       </div>
-                      <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleOpenEditItem(index)} className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

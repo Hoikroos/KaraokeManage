@@ -222,17 +222,6 @@ export default function InvoiceHistoryPage() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
-                        {/* Nút sang trang Khách hàng */}
-                        <Link href="/dashboard/customers">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-100 gap-2"
-                            >
-                                <Users className="w-4 h-4" /> <span className="hidden sm:inline">Khách hàng</span>
-                            </Button>
-                        </Link>
-
                         {/* ✅ Nút thùng rác */}
                         <Link href="/dashboard/invoice/trash">
                             <Button
