@@ -1002,7 +1002,11 @@ export default function RoomPage() {
                           return (
                             <div
                               key={product.id}
-                              onClick={() => !unavail && handleAddProduct(product.id, 1)}
+                              onClick={(e) => {
+                                // Nếu nhấn trúng vào nút (button) thì không chạy lệnh thêm món của thẻ cha
+                                if ((e.target as HTMLElement).closest('button')) return;
+                                !unavail && handleAddProduct(product.id, 1);
+                              }}
                               className={`bg-white rounded-2xl p-3 text-left shadow-sm border transition flex flex-col justify-between relative
                 ${unavail ? 'opacity-40' : 'hover:shadow-md cursor-pointer'}
                 ${inCart > 0 ? 'border-indigo-500' : 'border-transparent'}
@@ -1037,17 +1041,20 @@ export default function RoomPage() {
 
                                 <div className="flex items-center gap-1.5">
                                   <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      e.preventDefault();
                                       handleOpenEditProduct(product);
                                     }}
-                                    className="w-10 h-10 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center active:scale-90 transition relative z-20"
+                                    className="w-12 h-12 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center active:scale-90 transition relative z-30 touch-manipulation"
                                   >
                                     <Edit2 className="w-5 h-5" />
                                   </button>
                                   {!unavail && (
                                     <button
-                                      className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center active:scale-95 transition"
+                                      type="button"
+                                      className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center active:scale-95 transition"
                                     >
                                       <Plus className="w-5 h-5 text-white" />
                                     </button>
@@ -1861,7 +1868,10 @@ export default function RoomPage() {
                       return (
                         <div
                           key={product.id}
-                          onClick={() => product.quantity > 0 && handleAddProduct(product.id, 1)}
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button')) return;
+                            product.quantity > 0 && handleAddProduct(product.id, 1);
+                          }}
                           className={`group bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition flex flex-col justify-between text-left relative overflow-hidden ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         >
                           <div>
