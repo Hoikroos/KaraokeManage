@@ -1003,7 +1003,7 @@ export default function RoomPage() {
                             <div
                               key={product.id}
                               onClick={() => !unavail && handleAddProduct(product.id, 1)}
-                              className={`bg-white rounded-2xl p-3 text-left shadow-sm border transition active:scale-95 flex flex-col justify-between
+                              className={`bg-white rounded-2xl p-3 text-left shadow-sm border transition flex flex-col justify-between relative
                 ${unavail ? 'opacity-40' : 'hover:shadow-md cursor-pointer'}
                 ${inCart > 0 ? 'border-indigo-500' : 'border-transparent'}
               `}
@@ -1041,14 +1041,16 @@ export default function RoomPage() {
                                       e.stopPropagation();
                                       handleOpenEditProduct(product);
                                     }}
-                                    className="w-8 h-8 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center active:scale-90 transition"
+                                    className="w-10 h-10 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center active:scale-90 transition relative z-20"
                                   >
-                                    <Edit2 className="w-4 h-4" />
+                                    <Edit2 className="w-5 h-5" />
                                   </button>
                                   {!unavail && (
-                                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                                      <Plus className="w-4 h-4 text-white" />
-                                    </div>
+                                    <button
+                                      className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center active:scale-95 transition"
+                                    >
+                                      <Plus className="w-5 h-5 text-white" />
+                                    </button>
                                   )}
                                 </div>
                               </div>
@@ -2101,7 +2103,7 @@ export default function RoomPage() {
 
       {/* ── Quick Edit Product Modal (Mobile) ── */}
       <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
-        <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
+        <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6 z-[150]">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Sửa thông tin sản phẩm</DialogTitle>
           </DialogHeader>
