@@ -19,7 +19,7 @@ import {
 import {
   Search, Clock, ShoppingCart, ReceiptText, Trash2, Plus, Minus,
   ChevronLeft, ChevronRight, Grid, Info, CheckCircle2,
-  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package, Edit2
+  Sandwich, GlassWater, Box, Bath, Expand, X, ArrowRightLeft, Apple, Play, Layers, Users, Package
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -86,19 +86,15 @@ export default function RoomPage() {
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [editingQuantities, setEditingQuantities] = useState<{ [key: number]: string }>({});
   const [editingPrices, setEditingPrices] = useState<{ [key: number]: string }>({});
-  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
-  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-  const [editItemForm, setEditItemForm] = useState({
-    productName: '',
-    price: '',
-    quantity: ''
-  });
+  const [editingNames, setEditingNames] = useState<{ [key: number]: string }>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
+  const [editingProductForMenu, setEditingProductForMenu] = useState<Product | null>(null);
   const [allCustomerNames, setAllCustomerNames] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
@@ -556,45 +552,40 @@ export default function RoomPage() {
     }
   };
 
-  const handleOpenEditItem = (index: number) => {
-    const item = orderItems[index];
-    setEditingItemIndex(index);
-    setEditItemForm({
-      productName: item.productName,
-      price: item.price.toString(),
-      quantity: item.quantity.toString()
+  const handleOpenEditProduct = (product: Product) => {
+    setEditingProductForMenu(product);
+    setNewProductForm({
+      name: product.name,
+      category: product.category,
+      price: product.price.toString(),
+      quantity: product.quantity.toString()
     });
-    setIsEditItemModalOpen(true);
+    setIsEditProductModalOpen(true);
   };
 
-  const handleSaveEditItem = async (e: React.FormEvent) => {
+  const handleUpdateProductFromMenu = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingItemIndex === null) return;
-    const item = orderItems[editingItemIndex];
-    const qty = parseInt(editItemForm.quantity);
-    if (qty < 1) {
-      await handleRemoveItem(editingItemIndex);
-      setIsEditItemModalOpen(false);
-      return;
-    }
+    if (!editingProductForMenu || !room) return;
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetch('/api/products', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: item.id,
-          productName: editItemForm.productName,
-          price: parseFloat(editItemForm.price),
-          quantity: qty
+          id: editingProductForMenu.id,
+          name: newProductForm.name,
+          category: newProductForm.category,
+          price: parseFloat(newProductForm.price),
+          quantity: parseInt(newProductForm.quantity) || editingProductForMenu.quantity,
+          logNote: `Sửa nhanh từ phòng ${room.roomNumber}`,
         }),
       });
       if (res.ok) {
         const updated = await res.json();
-        setOrderItems(orderItems.map((i, idx) => idx === editingItemIndex ? updated : i));
-        setIsEditItemModalOpen(false);
-        toast.success('Cập nhật món thành công');
-      } else toast.error('Lỗi khi cập nhật');
-    } catch (err) { toast.error('Lỗi kết nối'); }
+        setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+        setIsEditProductModalOpen(false);
+        toast.success('Đã cập nhật thông tin sản phẩm');
+      } else toast.error('Lỗi khi cập nhật sản phẩm');
+    } catch (err) { toast.error('Lỗi kết nối máy chủ'); }
   };
 
   const handleAddProduct = async (productId: string, quantity: number) => {
@@ -671,20 +662,22 @@ export default function RoomPage() {
     }
   };
 
-  const handleUpdateQuantity = async (index: number, newQuantity: number) => {
+  const handleUpdateOrderItem = async (index: number, updates: Partial<OrderItem>) => {
     const item = orderItems[index];
     if (!item) return;
-    if (newQuantity < 1) { await handleRemoveItem(index); return; }
+    if (updates.quantity !== undefined && updates.quantity < 1) { await handleRemoveItem(index); return; }
     try {
       const res = await fetch('/api/orders', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: item.id, quantity: newQuantity }),
+        body: JSON.stringify({ id: item.id, ...updates }),
       });
       if (res.ok) {
         const updated = await res.json();
         setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
         setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
+        setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
+        setEditingNames((prev) => { const n = { ...prev }; delete n[index]; return n; });
       } else toast.error('Lỗi khi cập nhật số lượng');
     } catch (err) { console.error('Error updating quantity:', err); toast.error('Lỗi khi cập nhật số lượng'); }
   };
@@ -692,32 +685,39 @@ export default function RoomPage() {
   const handleQuantityChange = (index: number, value: string) =>
     setEditingQuantities((prev) => ({ ...prev, [index]: value }));
 
-  const handleUpdatePrice = async (index: number, newPrice: number) => {
-    const item = orderItems[index];
-    if (!item) return;
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: item.id, price: newPrice }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
-        setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
-      } else toast.error('Lỗi khi cập nhật giá');
-    } catch (err) { console.error('Error updating price:', err); toast.error('Lỗi khi cập nhật giá'); }
-  };
-
   const handlePriceChange = (index: number, value: string) =>
     setEditingPrices((prev) => ({ ...prev, [index]: value }));
 
   const handlePriceBlur = (index: number) => {
     const val = editingPrices[index];
-    if (val === undefined || val === '') return;
+    if (val === undefined || val === '') {
+      setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
+      return;
+    }
     const price = parseInt(val.replace(/\D/g, ''));
-    if (!isNaN(price) && price >= 0) handleUpdatePrice(index, price);
-    setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
+    const item = orderItems[index];
+    if (!isNaN(price) && price >= 0 && item && item.price !== price) {
+      handleUpdateOrderItem(index, { price });
+    } else {
+      setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
+    }
+  };
+
+  const handleNameChange = (index: number, value: string) =>
+    setEditingNames((prev) => ({ ...prev, [index]: value }));
+
+  const handleNameBlur = (index: number) => {
+    const val = editingNames[index];
+    if (val === undefined || val.trim() === '') {
+      setEditingNames((prev) => { const n = { ...prev }; delete n[index]; return n; });
+      return;
+    }
+    const item = orderItems[index];
+    if (item && item.productName !== val) {
+      handleUpdateOrderItem(index, { productName: val });
+    } else {
+      setEditingNames((prev) => { const n = { ...prev }; delete n[index]; return n; });
+    }
   };
 
   const handleQuantityBlur = (index: number) => {
@@ -726,7 +726,10 @@ export default function RoomPage() {
       setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; }); return;
     }
     const qty = parseInt(value);
-    if (!isNaN(qty) && qty > 0) handleUpdateQuantity(index, qty);
+    const item = orderItems[index];
+    if (!isNaN(qty) && qty >= 0 && item && item.quantity !== qty) {
+      handleUpdateOrderItem(index, { quantity: qty });
+    }
     else setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
   };
 
@@ -1033,11 +1036,22 @@ export default function RoomPage() {
                                   {available} còn
                                 </div>
 
-                                {!unavail && (
-                                  <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                                    <Plus className="w-4 h-4 text-white" />
-                                  </div>
-                                )}
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditProduct(product);
+                                    }}
+                                    className="w-8 h-8 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center active:scale-90 transition"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  {!unavail && (
+                                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                                      <Plus className="w-4 h-4 text-white" />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </button>
                           );
@@ -1093,9 +1107,13 @@ export default function RoomPage() {
 
                             {/* NAME */}
                             <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-slate-900 text-sm leading-snug break-words">
-                                {item.productName}
-                              </div>
+                              <input
+                                type="text"
+                                value={editingNames[index] ?? item.productName}
+                                onChange={(e) => handleNameChange(index, e.target.value)}
+                                onBlur={() => handleNameBlur(index)}
+                                className="font-semibold text-slate-900 text-sm leading-snug bg-transparent border-none focus:ring-0 p-0 w-full"
+                              />
                               <input
                                 type="text"
                                 value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
@@ -1109,7 +1127,7 @@ export default function RoomPage() {
                             <div className="w-[100px] flex justify-center">
                               <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
                                 <button
-                                  onClick={() => handleUpdateQuantity(index, item.quantity - 1)}
+                                  onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })}
                                   className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
                                 >
                                   <Minus className="w-4 h-4" />
@@ -1124,7 +1142,7 @@ export default function RoomPage() {
                                 />
 
                                 <button
-                                  onClick={() => handleUpdateQuantity(index, item.quantity + 1)}
+                                  onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })}
                                   className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
                                 >
                                   <Plus className="w-4 h-4" />
@@ -1139,23 +1157,12 @@ export default function RoomPage() {
                             </div>
                           </div> */}
                             {/* DELETE */}
-                            <div className="flex flex-col gap-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenEditItem(index);
-                                }}
-                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-600 active:scale-90"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleRemoveItem(index)}
-                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => handleRemoveItem(index)}
+                              className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
 
                           </div>
                         ))
@@ -1653,34 +1660,37 @@ export default function RoomPage() {
                     </div>
                   ) : (
                     orderItems.map((item, index) => (
-                      <div key={item.id ?? index} className="group relative flex flex-col p-3.5 rounded-2xl border border-transparent hover:border-slate-100 hover:bg-slate-50/50 transition-all">
+                      <div key={item.id ?? index} className="group relative flex flex-col p-3.5 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="font-bold text-slate-900 text-sm line-clamp-2">{item.productName}</span>
-                          <div className="flex items-center gap-1">
-                            <button onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenEditItem(index);
-                            }} className="p-1 rounded-md text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <input
+                            type="text"
+                            value={editingNames[index] ?? item.productName}
+                            onChange={(e) => handleNameChange(index, e.target.value)}
+                            onBlur={() => handleNameBlur(index)}
+                            className="font-bold text-slate-900 text-sm line-clamp-2 bg-transparent border-none focus:ring-0 p-0 w-full"
+                          />
+                          <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center bg-white shadow-sm ring-1 ring-slate-100 rounded-lg overflow-hidden">
-                            <button onClick={() => handleUpdateQuantity(index, item.quantity - 1)} className="p-1.5 hover:bg-slate-50 transition-colors"><Minus className="w-3 h-3 text-slate-400" /></button>
+                            <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })} className="p-1.5 hover:bg-slate-50 transition-colors"><Minus className="w-3 h-3 text-slate-400" /></button>
                             <input type="text" className="w-8 text-center text-xs font-black text-slate-700 bg-transparent"
                               value={editingQuantities[index] ?? item.quantity}
                               onChange={(e) => handleQuantityChange(index, e.target.value)}
                               onBlur={() => handleQuantityBlur(index)} />
-                            <button onClick={() => handleUpdateQuantity(index, item.quantity + 1)} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
+                            <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
                           </div>
-                          <span className="font-black text-slate-900 text-sm">
-                            {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}{' '}
-                            <span className="text-[10px] text-slate-400 font-medium uppercase">VNĐ</span>
-                          </span>
+                          <div className="flex flex-col items-end">
+                            <input
+                              type="text"
+                              value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
+                              onChange={(e) => handlePriceChange(index, e.target.value)}
+                              onBlur={() => handlePriceBlur(index)}
+                              className="font-black text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 text-right w-24"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))
@@ -1873,9 +1883,20 @@ export default function RoomPage() {
                             >
                               {available} còn
                             </div>
-                            {/* ADD BTN */}
-                            <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900 text-white group-hover:bg-indigo-600 transition">
-                              <Plus className="w-4 h-4" />
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditProduct(product);
+                                }}
+                                className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition active:scale-95"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              {/* ADD BTN */}
+                              <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900 text-white group-hover:bg-indigo-600 transition">
+                                <Plus className="w-4 h-4" />
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -2006,32 +2027,36 @@ export default function RoomPage() {
                 {orderItems.map((item, index) => (
                   <div key={item.id ?? index} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
                     <div className="flex-1 w-full sm:min-w-0">
-                      <h4 className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug truncate">{item.productName}</h4>
-                      <p className="text-xs text-slate-400 mt-0.5 leading-snug truncate">{item.price.toLocaleString('vi-VN')} VNĐ / Đơn vị</p>
+                      <input
+                        type="text"
+                        value={editingNames[index] ?? item.productName}
+                        onChange={(e) => handleNameChange(index, e.target.value)}
+                        onBlur={() => handleNameBlur(index)}
+                        className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug bg-transparent border-none focus:ring-0 p-0 w-full"
+                      />
+                      <input
+                        type="text"
+                        value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
+                        onChange={(e) => handlePriceChange(index, e.target.value)}
+                        onBlur={() => handlePriceBlur(index)}
+                        className="text-xs text-slate-400 mt-0.5 leading-snug bg-transparent border-none focus:ring-0 p-0 w-full"
+                      />
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
-                        <button onClick={() => handleUpdateQuantity(index, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
+                        <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
                         <input type="text" className="w-12 text-center font-black text-slate-900 bg-transparent border-none focus:ring-0"
                           value={editingQuantities[index] ?? item.quantity}
                           onChange={(e) => handleQuantityChange(index, e.target.value)}
                           onBlur={() => handleQuantityBlur(index)} />
-                        <button onClick={() => handleUpdateQuantity(index, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
+                        <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
                       </div>
                       <div className="min-w-[80px] text-right font-black text-indigo-600 text-sm sm:text-base">
                         {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditItem(index);
-                        }} className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                          <Edit2 className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
+                      <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2073,6 +2098,103 @@ export default function RoomPage() {
               <p className="col-span-2 text-center py-8 text-slate-500 italic text-sm">Không có phòng nào đang trống</p>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Quick Edit Product Modal (Mobile) ── */}
+      <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
+        <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Sửa thông tin sản phẩm</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateProductFromMenu} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
+              <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} className="rounded-xl h-11" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
+                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                  <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
+                    <SelectValue placeholder="Chọn loại" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="food">Đồ ăn</SelectItem>
+                    <SelectItem value="drink">Đồ uống</SelectItem>
+                    <SelectItem value="dry">Đồ khô</SelectItem>
+                    <SelectItem value="fruit">Trái cây</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
+                <Input
+                  required
+                  type="text"
+                  value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setNewProductForm({ ...newProductForm, price: val });
+                  }}
+                  className="rounded-xl h-11 font-bold text-indigo-600" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" className="flex-1 bg-indigo-600 h-12 rounded-xl font-bold text-sm">Cập nhật</Button>
+              <Button type="button" variant="ghost" onClick={() => setIsEditProductModalOpen(false)} className="h-12 rounded-xl text-sm">Hủy</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Quick Edit Product Modal (Desktop) ── */}
+      <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
+        <DialogContent className="max-w-md rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Chỉnh sửa sản phẩm</DialogTitle>
+            <DialogDescription className="font-medium">Thay đổi thông tin gốc của sản phẩm trong thực đơn.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateProductFromMenu} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Tên sản phẩm</label>
+              <Input required value={newProductForm.name} onChange={e => setNewProductForm({ ...newProductForm, name: e.target.value })} className="rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
+                <Select
+                  value={newProductForm.category}
+                  onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm">
+                    <SelectValue placeholder="Chọn loại" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    <SelectItem value="food">Đồ ăn</SelectItem>
+                    <SelectItem value="drink">Đồ uống</SelectItem>
+                    <SelectItem value="dry">Đồ khô</SelectItem>
+                    <SelectItem value="fruit">Trái cây</SelectItem>
+                    <SelectItem value="other">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
+                <Input
+                  required
+                  type="text"
+                  value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setNewProductForm({ ...newProductForm, price: val });
+                  }}
+                  className="rounded-xl font-bold text-indigo-600" />
+              </div>
+            </div>
+            <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-100">Cập nhật thông tin</Button>
+          </form>
         </DialogContent>
       </Dialog>
 
