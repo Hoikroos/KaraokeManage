@@ -188,7 +188,7 @@ export default function InvoiceHistoryPage() {
             `Phòng ${inv.roomNumber}`,
             inv.customerName || 'Khách lẻ',
             new Date(inv.createdAt).toLocaleString('vi-VN'),
-            inv.totalPrice,
+            Math.ceil(inv.totalPrice / 1000) * 1000,
         ]);
 
         const csvContent = [headers.join(','), ...csvData.map(e => e.join(','))].join('\n');
@@ -420,12 +420,12 @@ export default function InvoiceHistoryPage() {
                                                 {new Date(inv.createdAt).toLocaleString('vi-VN')}
                                             </td>
                                             <td className="px-6 py-4 text-sm font-bold text-blue-600">
-                                                {inv.totalPrice.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
+                                                {(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ
                                             </td>
                                             <td className="px-6 py-4 text-sm text-slate-600">
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${inv.customerName === 'Khách lẻ'
-                                                        ? 'bg-slate-100 text-slate-600'
-                                                        : 'bg-blue-100 text-blue-700'
+                                                    ? 'bg-slate-100 text-slate-600'
+                                                    : 'bg-blue-100 text-blue-700'
                                                     }`}>
                                                     {inv.customerName}
                                                 </span>

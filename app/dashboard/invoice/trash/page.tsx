@@ -324,7 +324,7 @@ export default function TrashPage() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-bold text-slate-400">
-                                                {inv.totalPrice.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
+                                                {(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ
                                             </td>
                                             <td className="px-6 py-4 text-sm text-slate-400">
                                                 {new Date(inv.createdAt).toLocaleString('vi-VN')}

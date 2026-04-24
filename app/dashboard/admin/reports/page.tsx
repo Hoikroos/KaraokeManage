@@ -44,7 +44,8 @@ function getGroupKey(date: Date, period: PeriodType): string {
 }
 
 function fmtVND(n: number) {
-    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
+    const rounded = Math.ceil(n / 1000) * 1000;
+    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(rounded);
 }
 
 /* ─── Sub-components ─────────────────────────────────────────── */
@@ -260,7 +261,7 @@ export default function ReportsPage() {
             `#${inv.id.slice(0, 8).toUpperCase()}`,
             `Phòng ${(inv as any).roomNumber ?? ''}`,
             new Date(inv.createdAt).toLocaleString('vi-VN'),
-            inv.totalPrice,
+            Math.ceil(inv.totalPrice / 1000) * 1000,
             inv.status === 'paid' ? 'Đã thanh toán' : 'Chờ',
         ]);
         const csv = '\ufeff' + [headers, ...rows].map(r => r.join(',')).join('\n');
