@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     // --- 2. Kiểm tra biến môi trường SMTP ---
     const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS?.replace(/\s/g, ''); // xoá khoảng trắng nếu có
+    const smtpPass = process.env.SMTP_PASS; // xoá khoảng trắng nếu có
 
     if (!smtpUser || !smtpPass) {
       console.error('[Mail Error] Biến môi trường SMTP_USER hoặc SMTP_PASS còn thiếu trong tệp .env');
