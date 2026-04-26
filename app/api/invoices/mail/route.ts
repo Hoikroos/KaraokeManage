@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (!smtpUser || !smtpPass) {
       console.error('[Mail Error] Biến môi trường SMTP_USER hoặc SMTP_PASS còn thiếu trong tệp .env');
       return NextResponse.json(
-        { error: 'Hệ thống chưa cấu hình email gửi đi 123' },
+        { error: 'Hệ thống chưa cấu hình email gửi đi' },
         { status: 500 }
       );
     }
