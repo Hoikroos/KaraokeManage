@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const smtpPass = process.env.SMTP_PASS?.replace(/\s/g, ''); // xoá khoảng trắng nếu có
 
     if (!smtpUser || !smtpPass) {
-      console.error('[Mail] SMTP_USER hoặc SMTP_PASS chưa được cấu hình');
+      console.error('[Mail Error] Biến môi trường SMTP_USER hoặc SMTP_PASS còn thiếu trong tệp .env');
       return NextResponse.json(
         { error: 'Hệ thống chưa cấu hình email gửi đi' },
         { status: 500 }
@@ -177,10 +177,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, message: 'Email đã được gửi thành công' });
   } catch (error: any) {
     // Log chi tiết lỗi phía server
-    console.error('[Mail] Lỗi gửi email:', {
+    console.error('[Mail Error] Chi tiết lỗi:', {
       message: error?.message,
       code: error?.code,       // vd: EAUTH, ECONNECTION
       command: error?.command, // lệnh SMTP thất bại
+      stack: error?.stack
     });
 
     // Trả lỗi rõ ràng cho client
