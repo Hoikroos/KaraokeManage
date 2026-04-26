@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { prisma, Prisma } from '@/lib/prisma'; // Import Prisma namespace
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 // Định nghĩa kiểu dữ liệu cho hóa đơn với các quan hệ được include
 // Điều này giúp TypeScript hiểu đúng cấu trúc của đối tượng invoice từ Prisma
@@ -9,9 +10,7 @@ type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
     RoomSession: {
       include: {
         Room: true;
-        Orders: {
-          include: { Product: true };
-        };
+        OrderItems: true;
       };
     };
     Store: true;
@@ -19,57 +18,62 @@ type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
 }>;
 
 export async function POST(request: Request) {
-    try {
-        const { invoiceId, targetEmail } = await request.json();
+  try {
+    const { invoiceId, targetEmail } = await request.json();
 
-        if (!invoiceId || !targetEmail) {
-            return NextResponse.json({ error: 'Thiếu thông tin hóa đơn hoặc email' }, { status: 400 });
-        }
+    if (!invoiceId || !targetEmail) {
+      return NextResponse.json({ error: 'Thiếu thông tin hóa đơn hoặc email' }, { status: 400 });
+    }
 
-        // 1. Lấy dữ liệu hóa đơn chi tiết từ DB
-        const invoice: InvoiceWithDetails | null = await prisma.invoice.findUnique({
-            where: { Id: invoiceId },
-            include: {
-                RoomSession: {
-                    include: {
-                        Room: true,
-                        Orders: {
-                            include: { Product: true }
-                        }
-                    }
-                },
-                Store: true
-            }
-        });
+    // 1. Lấy dữ liệu hóa đơn chi tiết từ DB
+    const invoice: InvoiceWithDetails | null = await prisma.invoice.findUnique({
+      where: { Id: invoiceId },
+      include: {
+        RoomSession: {
+          include: {
+            Room: true,
+            OrderItems: true
+          }
+        },
+        Store: true
+      }
+    });
 
-        if (!invoice) return NextResponse.json({ error: 'Không tìm thấy hóa đơn' }, { status: 404 });
+    if (!invoice) return NextResponse.json({ error: 'Không tìm thấy hóa đơn' }, { status: 404 });
 
-        // 2. Cấu hình Transporter (Sử dụng Gmail hoặc SMTP khác)
-        // Lưu ý: Cần cấu hình SMTP_USER và SMTP_PASS trong file .env
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS, // Mật khẩu ứng dụng (App Password)
-            },
-        });
+    // Kiểm tra biến môi trường
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.error('Email Error: SMTP_USER hoặc SMTP_PASS chưa được định nghĩa trong .env');
+      return NextResponse.json({ error: 'Hệ thống chưa cấu hình email gửi đi' }, { status: 500 });
+    }
 
-        // Tính toán tiền phòng và dịch vụ
-        const orders = invoice.RoomSession?.Orders || [];
-        const itemsHtml = orders.map((order: any) => `
+    // 2. Cấu hình Transporter (Sử dụng Gmail hoặc SMTP khác)
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // dùng SSL
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    // Tính toán tiền phòng và dịch vụ
+    const orderItems = invoice.RoomSession?.OrderItems || [];
+    const itemsHtml = orderItems.map((item: any) => `
       <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #edf2f7;">${order.Product?.Name}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: center;">${order.Quantity}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: right;">${Number(order.Price * order.Quantity).toLocaleString('vi-VN')} đ</td>
+        <td style="padding: 10px; border-bottom: 1px solid #edf2f7;">${item.ProductName}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: center;">${item.Quantity}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: right;">${(Number(item.Price) * item.Quantity).toLocaleString('vi-VN')} đ</td>
       </tr>
     `).join('');
 
-        // 3. Nội dung Email (HTML)
-        const mailOptions = {
-            from: `"${invoice.Store?.Name || 'Karaoke'}" <${process.env.SMTP_USER}>`,
-            to: targetEmail,
-            subject: `Hóa đơn thanh toán - Phòng ${invoice.RoomSession?.Room?.RoomNumber}`,
-            html: `
+    // 3. Nội dung Email (HTML)
+    const mailOptions = {
+      from: `"${invoice.Store?.Name || 'Karaoke'}" <${process.env.SMTP_USER}>`,
+      to: targetEmail,
+      subject: `Hóa đơn thanh toán - Phòng ${invoice.RoomSession?.Room?.RoomNumber}`,
+      html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #4f46e5; padding: 20px; text-align: center; color: white;">
             <h1 style="margin: 0; font-size: 24px;">HÓA ĐƠN THANH TOÁN</h1>
@@ -118,12 +122,12 @@ export async function POST(request: Request) {
           </div>
         </div>
       `,
-        };
+    };
 
-        await transporter.sendMail(mailOptions);
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('Email Error:', error);
-        return NextResponse.json({ error: 'Lỗi khi gửi email' }, { status: 500 });
-    }
+    await transporter.sendMail(mailOptions);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Email Error:', error);
+    return NextResponse.json({ error: 'Lỗi khi gửi email' }, { status: 500 });
+  }
 }
