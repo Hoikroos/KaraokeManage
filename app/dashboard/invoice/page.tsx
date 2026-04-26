@@ -8,7 +8,7 @@ import Link from 'next/link';
 import Swal from 'sweetalert2';
 import { useAuth } from '@/app/context';
 import { Store } from '@/lib/db';
-import { History, Search, Eye, Printer, ArrowLeft, Calendar, X, Download, Trash2, Users } from 'lucide-react';
+import { History, Search, Eye, Printer, ArrowLeft, Calendar, X, Download, Trash2, Users, Mail, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DisplayInvoice {
@@ -141,6 +141,45 @@ export default function InvoiceHistoryPage() {
         } catch (error) {
             console.error('Lỗi khi xóa hóa đơn:', error);
             toast.error('Lỗi khi xóa hóa đơn');
+        }
+    };
+
+    // ✅ Gửi hóa đơn qua Email
+    const handleSendEmail = async (id: string) => {
+        const { value: email } = await Swal.fire({
+            title: 'Gửi hóa đơn qua Email',
+            input: 'email',
+            inputLabel: 'Nhập địa chỉ email khách hàng',
+            inputPlaceholder: 'khachhang@gmail.com',
+            showCancelButton: true,
+            confirmButtonText: 'Gửi ngay',
+            cancelButtonText: 'Hủy',
+            confirmButtonColor: '#4f46e5',
+        });
+
+        if (email) {
+            try {
+                const res = await fetch('/api/invoices/mail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ invoiceId: id, targetEmail: email }),
+                });
+                if (res.ok) toast.success('Đã gửi email thành công');
+                else toast.error('Gửi email thất bại');
+            } catch (err) { toast.error('Lỗi kết nối'); }
+        }
+    };
+
+    // ✅ Chia sẻ qua Zalo/SĐT (Copy link hoặc dùng Web Share API)
+    const handleShare = (inv: DisplayInvoice) => {
+        const url = `${window.location.origin}/dashboard/invoice/${inv.id}`;
+        const text = `Karaoke - Phòng ${inv.roomNumber}: Tổng cộng ${(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ. Xem chi tiết tại: ${url}`;
+
+        if (navigator.share) {
+            navigator.share({ title: 'Hóa đơn Karaoke', text, url }).catch(() => { });
+        } else {
+            navigator.clipboard.writeText(text);
+            toast.success('Đã sao chép thông tin hóa đơn. Bạn có thể dán vào Zalo/SMS để gửi khách.');
         }
     };
 
@@ -373,6 +412,22 @@ export default function InvoiceHistoryPage() {
                                                         <Eye className="w-4 h-4" /> Xem
                                                     </Button>
                                                 </Link>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-slate-600 hover:text-indigo-600 gap-1"
+                                                    onClick={() => handleSendEmail(inv.id)}
+                                                >
+                                                    <Mail className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-slate-600 hover:text-emerald-600 gap-1"
+                                                    onClick={() => handleShare(inv)}
+                                                >
+                                                    <Share2 className="w-4 h-4" />
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
