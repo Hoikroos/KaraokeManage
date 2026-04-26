@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   try {
+    console.log('[ENV CHECK]', {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS ? '***có giá trị***' : 'UNDEFINED',
+    });
     const body = await request.json();
     const { invoiceId, targetEmail } = body;
 
@@ -90,7 +94,7 @@ export async function POST(request: Request) {
     const storeAddress = inv.Store?.Address || inv.Store?.address || 'Đang cập nhật';
     const storePhone = inv.Store?.Phone || inv.Store?.phone || 'Đang cập nhật';
     const customerName = inv.CustomerName || inv.customerName || 'Quý khách';
-    
+
     const totalPrice = Number(inv.TotalPrice ?? inv.totalPrice ?? 0);
     const roomCost = Number(inv.RoomCost || inv.roomCost || 0);
     const invoiceCode = String(inv.Id || inv.id || '').substring(0, 8).toUpperCase();
