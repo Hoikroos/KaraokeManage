@@ -36,8 +36,14 @@ export async function POST(request: Request) {
     }
 
     // --- 3. Truy vấn hóa đơn từ DB ---
+    // 3. Truy vấn hóa đơn từ DB (Hỗ trợ linh hoạt cả Id và id)
     const invoice = await prisma.invoice.findFirst({
-      where: { Id: invoiceId },
+      where: {
+        OR: [
+          { Id: invoiceId },
+          { id: invoiceId } as any
+        ]
+      } as any,
       include: {
         RoomSession: {
           include: {
@@ -65,6 +71,10 @@ export async function POST(request: Request) {
         user: smtpUser,
         pass: smtpPass,
       },
+      tls: {
+        rejectUnauthorized: false // Hỗ trợ kết nối trên một số môi trường server khắt khe
+      },
+      connectionTimeout: 10000, // 10 giây timeout
     });
 
     // Xác minh kết nối SMTP trước khi gửi

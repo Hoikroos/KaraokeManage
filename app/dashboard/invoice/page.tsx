@@ -164,8 +164,14 @@ export default function InvoiceHistoryPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ invoiceId: id, targetEmail: email }),
                 });
-                if (res.ok) toast.success('Đã gửi email thành công');
-                else toast.error('Gửi email thất bại');
+
+                const result = await res.json();
+                if (res.ok) {
+                    toast.success('Đã gửi email thành công');
+                } else {
+                    // Hiển thị lỗi chi tiết từ API (ví dụ: "Xác thực SMTP thất bại")
+                    toast.error(result.error || 'Gửi email thất bại');
+                }
             } catch (err) { toast.error('Lỗi kết nối'); }
         }
     };
