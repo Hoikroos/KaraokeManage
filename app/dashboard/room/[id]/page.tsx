@@ -586,8 +586,17 @@ export default function RoomPage() {
       if (res.ok) {
         const updated = await res.json();
         setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+
+        // Đồng bộ giá mới vào các món đã có trong giỏ hàng của phòng này
+        const newPrice = updated.price;
+        for (let i = 0; i < orderItems.length; i++) {
+          if (orderItems[i].productId === updated.id && orderItems[i].price !== newPrice) {
+            await handleUpdateOrderItem(i, { price: newPrice });
+          }
+        }
+
         setIsEditProductModalOpen(false);
-        toast.success('Đã cập nhật thông tin sản phẩm');
+        toast.success('Đã cập nhật sản phẩm và đồng bộ giá giỏ hàng');
       } else toast.error('Lỗi khi cập nhật sản phẩm');
     } catch (err) { toast.error('Lỗi kết nối máy chủ'); }
   };
@@ -625,17 +634,16 @@ export default function RoomPage() {
     if (!session) return;
     const existingIndex = orderItems.findIndex((item) => item.productId === productId);
     const existing = existingIndex !== -1 ? orderItems[existingIndex] : null;
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
     try {
       if (existing) {
-        const res = await fetch('/api/orders', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: existing.id, quantity: existing.quantity + quantity }),
+        // Cập nhật cả số lượng và giá mới nhất từ thực đơn khi cộng dồn
+        await handleUpdateOrderItem(existingIndex, {
+          quantity: existing.quantity + quantity,
+          price: product.price
         });
-        if (res.ok) {
-          const updated = await res.json();
-          setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
-        }
       } else {
         const res = await fetch('/api/orders', {
           method: 'POST',
