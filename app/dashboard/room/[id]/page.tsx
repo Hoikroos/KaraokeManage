@@ -280,7 +280,22 @@ export default function RoomPage() {
                 new Date(b.orderedAt || b.OrderedAt || 0).getTime()
               )
               : [];
-            setOrderItems(sortedOrders);
+
+            // Tự động đồng bộ giá từ thực đơn vào giỏ hàng nếu có sự thay đổi
+            const syncedOrders = await Promise.all(sortedOrders.map(async (item: OrderItem) => {
+              const p = productsData.find((prod: Product) => prod.id === item.productId);
+              if (p && Number(item.price) !== Number(p.price)) {
+                const upRes = await fetch('/api/orders', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: item.id, price: p.price }),
+                });
+                if (upRes.ok) return await upRes.json();
+              }
+              return item;
+            }));
+
+            setOrderItems(syncedOrders);
             return;
           }
         }
@@ -770,7 +785,8 @@ export default function RoomPage() {
     const qty = parseInt(value);
     const item = orderItems[index];
     if (!isNaN(qty) && qty >= 0 && item && item.quantity !== qty) {
-      handleUpdateOrderItem(index, { quantity: qty });
+      const p = products.find(prod => prod.id === item.productId);
+      handleUpdateOrderItem(index, { quantity: qty, price: p?.price });
     }
     else setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
   };
@@ -1677,12 +1693,18 @@ export default function RoomPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center bg-white shadow-sm ring-1 ring-slate-100 rounded-lg overflow-hidden">
-                            <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })} className="p-1.5 hover:bg-slate-50 transition-colors"><Minus className="w-3 h-3 text-slate-400" /></button>
+                            <button onClick={() => {
+                              const p = products.find(prod => prod.id === item.productId);
+                              handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
+                            }} className="p-1.5 hover:bg-slate-50 transition-colors"><Minus className="w-3 h-3 text-slate-400" /></button>
                             <input type="text" className="w-8 text-center text-xs font-black text-slate-700 bg-transparent"
                               value={editingQuantities[index] ?? item.quantity}
                               onChange={(e) => handleQuantityChange(index, e.target.value)}
                               onBlur={() => handleQuantityBlur(index)} />
-                            <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
+                            <button onClick={() => {
+                              const p = products.find(prod => prod.id === item.productId);
+                              handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
+                            }} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
                           </div>
                           <div className="text-right">
                             <div className="font-black text-slate-900 text-sm">{item.price.toLocaleString('vi-VN')}đ</div>
@@ -1868,64 +1890,79 @@ export default function RoomPage() {
         <div className="hidden print:block w-[80mm] mx-auto px-4 pt-2 pb-4 bg-white text-black font-bold"
           style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
           <style dangerouslySetInnerHTML={{ __html: `@media print { body { -webkit-print-color-adjust: exact; } }` }} />
-          <div className="text-center mb-2" style={{ borderBottom: '1.5px dashed #aaa' }}>
-            <h2 className="text-[22px] font-black tracking-wider">PHIẾU TẠM TÍNH</h2>
-            <p className="text-[18px] font-black tracking-wide mb-1">PHÒNG: {room.roomNumber}</p>
-            {customerName && <p className="text-[11px] tracking-wide mb-1">Khách Hàng: {customerName}</p>}
-            <p className="text-[12px] text-gray-600 font-bold">{new Date().toLocaleString('vi-VN')}</p>
+          {/* Tiêu đề */}
+          <div className="text-center mb-2" style={{ borderBottom: '1.5px dashed #aaa', paddingBottom: 6 }}>
+            <h2 className="text-[20px] font-black tracking-wider mt-1 uppercase">Phiếu Tạm Tính</h2>
+            <p className="text-[11px] font-normal">Mã: TẠM-{String(session.id || (session as any).Id).substring(0, 6).toUpperCase()}</p>
+            <p className="text-[11px] font-bold">PHÒNG: {room.roomNumber}</p>
+            {customerName && <p className="text-[11px] tracking-wide">Khách: {customerName}</p>}
+            <p className="text-[11px] text-gray-600">{new Date().toLocaleString('vi-VN')}</p>
           </div>
-          <table className="w-full text-[15px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
+          {/* Bảng chi tiết */}
+          <table className="w-full text-[12px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #ccc' }}>
-                <th className="text-left py-1 text-[11px] tracking-wide uppercase">Chi tiết</th>
-                <th className="text-center py-1 text-[11px] tracking-wide">SL</th>
-                <th className="text-right py-1 text-[11px] tracking-wide uppercase">T.Tiền</th>
+                <th className="text-left py-1 text-[10px] tracking-wide uppercase">Chi tiết</th>
+                <th className="text-center py-1 text-[10px] tracking-wide">SL</th>
+                <th className="text-right py-1 text-[10px] tracking-wide uppercase">T.Tiền</th>
               </tr>
             </thead>
             <tbody>
+              {/* Tiền phòng */}
               <tr>
-                <td className="py-2">
+                <td className="py-1.5">
                   <div className="font-bold">Tiền phòng</div>
-                  <div className="text-[11px] font-bold text-gray-600">Giá: {customPricePerHour.toLocaleString('vi-VN')}/h</div>
-                  <div className="text-[11px] font-bold text-gray-500 italic">
+                  <div className="text-[10px] font-normal text-gray-600">Giá: {customPricePerHour.toLocaleString('vi-VN')}đ/h</div>
+                  <div className="text-[10px] font-normal text-gray-500 italic">
                     {selectedStartTime ? new Date(selectedStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                     {' - '}
                     {selectedEndTime ? new Date(selectedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                     {' '}({durationText})
                   </div>
                 </td>
-                <td className="text-center py-0.5">{(durationMinutes / 60).toFixed(2)}</td>
-                <td className="text-right py-0.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+                <td className="text-center py-1.5">{(durationMinutes / 60).toFixed(2)}</td>
+                <td className="text-right py-1.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
               </tr>
+              {/* Các món */}
               {orderItems.map((item, index) => (
                 <tr key={item.id ?? index} style={{ borderTop: '1px dashed #ddd' }}>
-                  <td className="py-2 break-words max-w-[40mm]">
+                  <td className="py-1.5 break-words max-w-[40mm]">
                     <div className="font-bold leading-tight">{item.productName}</div>
-                    <div className="text-[11px] font-bold text-gray-600">Giá: {item.price.toLocaleString('vi-VN')}</div>
+                    <div className="text-[10px] font-normal text-gray-600">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
-                  <td className="text-center py-0.5">{item.quantity}</td>
-                  <td className="text-right py-0.5 font-black">{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+                  <td className="text-center py-1.5">{item.quantity}</td>
+                  <td className="text-right py-1.5 font-black">{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
-            <div className="flex justify-between text-[12px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
-              <span>Tổng Hàng hóa:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
+
+          {/* Tổng */}
+          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 6 }}>
+            <div className="flex justify-between text-[11px] font-black" style={{ letterSpacing: '0.5px' }}>
+              <span>Tiền phòng:</span>
+              <span>{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+            </div>
+            <div className="flex justify-between text-[11px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
+              <span>Tổng hàng hóa:</span>
+              <span>{totalProductCost.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+            </div>
+            <div className="flex justify-between text-[11px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
+              <span>Chiết khấu:</span>
+              <span>0%</span>
             </div>
           </div>
-          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
-            <div className="flex justify-between text-[12px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
-              <span>Chiết Khấu:</span><span>0%</span>
-            </div>
+          <div className="flex justify-between text-[15px] font-black mt-2 pt-2"
+            style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
+            <span>TỔNG CỘNG:</span>
+            <span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
           </div>
-          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
-            <div className="flex justify-between text-[16px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
-              <span className="text-[12px]">TỔNG:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
-            </div>
-          </div>
-          <div className="text-center text-gray-700 mt-4" style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8, fontSize: 11, breakInside: 'avoid' }}>
+
+          {/* Footer */}
+          <div className="text-center text-gray-700 mt-4"
+            style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8, fontSize: 11, breakInside: 'avoid' }}>
             <p className="font-black uppercase mb-1">Cảm ơn quý khách!</p>
+            <p className="font-normal text-[10px]">Hẹn gặp lại</p>
           </div>
         </div>
       )}
@@ -1997,7 +2034,7 @@ export default function RoomPage() {
                 </span>
               </div>
             </div>
-            <Button onClick={() => setIsCartModalOpen(false)} className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-8 h-12 rounded-xl">Đóng</Button>
+
           </div>
         </DialogContent>
       </Dialog>
