@@ -329,7 +329,7 @@ export default function RoomPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Polling để tự động cập nhật giỏ hàng mỗi 2 giây nếu có session active
+  // Polling để tự động cập nhật giỏ hàng mỗi 0.1 giây nếu có session active
   useEffect(() => {
     if (!session) return;
 
@@ -352,7 +352,7 @@ export default function RoomPage() {
       } catch (err) {
         console.error('Error polling order items:', err);
       }
-    }, 2000); // 2 giây
+    }, 100); // 2 giây
 
     return () => clearInterval(interval);
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
