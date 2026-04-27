@@ -95,6 +95,9 @@ export default function RoomPage() {
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
   const [editingProductForMenu, setEditingProductForMenu] = useState<Product | null>(null);
+  const [isOrderQuantityModalOpen, setIsOrderQuantityModalOpen] = useState(false);
+  const [selectedProductForOrder, setSelectedProductForOrder] = useState<Product | null>(null);
+  const [orderQuantityInput, setOrderQuantityInput] = useState('1');
   const [allCustomerNames, setAllCustomerNames] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
@@ -583,6 +586,24 @@ export default function RoomPage() {
     } catch (err) { toast.error('Lỗi kết nối máy chủ'); }
   };
 
+  const handleOpenOrderQuantityModal = (product: Product) => {
+    setSelectedProductForOrder(product);
+    setOrderQuantityInput('1');
+    setIsOrderQuantityModalOpen(true);
+  };
+
+  const handleConfirmOrderQuantity = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProductForOrder) return;
+    const qty = parseInt(orderQuantityInput);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error('Số lượng không hợp lệ');
+      return;
+    }
+    handleAddProduct(selectedProductForOrder.id, qty);
+    setIsOrderQuantityModalOpen(false);
+  };
+
   const handleAddProduct = async (productId: string, quantity: number) => {
     if (!session) return;
     const existingIndex = orderItems.findIndex((item) => item.productId === productId);
@@ -986,7 +1007,7 @@ export default function RoomPage() {
                               key={product.id}
                               onClick={(e) => {
                                 if ((e.target as HTMLElement).closest('button')) return;
-                                !unavail && handleAddProduct(product.id, 1);
+                                !unavail && handleOpenOrderQuantityModal(product);
                               }}
                               className={`bg-white rounded-2xl p-3 text-left shadow-sm border transition flex flex-col justify-between relative
                 ${unavail ? 'opacity-40' : 'hover:shadow-md cursor-pointer'}
@@ -1206,6 +1227,9 @@ export default function RoomPage() {
                                     onBlur={() => handlePriceBlur(index)}
                                     className="text-indigo-500 text-sm mt-0.5 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
                                   />
+                                  <div className="text-[10px] font-bold text-slate-400">
+                                    Tổng: {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                                  </div>
                                 </div>
                                 <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
                                   <button
@@ -1339,6 +1363,34 @@ export default function RoomPage() {
                 <p className="col-span-2 text-center py-8 text-slate-500 italic text-sm">Không có phòng nào đang trống</p>
               )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Order Quantity Modal (Mobile) ── */}
+        <Dialog open={isOrderQuantityModalOpen} onOpenChange={setIsOrderQuantityModalOpen}>
+          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6 z-[200]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">
+                Gọi món: {selectedProductForOrder?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleConfirmOrderQuantity} className="space-y-4 mt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng muốn đặt</label>
+                <Input
+                  required
+                  type="number"
+                  value={orderQuantityInput}
+                  onChange={e => setOrderQuantityInput(e.target.value)}
+                  className="rounded-xl h-14 text-center text-2xl font-black text-indigo-600"
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <Button type="submit" className="flex-1 bg-indigo-600 h-14 rounded-xl font-bold">Thêm vào đơn</Button>
+                <Button type="button" variant="ghost" onClick={() => setIsOrderQuantityModalOpen(false)} className="h-14 rounded-xl">Hủy</Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
 
@@ -1603,6 +1655,9 @@ export default function RoomPage() {
                               value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
                               onChange={(e) => handlePriceChange(index, e.target.value)} onBlur={() => handlePriceBlur(index)}
                               className="font-black text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 text-right w-24" />
+                            <span className="text-[10px] font-bold text-indigo-500 mt-1">
+                              {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1779,122 +1834,67 @@ export default function RoomPage() {
 
       {/* ── Print template ── */}
       {session && (
-        <div
-          className="hidden print:block"
-          style={{
-            width: '80mm',
-            margin: '0 auto',
-            padding: '14px 16px 20px',
-            background: '#fff',
-            color: '#111',
-            fontFamily: "'Courier New', Courier, monospace",
-          }}
-        >
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              @page { margin: 6mm; size: 80mm auto; }
-            }
-            .pr-dashed { border-bottom: 1.5px dashed #bbb; }
-            .pr-solid  { border-top: 1.5px solid #222; }
-            .pr-row    { display:flex; justify-content:space-between; align-items:flex-start; gap:6px; }
-          ` }} />
-
-          {/* ── HEADER ── */}
-          <div style={{ textAlign: 'center', paddingBottom: 10, borderBottom: '2px dashed #bbb', marginBottom: 10 }}>
-            <div style={{ fontSize: 9, letterSpacing: 3, fontWeight: 700, color: '#888', marginBottom: 4 }}>
-              PHIẾU TẠM TÍNH
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 2, lineHeight: 1.1 }}>
-              PHÒNG {room.roomNumber}
-            </div>
-            {customerName && (
-              <div style={{ fontSize: 10, color: '#444', marginTop: 4 }}>
-                Khách: <strong>{customerName}</strong>
-              </div>
-            )}
-            <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
-              {new Date().toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </div>
+        <div className="hidden print:block w-[80mm] mx-auto px-4 pt-2 pb-4 bg-white text-black font-bold"
+          style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+          <style dangerouslySetInnerHTML={{ __html: `@media print { body { -webkit-print-color-adjust: exact; } }` }} />
+          <div className="text-center mb-2" style={{ borderBottom: '1.5px dashed #aaa' }}>
+            <h2 className="text-[22px] font-black tracking-wider">PHIẾU TẠM TÍNH</h2>
+            <p className="text-[18px] font-black tracking-wide mb-1">PHÒNG: {room.roomNumber}</p>
+            {customerName && <p className="text-[11px] tracking-wide mb-1">Khách Hàng: {customerName}</p>}
+            <p className="text-[12px] text-gray-600 font-bold">{new Date().toLocaleString('vi-VN')}</p>
           </div>
-
-          {/* ── TIỀN PHÒNG ── */}
-          <div style={{ borderBottom: '1px dashed #ccc', paddingBottom: 8, marginBottom: 8 }}>
-            <div className="pr-row">
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 700 }}>TIỀN PHÒNG</div>
-                <div style={{ fontSize: 9, color: '#666', marginTop: 1 }}>
-                  {customPricePerHour.toLocaleString('vi-VN')}đ/h &nbsp;·&nbsp;{' '}
-                  {selectedStartTime ? new Date(selectedStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                  {' → '}
-                  {selectedEndTime ? new Date(selectedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                  {' '}({durationText})
-                </div>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                {roomChargeTotal.toLocaleString('vi-VN')}đ
-              </div>
-            </div>
-          </div>
-
-          {/* ── DỊCH VỤ ── */}
-          {orderItems.length > 0 && (
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: '#888', marginBottom: 6 }}>
-                DỊCH VỤ ({orderItems.length} món)
-              </div>
+          <table className="w-full text-[15px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <th className="text-left py-1 text-[11px] tracking-wide uppercase">Chi tiết</th>
+                <th className="text-center py-1 text-[11px] tracking-wide">SL</th>
+                <th className="text-right py-1 text-[11px] tracking-wide uppercase">T.Tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="py-2">
+                  <div className="font-bold">Tiền phòng</div>
+                  <div className="text-[11px] font-bold text-gray-600">Giá: {customPricePerHour.toLocaleString('vi-VN')}/h</div>
+                  <div className="text-[11px] font-bold text-gray-500 italic">
+                    {selectedStartTime ? new Date(selectedStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                    {' - '}
+                    {selectedEndTime ? new Date(selectedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                    {' '}({durationText})
+                  </div>
+                </td>
+                <td className="text-center py-0.5">{(durationMinutes / 60).toFixed(2)}</td>
+                <td className="text-right py-0.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+              </tr>
               {orderItems.map((item, index) => (
-                <div
-                  key={item.id ?? index}
-                  className="pr-row"
-                  style={{ marginBottom: 5, paddingBottom: 5, borderBottom: index < orderItems.length - 1 ? '1px dashed #eee' : 'none' }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>
-                      {item.productName}
-                    </div>
-                    <div style={{ fontSize: 9, color: '#888', marginTop: 1 }}>
-                      {item.price.toLocaleString('vi-VN')}đ × {item.quantity}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                  </div>
-                </div>
+                <tr key={item.id ?? index} style={{ borderTop: '1px dashed #ddd' }}>
+                  <td className="py-2 break-words max-w-[40mm]">
+                    <div className="font-bold leading-tight">{item.productName}</div>
+                    <div className="text-[11px] font-bold text-gray-600">Giá: {item.price.toLocaleString('vi-VN')}</div>
+                  </td>
+                  <td className="text-center py-0.5">{item.quantity}</td>
+                  <td className="text-right py-0.5 font-black">{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+                </tr>
               ))}
-            </div>
-          )}
-
-          {/* ── TỔNG KẾT ── */}
-          <div style={{ borderTop: '2px dashed #bbb', paddingTop: 8, marginTop: 4 }}>
-            <div className="pr-row" style={{ fontSize: 10, color: '#666', marginBottom: 3 }}>
-              <span>Tiền phòng</span>
-              <span>{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
-            </div>
-            {orderItems.length > 0 && (
-              <div className="pr-row" style={{ fontSize: 10, color: '#666', marginBottom: 3 }}>
-                <span>Dịch vụ</span>
-                <span>{totalProductCost.toLocaleString('vi-VN')}đ</span>
-              </div>
-            )}
-            <div className="pr-row" style={{ fontSize: 10, color: '#999', marginBottom: 8 }}>
-              <span>Chiết khấu</span>
-              <span>0%</span>
-            </div>
-            <div
-              className="pr-row pr-solid"
-              style={{ paddingTop: 6, alignItems: 'baseline' }}
-            >
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>TỔNG CỘNG</span>
-              <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: -0.5 }}>
-                {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
-              </span>
+            </tbody>
+          </table>
+          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
+            <div className="flex justify-between text-[12px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
+              <span>Tổng Hàng hóa:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
             </div>
           </div>
-
-          {/* ── FOOTER ── */}
-          <div style={{ textAlign: 'center', marginTop: 14, paddingTop: 10, borderTop: '1px dashed #ccc', fontSize: 9, color: '#999', letterSpacing: 1 }}>
-            CẢM ƠN QUÝ KHÁCH!
+          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
+            <div className="flex justify-between text-[12px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
+              <span>Chiết Khấu:</span><span>0%</span>
+            </div>
+          </div>
+          <div style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8 }}>
+            <div className="flex justify-between text-[16px] font-black mt-1.5 pt-1.5" style={{ borderTop: '1.5px solid #222', letterSpacing: '0.5px' }}>
+              <span className="text-[12px]">TỔNG:</span><span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}</span>
+            </div>
+          </div>
+          <div className="text-center text-gray-700 mt-4" style={{ borderTop: '1.5px dashed #aaa', paddingTop: 8, fontSize: 11, breakInside: 'avoid' }}>
+            <p className="font-black uppercase mb-1">Cảm ơn quý khách!</p>
           </div>
         </div>
       )}
@@ -1949,9 +1949,19 @@ export default function RoomPage() {
             )}
           </div>
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tạm tính dịch vụ</span>
-              <span className="text-2xl font-black text-slate-900">{totalProductCost.toLocaleString('vi-VN', { maximumFractionDigits: 0 })} <span className="text-sm">VNĐ</span></span>
+            <div className="flex gap-8">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiền phòng</span>
+                <span className="text-lg font-bold text-slate-700">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiền dịch vụ</span>
+                <span className="text-lg font-bold text-slate-700">{totalProductCost.toLocaleString('vi-VN')}đ</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Tổng cộng</span>
+                <span className="text-2xl font-black text-indigo-600">{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ</span>
+              </div>
             </div>
             <Button onClick={() => setIsCartModalOpen(false)} className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-8 h-12 rounded-xl">Đóng</Button>
           </div>
