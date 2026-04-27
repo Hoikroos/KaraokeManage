@@ -329,6 +329,34 @@ export default function RoomPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Polling để tự động cập nhật giỏ hàng mỗi 2 giây nếu có session active
+  useEffect(() => {
+    if (!session) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const sessionId = session.id ?? (session as any).Id;
+        if (!sessionId) return;
+
+        const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`);
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          const sortedOrders = Array.isArray(ordersData)
+            ? [...ordersData].sort((a, b) =>
+              new Date(a.orderedAt || a.OrderedAt || 0).getTime() -
+              new Date(b.orderedAt || b.OrderedAt || 0).getTime()
+            )
+            : [];
+          setOrderItems(sortedOrders);
+        }
+      } catch (err) {
+        console.error('Error polling order items:', err);
+      }
+    }, 2000); // 2 giây
+
+    return () => clearInterval(interval);
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleStartSession = async () => {
