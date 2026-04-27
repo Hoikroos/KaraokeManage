@@ -588,7 +588,10 @@ export default function RoomPage() {
 
   const handleOpenOrderQuantityModal = (product: Product) => {
     setSelectedProductForOrder(product);
-    setOrderQuantityInput('1');
+    // Tìm xem sản phẩm này đã có trong giỏ hàng chưa
+    const existingItem = orderItems.find(item => item.productId === product.id);
+    // Nếu có rồi thì hiển thị số lượng hiện tại, nếu chưa có thì để 1
+    setOrderQuantityInput(existingItem ? existingItem.quantity.toString() : '1');
     setIsOrderQuantityModalOpen(true);
   };
 
@@ -596,11 +599,19 @@ export default function RoomPage() {
     e.preventDefault();
     if (!selectedProductForOrder) return;
     const qty = parseInt(orderQuantityInput);
-    if (isNaN(qty) || qty <= 0) {
+    if (isNaN(qty) || qty < 0) {
       toast.error('Số lượng không hợp lệ');
       return;
     }
-    handleAddProduct(selectedProductForOrder.id, qty);
+
+    const existingIndex = orderItems.findIndex(item => item.productId === selectedProductForOrder.id);
+    if (existingIndex !== -1) {
+      // Nếu đã có trong giỏ, cập nhật về số lượng mới (ghi đè)
+      handleUpdateOrderItem(existingIndex, { quantity: qty });
+    } else if (qty > 0) {
+      // Nếu chưa có, thêm mới vào giỏ
+      handleAddProduct(selectedProductForOrder.id, qty);
+    }
     setIsOrderQuantityModalOpen(false);
   };
 
@@ -1373,6 +1384,10 @@ export default function RoomPage() {
               <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">
                 Gọi món: {selectedProductForOrder?.name}
               </DialogTitle>
+              <DialogDescription className="font-bold text-[10px] text-slate-400 uppercase">
+                Tồn kho: {selectedProductForOrder?.quantity} |
+                Đang chọn: {orderItems.find(i => i.productId === selectedProductForOrder?.id)?.quantity || 0}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleConfirmOrderQuantity} className="space-y-4 mt-2">
               <div className="space-y-1">
