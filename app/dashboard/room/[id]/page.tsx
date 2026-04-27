@@ -445,7 +445,6 @@ export default function RoomPage() {
         const updated = await res.json();
         setSession(updated);
         setSelectedEndTime(formatDateTimeLocal(now));
-        toast.success('Đã tạm dừng tính giờ để thanh toán');
       }
     } catch (err) { console.error(err); }
   };
@@ -464,7 +463,6 @@ export default function RoomPage() {
         const updated = await res.json();
         setSession(updated);
         setSelectedEndTime(formatDateTimeLocal(new Date()));
-        toast.success('Đã tiếp tục tính giờ');
       }
     } catch (err) { console.error(err); }
   };
@@ -1960,14 +1958,13 @@ export default function RoomPage() {
 
           {/* Dòng ghi tay hoa hồng (Không lưu CSDL) */}
           <div className="mt-6 mb-2 flex justify-between text-[13px] font-bold italic pt-2">
-            <span>Hoa hồng:</span>
           </div>
 
           {/* Footer */}
           <div className="text-center text-black mt-4"
             style={{ borderTop: '2px dashed #000', paddingTop: 8, fontSize: 11, breakInside: 'avoid' }}>
             <p className="font-black uppercase mb-1">Cảm ơn quý khách!</p>
-            <p className="font-normal text-[11px]">Phiếu tạm tính - Hẹn gặp lại</p>
+            <p className="font-normal text-[11px]">Hẹn gặp lại</p>
           </div>
         </div>
       )}
