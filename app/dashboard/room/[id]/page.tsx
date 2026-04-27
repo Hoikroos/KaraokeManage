@@ -176,8 +176,8 @@ export default function RoomPage() {
   // Desktop-only state
   const [activeCategory, setActiveCategory] = useState('all');
 
-  // Mobile-only state
-  const [mobileTab, setMobileTab] = useState<'menu' | 'cart' | 'info'>('cart');
+  // Mobile-only state — chỉ còn 2 tab: cart | menu
+  const [mobileTab, setMobileTab] = useState<'menu' | 'cart'>('cart');
   const [mobileCat, setMobileCat] = useState('all');
 
   const roomIdRef = useRef(roomId);
@@ -224,7 +224,7 @@ export default function RoomPage() {
       } catch (err) {
         console.error('Lỗi khi cập nhật giá phòng:', err);
       }
-    }, 1000); // Chờ 1s sau khi ngừng nhập
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [customPricePerHour]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -322,7 +322,7 @@ export default function RoomPage() {
         setSession(newSession); setOrderItems([]);
         const start = new Date(newSession.startTime || newSession.StartTime || new Date());
         setSelectedStartTime(formatDateTimeLocal(start));
-        setSelectedEndTime(formatDateTimeLocal(start)); // Để mặc định 0 phút khi mới mở phòng
+        setSelectedEndTime(formatDateTimeLocal(start));
         await fetch('/api/admin/rooms', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -344,7 +344,6 @@ export default function RoomPage() {
 
     const sessionId = String(s.id ?? s.Id);
 
-    // Nếu phòng đang hoạt động (đã bấm bắt đầu), cho phép sửa hoặc xóa giờ
     if (s.status === 'active' || s.Status === 'active') {
       const result = await Swal.fire({
         title: 'Xử lý giờ chơi',
@@ -352,8 +351,8 @@ export default function RoomPage() {
         icon: 'question',
         showCancelButton: true,
         showDenyButton: true,
-        confirmButtonColor: '#4f46e5', // Indigo - Cập nhật
-        denyButtonColor: '#f59e0b',    // Amber - Xóa giờ
+        confirmButtonColor: '#4f46e5',
+        denyButtonColor: '#f59e0b',
         confirmButtonText: 'Cập nhật giờ đã chọn',
         denyButtonText: 'Xóa giờ (về Chờ)',
         cancelButtonText: 'Đóng',
@@ -367,8 +366,6 @@ export default function RoomPage() {
       if (!result.isConfirmed) return;
     }
 
-    // Nếu đang từ trạng thái chờ (pending) chuyển sang bắt đầu, mặc định lấy giờ hiện tại (Now)
-    // Nếu đang hoạt động (active) mà nhấn sửa, thì lấy giá trị từ ô nhập (input picker)
     const isPending = s.status === 'pending' || s.Status === 'pending';
     const startTimeToSet = isPending ? new Date() : (selectedStartTime ? new Date(selectedStartTime) : new Date());
 
@@ -395,7 +392,6 @@ export default function RoomPage() {
     } catch (err) { console.error('Error updating start time:', err); }
   };
 
-  // Hàm phụ trợ cập nhật trạng thái session
   const updateSessionStatus = async (sessionId: string, status: string) => {
     try {
       const res = await fetch('/api/rooms/session', {
@@ -484,7 +480,6 @@ export default function RoomPage() {
       const roomsRes = await fetchFresh(`/api/admin/rooms?storeId=${currentStoreId}&t=${ts}`);
       const roomsData = await roomsRes.json();
       const rId = room.id ?? (room as any).Id;
-      // Lọc các phòng trống, cùng chi nhánh và không phải phòng hiện tại
       const emptyOnes = roomsData.filter((r: any) =>
         (r.status === 'empty' || r.Status === 'empty') &&
         String(r.id ?? r.Id) !== String(rId) &&
@@ -497,7 +492,6 @@ export default function RoomPage() {
         capacity: r.capacity ?? r.Capacity
       }));
 
-      // Sắp xếp số phòng theo thứ tự tự nhiên (1, 2, ..., 10, 11)
       mappedRooms.sort((a: any, b: any) =>
         String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true })
       );
@@ -533,7 +527,6 @@ export default function RoomPage() {
         body: JSON.stringify({ sessionId: String(sessionId), oldRoomId: String(rId), newRoomId: String(newRoomId) }),
       });
 
-      // Kiểm tra xem phản hồi có phải là JSON không để tránh lỗi crash khi server trả về HTML error
       const contentType = res.headers.get('content-type');
       let data;
       if (contentType && contentType.includes('application/json')) {
@@ -758,7 +751,6 @@ export default function RoomPage() {
   };
 
   const handleGenerateInvoice = async () => {
-    // Cho phép tạo hóa đơn nếu có tiền giờ HOẶC có sản phẩm trong giỏ hàng
     if (!session || !room || timeError || (durationMinutes === 0 && orderItems.length === 0)) return;
     try {
       const res = await fetch('/api/invoices', {
@@ -848,7 +840,7 @@ export default function RoomPage() {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // MOBILE UI  (< 1024px) — Phong cách Kiosk Việt (Cải tiến)
+  // MOBILE UI  (< 1024px)
   // ════════════════════════════════════════════════════════════════════════════
 
   if (isMobile) {
@@ -862,8 +854,6 @@ export default function RoomPage() {
 
           {/* Header */}
           <div className="bg-white/90 backdrop-blur border-b px-4 py-3 flex items-center justify-between shadow-sm sticky top-0 z-20">
-
-            {/* BACK */}
             <button
               onClick={() => router.push('/dashboard')}
               className="flex items-center gap-1 text-slate-500 active:scale-95 transition"
@@ -893,6 +883,7 @@ export default function RoomPage() {
               <div className="w-12" />
             )}
           </div>
+
           {!session ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6 bg-slate-50 p-3">
               <h2 className="text-xl font-bold text-slate-900 mb-1 text-center">
@@ -911,47 +902,39 @@ export default function RoomPage() {
             </div>
           ) : (
             <>
-              {/* Tabs */}
+              {/* ── 2 Tabs: Giỏ hàng | Thực đơn ── */}
               <div className="bg-white px-3 py-2 border-b shadow-sm sticky top-0 z-10">
                 <div className="flex bg-slate-100 rounded-2xl p-1">
-
                   {([
                     { id: 'cart', label: `Giỏ hàng${orderItems.length > 0 ? ` (${orderItems.length})` : ''}`, icon: <ShoppingCart className="w-5 h-5" /> },
                     { id: 'menu', label: 'Thực đơn', icon: <Grid className="w-5 h-5" /> },
-                    { id: 'info', label: 'Thanh toán', icon: <ReceiptText className="w-5 h-5" /> },
                   ] as const).map(tab => {
                     const active = mobileTab === tab.id;
-
                     return (
                       <button
                         key={tab.id}
                         onClick={() => setMobileTab(tab.id)}
                         className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-200
-            ${active
-                            ? 'bg-white text-indigo-600 shadow-sm'
-                            : 'text-slate-500'
-                          }
-          `}
+            ${active ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
                       >
-                        <div className={`mb-0.5 ${active ? 'scale-110' : ''}`}>
-                          {tab.icon}
-                        </div>
-
-                        <span className="text-[11px] font-semibold">
-                          {tab.label}
-                        </span>
+                        <div className={`mb-0.5 ${active ? 'scale-110' : ''}`}>{tab.icon}</div>
+                        <span className="text-[11px] font-semibold">{tab.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
+
               <div className="flex-1 overflow-hidden flex flex-col">
-                {/* ── Tab: Menu ── */}
+
+                {/* ══════════════════════════════════════════
+                    Tab: Menu
+                ══════════════════════════════════════════ */}
                 {mobileTab === 'menu' && (
                   <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
                     <div className="px-4 py-3 bg-white border-b">
                       <div className="relative w-full">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 transition" />
                         <input
                           type="text"
                           placeholder="Tìm món ăn, nước uống..."
@@ -982,10 +965,7 @@ export default function RoomPage() {
                           key={cat.id}
                           onClick={() => setMobileCat(cat.id)}
                           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95
-            ${mobileCat === cat.id
-                              ? 'bg-indigo-600 text-white shadow'
-                              : 'bg-slate-100 text-slate-600'
-                            }`}
+            ${mobileCat === cat.id ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-600'}`}
                         >
                           <span>{cat.icon}</span>
                           {cat.name}
@@ -1005,61 +985,38 @@ export default function RoomPage() {
                             <div
                               key={product.id}
                               onClick={(e) => {
-                                // Nếu nhấn trúng vào nút (button) thì không chạy lệnh thêm món của thẻ cha
                                 if ((e.target as HTMLElement).closest('button')) return;
                                 !unavail && handleAddProduct(product.id, 1);
                               }}
                               className={`bg-white rounded-2xl p-3 text-left shadow-sm border transition flex flex-col justify-between relative
                 ${unavail ? 'opacity-40' : 'hover:shadow-md cursor-pointer'}
-                ${inCart > 0 ? 'border-indigo-500' : 'border-transparent'}
-              `}
+                ${inCart > 0 ? 'border-indigo-500' : 'border-transparent'}`}
                             >
-                              {/* BADGE */}
                               {inCart > 0 && (
                                 <div className="absolute top-2 right-2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                                   {inCart}
                                 </div>
                               )}
-
-                              {/* INFO */}
                               <div>
-                                <div className="font-semibold text-slate-800 text-sm line-clamp-2">
-                                  {product.name}
-                                </div>
-                                <div className="text-indigo-600 font-bold text-sm mt-1">
-                                  {product.price.toLocaleString('vi-VN')}đ
-                                </div>
+                                <div className="font-semibold text-slate-800 text-sm line-clamp-2">{product.name}</div>
+                                <div className="text-indigo-600 font-bold text-sm mt-1">{product.price.toLocaleString('vi-VN')}đ</div>
                               </div>
-
-                              {/* FOOT */}
                               <div className="mt-3 flex items-center justify-between">
                                 <div className={`text-[10px] font-semibold px-2 py-1 rounded-md
-                  ${available > 5
-                                    ? 'bg-green-100 text-green-600'
-                                    : 'bg-amber-100 text-amber-600'}
-                `}>
+                  ${available > 5 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
                                   {available} còn
                                 </div>
-
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      handleOpenEditProduct(product);
-                                    }}
+                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleOpenEditProduct(product); }}
                                     className="w-12 h-12 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center active:scale-90 transition relative z-30 touch-manipulation"
                                   >
                                     <Edit2 className="w-5 h-5" />
                                   </button>
                                   {!unavail && (
                                     <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        handleAddProduct(product.id, 1);
-                                      }}
+                                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleAddProduct(product.id, 1); }}
                                       type="button"
                                       className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center active:scale-95 transition"
                                     >
@@ -1092,334 +1049,266 @@ export default function RoomPage() {
                   </div>
                 )}
 
-                {/* ── Tab: Cart (Đã cải tiến giao diện) ── */}
+                {/* ══════════════════════════════════════════
+                    Tab: Giỏ hàng  — bao gồm tiền giờ & thanh toán
+                ══════════════════════════════════════════ */}
                 {mobileTab === 'cart' && (
                   <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
+                    <div className="flex-1 overflow-y-auto">
 
-                    {/* LIST */}
-                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-                      {orderItems.length === 0 ? (
-                        <div className="py-20 text-center">
-                          <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                            <ShoppingCart className="w-10 h-10 text-slate-300" />
+                      {/* ── BLOCK 1: Tiền giờ (luôn hiển thị đầu tiên) ── */}
+                      <div className="mx-4 mt-4 bg-white rounded-2xl shadow-sm overflow-hidden">
+                        {/* Tiêu đề row */}
+                        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                          <div className="flex items-center gap-2 text-indigo-600">
+                            <Clock className="w-4 h-4" />
+                            <span className="font-bold text-xs uppercase tracking-wider">Tiền giờ</span>
                           </div>
-                          <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">
-                            Chưa gọi món nào
-                          </p>
                           <button
-                            onClick={() => setMobileTab('menu')}
-                            className="mt-6 text-indigo-600 font-bold text-xs uppercase bg-indigo-50 px-6 py-3 rounded-xl active:scale-95 transition"
+                            onClick={openTransferModal}
+                            className="p-1.5 text-indigo-600 bg-indigo-50 rounded-lg active:scale-90 transition-transform border border-indigo-100"
+                            title="Chuyển phòng"
                           >
-                            Quay lại thực đơn
+                            <ArrowRightLeft className="w-4 h-4" />
                           </button>
                         </div>
-                      ) : (
-                        orderItems.map((item, index) => (
-                          <div
-                            key={item.id ?? index}
-                            className="bg-white rounded-2xl px-4 py-4 shadow-sm flex items-center gap-3"
-                          >
 
-                            {/* NAME */}
-                            <div className="flex-1 min-w-0">
+                        <div className="px-4 pb-4 space-y-3">
+                          {/* Giờ vào */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Giờ vào</label>
+                            <div className="flex gap-2">
                               <input
-                                type="text"
-                                value={editingNames[index] ?? item.productName}
-                                onChange={(e) => handleNameChange(index, e.target.value)}
-                                onBlur={() => handleNameBlur(index)}
-                                className="font-semibold text-slate-900 text-sm leading-snug bg-transparent border-none focus:ring-0 p-0 w-full"
+                                type="datetime-local"
+                                value={selectedStartTime}
+                                onChange={(e) => setSelectedStartTime(e.target.value)}
+                                className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                               />
-                              <input
-                                type="text"
-                                value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                                onChange={(e) => handlePriceChange(index, e.target.value)}
-                                onBlur={() => handlePriceBlur(index)}
-                                className="text-indigo-500 text-base mt-1 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
-                              />
+                              <button
+                                onClick={handleUpdateStartTime}
+                                className="bg-indigo-100 text-indigo-600 px-3 rounded-xl text-xs font-bold active:scale-95 transition whitespace-nowrap"
+                              >
+                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'SỬA GIỜ' : 'BẮT ĐẦU'}
+                              </button>
                             </div>
-
-                            {/* QUANTITY */}
-                            <div className="w-[100px] flex justify-center">
-                              <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
-                                <button
-                                  onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })}
-                                  className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
-                                >
-                                  <Minus className="w-4 h-4" />
-                                </button>
-
-                                <input
-                                  type="text"
-                                  value={editingQuantities[index] ?? item.quantity}
-                                  onChange={(e) => handleQuantityChange(index, e.target.value)}
-                                  onBlur={() => handleQuantityBlur(index)}
-                                  className="w-8 text-center font-bold text-slate-900 bg-transparent text-base outline-none"
-                                />
-
-                                <button
-                                  onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })}
-                                  className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* PRICE */}
-                            {/* <div className="w-[85px] text-right">
-                            <div className="font-semibold text-slate-900 text-sm">
-                              {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                            </div>
-                          </div> */}
-                            {/* DELETE */}
-                            <button
-                              onClick={() => handleRemoveItem(index)}
-                              className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-
                           </div>
-                        ))
-                      )}
-                    </div>
 
-                    {/* FOOTER */}
-                    {orderItems.length > 0 && (
-                      <div className="px-5 py-5 bg-white border-t shadow-md">
-                        <div className="flex justify-between items-center mb-4">
-                          <span className="text-slate-400 font-semibold text-xs uppercase">
-                            Tổng tiền
-                          </span>
-                          <span className="font-bold text-indigo-600 text-xl">
-                            {totalProductCost.toLocaleString('vi-VN')}đ
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => setMobileTab('info')}
-                          className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm uppercase tracking-wide shadow active:scale-95 transition"
-                        >
-                          Xác nhận đặt hàng
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Tab: Info / Checkout (Đã cải tiến giao diện) ── */}
-                {mobileTab === 'info' && (
-                  <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5 bg-slate-50">
-
-                    {/* ===== THÔNG TIN ===== */}
-                    <div className="bg-white rounded-2xl p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 text-indigo-600">
-                          <Clock className="w-4 h-4" />
-                          <span className="font-bold text-xs uppercase tracking-wider">
-                            Thông tin giờ chơi
-                          </span>
-                        </div>
-                        <button
-                          onClick={openTransferModal}
-                          className="p-1.5 text-indigo-600 bg-indigo-50 rounded-lg active:scale-90 transition-transform border border-indigo-100"
-                          title="Chuyển phòng"
-                        >
-                          <ArrowRightLeft className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="space-y-4">
-                        {/* Giờ vào */}
-                        <div>
-                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                            Giờ vào
-                          </label>
-                          <div className="flex gap-2">
+                          {/* Giờ ra */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Giờ ra (dự kiến)</label>
                             <input
                               type="datetime-local"
-                              value={selectedStartTime}
-                              onChange={(e) => setSelectedStartTime(e.target.value)}
-                              className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
+                              value={selectedEndTime}
+                              onChange={(e) => setSelectedEndTime(e.target.value)}
+                              className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                             />
-                            <button
-                              onClick={handleUpdateStartTime}
-                              className="bg-indigo-100 text-indigo-600 px-4 rounded-xl text-xs font-bold active:scale-95 transition"
-                            >
-                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
-                                ? 'SỬA GIỜ'
-                                : 'BẮT ĐẦU'}
-                            </button>
                           </div>
-                        </div>
 
-                        {/* Giờ ra */}
-                        <div>
-                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                            Giờ ra (dự kiến)
-                          </label>
-                          <input
-                            type="datetime-local"
-                            value={selectedEndTime}
-                            onChange={(e) => setSelectedEndTime(e.target.value)}
-                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
-                          />
-                        </div>
+                          {/* Giá giờ & Khách */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Giá giờ</label>
+                              <input
+                                type="text"
+                                value={customPricePerHour.toLocaleString('vi-VN')}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setCustomPricePerHour(val ? parseInt(val) : 0);
+                                }}
+                                className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
+                              />
+                            </div>
+                            <div className="relative">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Khách hàng</label>
+                              <input
+                                type="text"
+                                placeholder="Tên / SĐT..."
+                                value={customerName}
+                                onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
+                                onFocus={() => setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
+                              />
+                              {showSuggestions && customerSuggestions.length > 0 && (
+                                <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-48 overflow-auto py-1 ring-1 ring-black/5">
+                                  {customerSuggestions.map((name) => (
+                                    <li
+                                      key={name}
+                                      onClick={() => { setCustomerName(name); setShowSuggestions(false); }}
+                                      className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2"
+                                    >
+                                      <Users className="w-3 h-3 text-slate-400" /> {name}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
 
-                        {/* Khách */}
-                        <div className="relative">
-                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                            Khách hàng
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Nhập tên hoặc SĐT..."
-                            value={customerName}
-                            onChange={(e) => {
-                              setCustomerName(e.target.value);
-                              setShowSuggestions(true);
-                            }}
-                            onFocus={() => setShowSuggestions(true)}
-                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
-                          />
-                          {showSuggestions && customerSuggestions.length > 0 && (
-                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-48 overflow-auto py-1 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
-                              {customerSuggestions.map((name) => (
-                                <li
-                                  key={name}
-                                  onClick={() => {
-                                    setCustomerName(name);
-                                    setShowSuggestions(false);
-                                  }}
-                                  className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2"
-                                >
-                                  <Users className="w-3 h-3 text-slate-400" /> {name}
-                                </li>
-                              ))}
-                            </ul>
+                          {/* Tiền giờ hiển thị */}
+                          <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-3">
+                            <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
+                              {durationText}
+                            </span>
+                            <span className="text-lg font-black text-indigo-700">
+                              {roomChargeTotal.toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+
+                          {timeError && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                              <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                              <p className="text-amber-700 text-xs font-medium">{timeError}</p>
+                            </div>
                           )}
                         </div>
-
-                        {/* Giá giờ */}
-                        <div>
-                          <label className="text-xs font-semibold text-slate-500 mb-1 block">
-                            Giá giờ (VNĐ/giờ)
-                          </label>
-                          <input
-                            type="text"
-                            value={customPricePerHour.toLocaleString('vi-VN')}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/\D/g, '');
-                              setCustomPricePerHour(val ? parseInt(val) : 0);
-                            }}
-                            className="w-full bg-slate-100 rounded-xl px-4 py-3 text-base font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ===== SUMMARY ===== */}
-                    <div className="bg-gradient-to-br to-blue-400 rounded-3xl p-6 text-white shadow-xl">
-                      <div className="flex items-center gap-2 text-indigo-600 mb-5">
-                        <ReceiptText className="w-4 h-4" />
-                        <span className="font-bold text-xs uppercase tracking-wider">
-                          Tóm tắt thanh toán
-                        </span>
                       </div>
 
-                      <div className="space-y-3 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-black">
-                            Tiền phòng ({durationText})
-                          </span>
-                          <span className="font-semibold text-black">
-                            {roomChargeTotal.toLocaleString('vi-VN')}đ
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-black">
-                            Dịch vụ ({orderItems.length} món)
-                          </span>
-                          <span className="font-semibold text-black">
-                            {totalProductCost.toLocaleString('vi-VN')}đ
-                          </span>
-                        </div>
-
-                        <div className="border-t border-slate-700 my-3" />
-
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <p className="text-indigo-600 text-xs uppercase tracking-wider font-bold">
-                              Tổng cộng
-                            </p>
-                            <p className="text-2xl font-bold text-black">
-                              {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
-                            </p>
+                      {/* ── BLOCK 2: Danh sách món ── */}
+                      <div className="mx-4 mt-4 space-y-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 text-slate-600">
+                            <ShoppingCart className="w-4 h-4" />
+                            <span className="font-bold text-xs uppercase tracking-wider">Dịch vụ ({orderItems.length} món)</span>
                           </div>
+                          <button
+                            onClick={() => setMobileTab('menu')}
+                            className="text-indigo-600 text-xs font-bold bg-indigo-50 px-3 py-1.5 rounded-full active:scale-95 transition flex items-center gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Thêm
+                          </button>
+                        </div>
+
+                        {orderItems.length === 0 ? (
+                          <div className="bg-white rounded-2xl py-10 text-center shadow-sm">
+                            <ShoppingCart className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+                            <p className="text-slate-400 text-xs font-semibold">Chưa gọi món nào</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {orderItems.map((item, index) => (
+                              <div
+                                key={item.id ?? index}
+                                className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    type="text"
+                                    value={editingNames[index] ?? item.productName}
+                                    onChange={(e) => handleNameChange(index, e.target.value)}
+                                    onBlur={() => handleNameBlur(index)}
+                                    className="font-semibold text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 w-full"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
+                                    onChange={(e) => handlePriceChange(index, e.target.value)}
+                                    onBlur={() => handlePriceBlur(index)}
+                                    className="text-indigo-500 text-sm mt-0.5 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
+                                  />
+                                </div>
+                                <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
+                                  <button
+                                    onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })}
+                                    className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <input
+                                    type="text"
+                                    value={editingQuantities[index] ?? item.quantity}
+                                    onChange={(e) => handleQuantityChange(index, e.target.value)}
+                                    onBlur={() => handleQuantityBlur(index)}
+                                    className="w-7 text-center font-bold text-slate-900 bg-transparent text-sm outline-none"
+                                  />
+                                  <button
+                                    onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })}
+                                    className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={() => handleRemoveItem(index)}
+                                  className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── BLOCK 3: Tổng cộng ── */}
+                      <div className="mx-4 mt-4 bg-indigo-600 rounded-2xl p-4 shadow-lg">
+                        <div className="flex justify-between items-center text-sm text-indigo-200 mb-1">
+                          <span>Tiền phòng</span>
+                          <span className="font-semibold text-white">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm text-indigo-200 mb-3">
+                          <span>Dịch vụ</span>
+                          <span className="font-semibold text-white">{totalProductCost.toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        <div className="border-t border-indigo-500 pt-3 flex justify-between items-center">
+                          <span className="text-xs font-black text-indigo-300 uppercase tracking-widest">Tổng cộng</span>
+                          <span className="text-2xl font-black text-white">
+                            {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
+                          </span>
                         </div>
                       </div>
-                    </div>
-                    {timeError && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
-                        <Info className="w-4 h-4 text-amber-500 mt-0.5" />
-                        <p className="text-amber-700 text-xs font-medium">
-                          {timeError}
-                        </p>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4 pt-4 pb-10">
-                      {/* Cột 1: Tạm tính hoặc Tiếp tục (Dựa vào trạng thái session) */}
-                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+
+                      {/* ── BLOCK 4: Nút hành động ── */}
+                      <div className="mx-4 mt-4 mb-8 grid grid-cols-2 gap-3">
+                        {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                          <>
+                            <button
+                              onClick={handleResumeSession}
+                              className="bg-emerald-600 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+                            >
+                              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                                <ChevronRight className="w-5 h-5" />
+                              </div>
+                              <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
+                            </button>
+                            <button
+                              onClick={() => window.print()}
+                              className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                            >
+                              <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center">
+                                <ReceiptText className="w-5 h-5 text-slate-500" />
+                              </div>
+                              <span className="text-[11px] font-black uppercase tracking-wider">In phiếu</span>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={handlePauseSession}
+                            className="bg-amber-100 text-amber-600 rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                          >
+                            <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+                              <Clock className="w-5 h-5" />
+                            </div>
+                            <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
+                          </button>
+                        )}
+
                         <button
-                          onClick={handleResumeSession}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
+                          onClick={handleGenerateInvoice}
+                          disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
+                          className="bg-indigo-600 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-40"
                         >
-                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                            <ChevronRight className="w-5 h-5" />
+                          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                            <CheckCircle2 className="w-5 h-5" />
                           </div>
-                          <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
                         </button>
-                      ) : (
-                        <button
-                          onClick={handlePauseSession}
-                          className="bg-amber-100 hover:bg-amber-200 text-amber-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
-                        >
-                          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                            <Clock className="w-5 h-5" />
-                          </div>
-                          <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
-                        </button>
-                      )}
+                      </div>
 
-                      {/* Cột 2: Nút Thanh toán (Luôn hiển thị cùng hàng) */}
-                      <button
-                        onClick={handleGenerateInvoice}
-                        disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
-                        className="bg-indigo-600 text-white rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-lg shadow-indigo-100 active:scale-95 transition-all disabled:opacity-40"
-                      >
-                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                          <CheckCircle2 className="w-5 h-5" />
-                        </div>
-                        <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
-                      </button>
-
-                      {/* Hàng 2: Nút In (Chỉ xuất hiện khi đã nhấn Tạm tính) */}
-                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') && (
-                        <button
-                          onClick={() => window.print()}
-                          className="col-span-2 bg-white border border-slate-200 text-slate-600 rounded-2xl py-5 flex flex-col items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"
-                        >
-                          <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
-                            <ReceiptText className="w-5 h-5 text-slate-500" />
-                          </div>
-                          <span className="text-[11px] font-black uppercase tracking-wider">In</span>
-                        </button>
-                      )}
-                    </div>
+                    </div>{/* end scrollable */}
                   </div>
                 )}
+
               </div>
             </>
           )}
@@ -1467,13 +1356,8 @@ export default function RoomPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                  <Select
-                    value={newProductForm.category}
-                    onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
-                  >
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
-                      <SelectValue placeholder="Chọn loại" />
-                    </SelectTrigger>
+                  <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                     <SelectContent className="rounded-2xl">
                       <SelectItem value="food">Đồ ăn</SelectItem>
                       <SelectItem value="drink">Đồ uống</SelectItem>
@@ -1485,14 +1369,9 @@ export default function RoomPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                  <Input
-                    required
-                    type="text"
+                  <Input required type="text"
                     value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
-                    onChange={e => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setNewProductForm({ ...newProductForm, price: val });
-                    }}
+                    onChange={e => { const val = e.target.value.replace(/\D/g, ''); setNewProductForm({ ...newProductForm, price: val }); }}
                     placeholder="0" className="rounded-xl h-11" />
                 </div>
               </div>
@@ -1523,9 +1402,7 @@ export default function RoomPage() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
                   <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm">
-                      <SelectValue placeholder="Chọn loại" />
-                    </SelectTrigger>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                     <SelectContent className="rounded-2xl">
                       <SelectItem value="food">Đồ ăn</SelectItem>
                       <SelectItem value="drink">Đồ uống</SelectItem>
@@ -1537,24 +1414,14 @@ export default function RoomPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                  <Input
-                    required
-                    type="text"
+                  <Input required type="text"
                     value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
-                    onChange={e => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setNewProductForm({ ...newProductForm, price: val });
-                    }}
+                    onChange={e => { const val = e.target.value.replace(/\D/g, ''); setNewProductForm({ ...newProductForm, price: val }); }}
                     className="rounded-xl h-11 font-bold text-indigo-600" />
                 </div>
                 <div className="space-y-1 col-span-2">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng kho (Hiện có)</label>
-                  <Input
-                    type="number"
-                    value={newProductForm.quantity}
-                    onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })}
-                    className="rounded-xl h-11 font-bold"
-                  />
+                  <Input type="number" value={newProductForm.quantity} onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })} className="rounded-xl h-11 font-bold" />
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
@@ -1569,7 +1436,7 @@ export default function RoomPage() {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // DESKTOP UI  (>= 1024px) — Bố cục split panel gốc
+  // DESKTOP UI  (>= 1024px) — không thay đổi
   // ════════════════════════════════════════════════════════════════════════════
 
   return (
@@ -1645,16 +1512,9 @@ export default function RoomPage() {
                             <div className="flex gap-2">
                               <Input type="datetime-local" value={selectedStartTime} onChange={(e) => setSelectedStartTime(e.target.value)}
                                 className="h-9 text-[11px] border-slate-100 focus:ring-indigo-500 rounded-lg font-bold flex-1" />
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={handleUpdateStartTime}
-                                className="h-9 px-3 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
-                              >
-                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active')
-                                  ? 'Sửa/Xóa'
-                                  : 'Bắt đầu'}
+                              <Button type="button" size="sm" variant="outline" onClick={handleUpdateStartTime}
+                                className="h-9 px-3 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0">
+                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Sửa/Xóa' : 'Bắt đầu'}
                               </Button>
                             </div>
                           </div>
@@ -1670,34 +1530,22 @@ export default function RoomPage() {
                           <div>
                             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Giá giờ</label>
                             <Input type="text" value={customPricePerHour.toLocaleString('vi-VN')}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                setCustomPricePerHour(val ? parseInt(val) : 0);
-                              }}
+                              onChange={(e) => { const val = e.target.value.replace(/\D/g, ''); setCustomPricePerHour(val ? parseInt(val) : 0); }}
                               className="h-9 text-xs border-slate-100 focus:ring-indigo-500 rounded-lg font-black text-indigo-600" />
                           </div>
                           <div className="relative">
                             <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5 ml-1">Tên khách</label>
                             <Input type="text" placeholder="Tên hoặc SĐT..."
                               value={customerName}
-                              onChange={(e) => {
-                                setCustomerName(e.target.value);
-                                setShowSuggestions(true);
-                              }}
+                              onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
                               onFocus={() => setShowSuggestions(true)}
                               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                               className="h-9 text-xs border-slate-100 focus:ring-indigo-500 rounded-lg font-bold" />
                             {showSuggestions && customerSuggestions.length > 0 && (
                               <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-2xl max-h-40 overflow-auto py-1 ring-1 ring-black/5">
                                 {customerSuggestions.map((name) => (
-                                  <li
-                                    key={name}
-                                    onClick={() => {
-                                      setCustomerName(name);
-                                      setShowSuggestions(false);
-                                    }}
-                                    className="px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2"
-                                  >
+                                  <li key={name} onClick={() => { setCustomerName(name); setShowSuggestions(false); }}
+                                    className="px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2">
                                     <Users className="w-3 h-3 text-slate-400" /> {name}
                                   </li>
                                 ))}
@@ -1734,13 +1582,9 @@ export default function RoomPage() {
                     orderItems.map((item, index) => (
                       <div key={item.id ?? index} className="group relative flex flex-col p-3.5 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
                         <div className="flex justify-between items-start mb-2">
-                          <input
-                            type="text"
-                            value={editingNames[index] ?? item.productName}
-                            onChange={(e) => handleNameChange(index, e.target.value)}
-                            onBlur={() => handleNameBlur(index)}
-                            className="font-bold text-slate-900 text-sm line-clamp-2 bg-transparent border-none focus:ring-0 p-0 w-full"
-                          />
+                          <input type="text" value={editingNames[index] ?? item.productName}
+                            onChange={(e) => handleNameChange(index, e.target.value)} onBlur={() => handleNameBlur(index)}
+                            className="font-bold text-slate-900 text-sm line-clamp-2 bg-transparent border-none focus:ring-0 p-0 w-full" />
                           <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1755,13 +1599,10 @@ export default function RoomPage() {
                             <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
                           </div>
                           <div className="flex flex-col items-end">
-                            <input
-                              type="text"
+                            <input type="text"
                               value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                              onChange={(e) => handlePriceChange(index, e.target.value)}
-                              onBlur={() => handlePriceBlur(index)}
-                              className="font-black text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 text-right w-24"
-                            />
+                              onChange={(e) => handlePriceChange(index, e.target.value)} onBlur={() => handlePriceBlur(index)}
+                              className="font-black text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 text-right w-24" />
                           </div>
                         </div>
                       </div>
@@ -1771,7 +1612,6 @@ export default function RoomPage() {
 
                 <div className="p-4 lg:p-6 bg-white border-t border-slate-100">
                   <div className="flex items-center justify-between mb-8">
-                    {/* Cụm bên trái: Tiền phòng & Dịch vụ */}
                     <div className="flex items-center gap-8">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền phòng ({durationText})</span>
@@ -1780,9 +1620,7 @@ export default function RoomPage() {
                           <span className="text-[10px] text-slate-400 font-medium">đ</span>
                         </div>
                       </div>
-
                       <div className="w-[1px] h-8 bg-slate-100" />
-
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền dịch vụ</span>
                         <div className="flex items-baseline gap-1">
@@ -1791,8 +1629,6 @@ export default function RoomPage() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Cụm bên phải: Tổng thanh toán */}
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Tổng thanh toán</span>
                       <div className="flex items-baseline gap-1 text-indigo-600">
@@ -1805,46 +1641,25 @@ export default function RoomPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mt-4">
-
-                    {/* BÊN TRÁI */}
                     <div className="grid grid-cols-2 gap-4">
-
                       {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
                         <>
-                          {/* TẠM TÍNH (tiếp tục) */}
-                          <Button
-                            onClick={handleResumeSession}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase rounded-2xl h-14 text-xs"
-                          >
+                          <Button onClick={handleResumeSession} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase rounded-2xl h-14 text-xs">
                             <Play className="w-4 h-4 mr-2 fill-current" /> Tiếp tục
                           </Button>
-
-                          {/* IN */}
-                          <Button
-                            onClick={() => window.print()}
-                            variant="outline"
-                            className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-black h-14 text-xs"
-                          >
+                          <Button onClick={() => window.print()} variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl font-black h-14 text-xs">
                             <ReceiptText className="w-4 h-4 mr-2" /> In
                           </Button>
                         </>
                       ) : (
-                        /* CHƯA PAUSE → TẠM TÍNH FULL */
-                        <Button
-                          onClick={handlePauseSession}
-                          variant="outline"
-                          className="col-span-2 border-amber-200 text-amber-600 hover:bg-amber-50 font-black rounded-2xl h-14 text-xs"
-                        >
+                        <Button onClick={handlePauseSession} variant="outline" className="col-span-2 border-amber-200 text-amber-600 hover:bg-amber-50 font-black rounded-2xl h-14 text-xs">
                           <Clock className="w-4 h-4 mr-2" /> Tạm tính
                         </Button>
                       )}
                     </div>
-                    {/* BÊN PHẢI: THANH TOÁN */}
-                    <Button
-                      onClick={handleGenerateInvoice}
+                    <Button onClick={handleGenerateInvoice}
                       disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase rounded-2xl h-14 shadow-xl transition-all active:scale-95 text-xs"
-                    >
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase rounded-2xl h-14 shadow-xl transition-all active:scale-95 text-xs">
                       <CheckCircle2 className="w-4 h-4 mr-2" /> THANH TOÁN
                     </Button>
                   </div>
@@ -1854,32 +1669,18 @@ export default function RoomPage() {
               {/* Right column — Product menu */}
               <div className="flex-1 min-w-0 flex flex-col p-4 lg:p-6 overflow-hidden order-2 lg:order-1">
                 <div className="flex flex-col lg:flex-row gap-4 mb-6 items-stretch">
-                  {/* Ô tìm kiếm */}
                   <div className="relative flex-1 lg:max-w-sm">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <Input
-                      placeholder="Tìm món ăn, đồ uống..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        setShowProductSuggestions(true);
-                      }}
+                    <Input placeholder="Tìm món ăn, đồ uống..." value={searchTerm}
+                      onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
                       onFocus={() => setShowProductSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
-                      className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200"
-                    />
-                    {/* Danh sách gợi ý món ăn */}
+                      className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200" />
                     {showProductSuggestions && productSuggestions.length > 0 && (
                       <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-72 overflow-auto py-2 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
                         {productSuggestions.map((product) => (
-                          <li
-                            key={product.id}
-                            onClick={() => {
-                              setSearchTerm(product.name);
-                              setShowProductSuggestions(false);
-                            }}
-                            className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group"
-                          >
+                          <li key={product.id} onClick={() => { setSearchTerm(product.name); setShowProductSuggestions(false); }}
+                            className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group">
                             <div className="flex items-center gap-3">
                               <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors">
                                 <Package className="w-4 h-4 text-slate-400 group-hover:text-indigo-600" />
@@ -1895,29 +1696,18 @@ export default function RoomPage() {
                       </ul>
                     )}
                   </div>
-                  {/* Danh mục thu gọn hơn */}
                   <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    <Button
-                      variant="outline"
-                      onClick={handleOpenAddProduct}
+                    <Button variant="outline" onClick={handleOpenAddProduct}
                       className="h-10 w-10 p-0 shrink-0 bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm transition-all flex items-center justify-center"
-                      title="Thêm sản phẩm mới"
-                    >
+                      title="Thêm sản phẩm mới">
                       <Plus className="w-5 h-5" />
                     </Button>
                     <div className="w-[1px] h-8 bg-slate-100 shrink-0 mx-1" />
                     {DESKTOP_CATEGORIES.map((cat) => (
-                      <button
-                        key={cat.id}
-                        onClick={() => setActiveCategory(cat.id)}
+                      <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition
-            ${activeCategory === cat.id
-                            ? "bg-indigo-600 text-white shadow"
-                            : "bg-white text-slate-500 border border-slate-100 hover:bg-slate-50"
-                          }`}
-                      >
-                        {cat.icon}
-                        {cat.name}
+            ${activeCategory === cat.id ? "bg-indigo-600 text-white shadow" : "bg-white text-slate-500 border border-slate-100 hover:bg-slate-50"}`}>
+                        {cat.icon}{cat.name}
                       </button>
                     ))}
                   </div>
@@ -1925,49 +1715,25 @@ export default function RoomPage() {
                 <div className="flex-1 overflow-y-auto pr-1">
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {desktopFiltered.map((product) => {
-                      const inCart =
-                        orderItems.find((item) => item.productId === product.id)?.quantity || 0;
+                      const inCart = orderItems.find((item) => item.productId === product.id)?.quantity || 0;
                       const available = product.quantity - inCart;
-
                       return (
-                        <div
-                          key={product.id}
-                          onClick={(e) => {
-                            if ((e.target as HTMLElement).closest('button')) return;
-                            product.quantity > 0 && handleAddProduct(product.id, 1);
-                          }}
-                          className={`group bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition flex flex-col justify-between text-left relative overflow-hidden ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        >
+                        <div key={product.id}
+                          onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; product.quantity > 0 && handleAddProduct(product.id, 1); }}
+                          className={`group bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition flex flex-col justify-between text-left relative overflow-hidden ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                           <div>
-                            <div className="font-semibold text-slate-800 text-sm line-clamp-2 mb-1">
-                              {product.name}
-                            </div>
-                            <div className="text-indigo-600 font-bold text-base">
-                              {product.price.toLocaleString("vi-VN")}đ
-                            </div>
+                            <div className="font-semibold text-slate-800 text-sm line-clamp-2 mb-1">{product.name}</div>
+                            <div className="text-indigo-600 font-bold text-base">{product.price.toLocaleString("vi-VN")}đ</div>
                           </div>
                           <div className="flex justify-between items-center mt-3">
-                            <div
-                              className={`text-[10px] font-semibold px-2 py-1 rounded-md
-                  ${available > 5
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : "bg-orange-50 text-orange-600"
-                                }
-                `}
-                            >
+                            <div className={`text-[10px] font-semibold px-2 py-1 rounded-md ${available > 5 ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600"}`}>
                               {available} còn
                             </div>
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenEditProduct(product);
-                                }}
-                                className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition active:scale-95"
-                              >
+                              <button onClick={(e) => { e.stopPropagation(); handleOpenEditProduct(product); }}
+                                className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition active:scale-95">
                                 <Edit2 className="w-4 h-4" />
                               </button>
-                              {/* ADD BTN */}
                               <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900 text-white group-hover:bg-indigo-600 transition">
                                 <Plus className="w-4 h-4" />
                               </div>
@@ -1982,10 +1748,7 @@ export default function RoomPage() {
                       <Box className="w-12 h-12 mx-auto mb-4 opacity-20" />
                       <p className="text-sm font-medium">Không tìm thấy sản phẩm nào khớp với từ khóa</p>
                       {searchTerm && (
-                        <Button
-                          onClick={handleOpenAddProduct}
-                          className="mt-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl h-12 px-8 font-bold shadow-lg shadow-indigo-100"
-                        >
+                        <Button onClick={handleOpenAddProduct} className="mt-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl h-12 px-8 font-bold shadow-lg shadow-indigo-100">
                           <Plus className="w-4 h-4 mr-2" /> Tạo món mới "{searchTerm}" vào kho ngay
                         </Button>
                       )}
@@ -2101,20 +1864,13 @@ export default function RoomPage() {
                 {orderItems.map((item, index) => (
                   <div key={item.id ?? index} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
                     <div className="flex-1 w-full sm:min-w-0">
-                      <input
-                        type="text"
-                        value={editingNames[index] ?? item.productName}
-                        onChange={(e) => handleNameChange(index, e.target.value)}
-                        onBlur={() => handleNameBlur(index)}
-                        className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug bg-transparent border-none focus:ring-0 p-0 w-full"
-                      />
-                      <input
-                        type="text"
+                      <input type="text" value={editingNames[index] ?? item.productName}
+                        onChange={(e) => handleNameChange(index, e.target.value)} onBlur={() => handleNameBlur(index)}
+                        className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug bg-transparent border-none focus:ring-0 p-0 w-full" />
+                      <input type="text"
                         value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                        onChange={(e) => handlePriceChange(index, e.target.value)}
-                        onBlur={() => handlePriceBlur(index)}
-                        className="text-xs text-slate-400 mt-0.5 leading-snug bg-transparent border-none focus:ring-0 p-0 w-full"
-                      />
+                        onChange={(e) => handlePriceChange(index, e.target.value)} onBlur={() => handlePriceBlur(index)}
+                        className="text-xs text-slate-400 mt-0.5 leading-snug bg-transparent border-none focus:ring-0 p-0 w-full" />
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
@@ -2159,11 +1915,9 @@ export default function RoomPage() {
           <div className="grid grid-cols-2 gap-3 mt-4">
             {availableRooms.length > 0 ? (
               availableRooms.map((r) => (
-                <Button
-                  key={r.id} variant="outline"
+                <Button key={r.id} variant="outline"
                   className="h-20 flex flex-col font-bold border-2 hover:border-indigo-500 hover:text-indigo-600 rounded-2xl transition-all"
-                  onClick={() => { setIsTransferModalOpen(false); handleTransferRoom(r.id); }}
-                >
+                  onClick={() => { setIsTransferModalOpen(false); handleTransferRoom(r.id); }}>
                   <span className="text-lg">P. {r.roomNumber}</span>
                   <span className="text-[10px] text-slate-400 font-normal">Sức chứa: {r.capacity}</span>
                 </Button>
@@ -2190,13 +1944,8 @@ export default function RoomPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <Select
-                  value={newProductForm.category}
-                  onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
-                >
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm">
-                    <SelectValue placeholder="Chọn loại" />
-                  </SelectTrigger>
+                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
                     <SelectItem value="food">Đồ ăn</SelectItem>
                     <SelectItem value="drink">Đồ uống</SelectItem>
@@ -2208,24 +1957,14 @@ export default function RoomPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                <Input
-                  required
-                  type="text"
+                <Input required type="text"
                   value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setNewProductForm({ ...newProductForm, price: val });
-                  }}
+                  onChange={e => { const val = e.target.value.replace(/\D/g, ''); setNewProductForm({ ...newProductForm, price: val }); }}
                   className="rounded-xl font-bold text-indigo-600" />
               </div>
               <div className="space-y-1 col-span-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Số lượng kho (Hiện có)</label>
-                <Input
-                  type="number"
-                  value={newProductForm.quantity}
-                  onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })}
-                  className="rounded-xl font-bold"
-                />
+                <Input type="number" value={newProductForm.quantity} onChange={e => setNewProductForm({ ...newProductForm, quantity: e.target.value })} className="rounded-xl font-bold" />
               </div>
             </div>
             <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 rounded-xl font-bold mt-4 shadow-lg shadow-indigo-100">Cập nhật thông tin</Button>
@@ -2248,13 +1987,8 @@ export default function RoomPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <Select
-                  value={newProductForm.category}
-                  onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}
-                >
-                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm">
-                    <SelectValue placeholder="Chọn loại" />
-                  </SelectTrigger>
+                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                  <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
                     <SelectItem value="food">Đồ ăn</SelectItem>
                     <SelectItem value="drink">Đồ uống</SelectItem>
@@ -2266,14 +2000,9 @@ export default function RoomPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Giá bán</label>
-                <Input
-                  required
-                  type="text"
+                <Input required type="text"
                   value={newProductForm.price ? Number(newProductForm.price).toLocaleString('vi-VN') : ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setNewProductForm({ ...newProductForm, price: val });
-                  }}
+                  onChange={e => { const val = e.target.value.replace(/\D/g, ''); setNewProductForm({ ...newProductForm, price: val }); }}
                   placeholder="0" className="rounded-xl" />
               </div>
             </div>
