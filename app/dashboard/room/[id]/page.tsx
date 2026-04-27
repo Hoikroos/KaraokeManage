@@ -274,7 +274,13 @@ export default function RoomPage() {
             setSelectedEndTime(formatDateTimeLocal(end));
             const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
             const ordersData = await ordersRes.json();
-            setOrderItems(Array.isArray(ordersData) ? ordersData : []);
+            const sortedOrders = Array.isArray(ordersData)
+              ? [...ordersData].sort((a, b) =>
+                new Date(a.orderedAt || a.OrderedAt || 0).getTime() -
+                new Date(b.orderedAt || b.OrderedAt || 0).getTime()
+              )
+              : [];
+            setOrderItems(sortedOrders);
             return;
           }
         }
@@ -1649,9 +1655,7 @@ export default function RoomPage() {
                     orderItems.map((item, index) => (
                       <div key={item.id ?? index} className="group relative flex flex-col p-3.5 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
                         <div className="flex justify-between items-start mb-2">
-                          <input type="text" value={editingNames[index] ?? item.productName}
-                            onChange={(e) => handleNameChange(index, e.target.value)} onBlur={() => handleNameBlur(index)}
-                            className="font-bold text-slate-900 text-sm line-clamp-2 bg-transparent border-none focus:ring-0 p-0 w-full" />
+                          <div className="font-bold text-slate-900 text-sm line-clamp-2">{item.productName}</div>
                           <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1665,14 +1669,11 @@ export default function RoomPage() {
                               onBlur={() => handleQuantityBlur(index)} />
                             <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
                           </div>
-                          <div className="flex flex-col items-end">
-                            <input type="text"
-                              value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                              onChange={(e) => handlePriceChange(index, e.target.value)} onBlur={() => handlePriceBlur(index)}
-                              className="font-black text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 text-right w-24" />
-                            <span className="text-[10px] font-bold text-indigo-500 mt-1">
+                          <div className="text-right">
+                            <div className="font-black text-slate-900 text-sm">{item.price.toLocaleString('vi-VN')}đ</div>
+                            <div className="text-[10px] font-bold text-indigo-500 mt-0.5">
                               {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                            </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1681,29 +1682,12 @@ export default function RoomPage() {
                 </div>
 
                 <div className="p-4 lg:p-6 bg-white border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-8">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền phòng ({durationText})</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-sm font-bold text-slate-700">{roomChargeTotal.toLocaleString('vi-VN')}</span>
-                          <span className="text-[10px] text-slate-400 font-medium">đ</span>
-                        </div>
-                      </div>
-                      <div className="w-[1px] h-8 bg-slate-100" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền dịch vụ</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-sm font-bold text-slate-700">{totalProductCost.toLocaleString('vi-VN')}</span>
-                          <span className="text-[10px] text-slate-400 font-medium">đ</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Tổng thanh toán</span>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tạm tính dịch vụ</span>
                       <div className="flex items-baseline gap-1 text-indigo-600">
                         <span className="text-2xl lg:text-3xl font-black tracking-tighter leading-none">
-                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}
+                          {totalProductCost.toLocaleString('vi-VN')}
                         </span>
                         <span className="text-xs font-bold uppercase">đ</span>
                       </div>
@@ -1934,13 +1918,8 @@ export default function RoomPage() {
                 {orderItems.map((item, index) => (
                   <div key={item.id ?? index} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
                     <div className="flex-1 w-full sm:min-w-0">
-                      <input type="text" value={editingNames[index] ?? item.productName}
-                        onChange={(e) => handleNameChange(index, e.target.value)} onBlur={() => handleNameBlur(index)}
-                        className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug bg-transparent border-none focus:ring-0 p-0 w-full" />
-                      <input type="text"
-                        value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                        onChange={(e) => handlePriceChange(index, e.target.value)} onBlur={() => handlePriceBlur(index)}
-                        className="text-xs text-slate-400 mt-0.5 leading-snug bg-transparent border-none focus:ring-0 p-0 w-full" />
+                      <div className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug">{item.productName}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
@@ -1964,19 +1943,9 @@ export default function RoomPage() {
             )}
           </div>
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            <div className="flex gap-8">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiền phòng</span>
-                <span className="text-lg font-bold text-slate-700">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiền dịch vụ</span>
-                <span className="text-lg font-bold text-slate-700">{totalProductCost.toLocaleString('vi-VN')}đ</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Tổng cộng</span>
-                <span className="text-2xl font-black text-indigo-600">{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ</span>
-              </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng tiền dịch vụ</span>
+              <span className="text-2xl font-black text-slate-900">{totalProductCost.toLocaleString('vi-VN')}đ</span>
             </div>
             <Button onClick={() => setIsCartModalOpen(false)} className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-8 h-12 rounded-xl">Đóng</Button>
           </div>
