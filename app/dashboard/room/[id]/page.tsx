@@ -622,7 +622,8 @@ export default function RoomPage() {
     const existingIndex = orderItems.findIndex(item => item.productId === selectedProductForOrder.id);
     if (existingIndex !== -1) {
       // Nếu đã có trong giỏ, cập nhật về số lượng mới (ghi đè)
-      handleUpdateOrderItem(existingIndex, { quantity: qty });
+      const currentProduct = products.find(p => p.id === selectedProductForOrder.id);
+      handleUpdateOrderItem(existingIndex, { quantity: qty, price: currentProduct?.price });
     } else if (qty > 0) {
       // Nếu chưa có, thêm mới vào giỏ
       handleAddProduct(selectedProductForOrder.id, qty);
@@ -715,7 +716,7 @@ export default function RoomPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setOrderItems(orderItems.map((i) => (i.id === updated.id ? updated : i)));
+        setOrderItems(prev => prev.map((i) => (i.id === updated.id ? updated : i)));
         setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
         setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
         setEditingNames((prev) => { const n = { ...prev }; delete n[index]; return n; });
@@ -1258,7 +1259,10 @@ export default function RoomPage() {
                                 </div>
                                 <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
                                   <button
-                                    onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })}
+                                    onClick={() => {
+                                      const p = products.find(prod => prod.id === item.productId);
+                                      handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
+                                    }}
                                     className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
                                   >
                                     <Minus className="w-3 h-3" />
@@ -1271,7 +1275,10 @@ export default function RoomPage() {
                                     className="w-7 text-center font-bold text-slate-900 bg-transparent text-sm outline-none"
                                   />
                                   <button
-                                    onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })}
+                                    onClick={() => {
+                                      const p = products.find(prod => prod.id === item.productId);
+                                      handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
+                                    }}
                                     className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
                                   >
                                     <Plus className="w-3 h-3" />
@@ -1690,12 +1697,29 @@ export default function RoomPage() {
                 </div>
 
                 <div className="p-4 lg:p-6 bg-white border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tạm tính dịch vụ</span>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-8">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền phòng ({durationText})</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-sm font-bold text-slate-700">{roomChargeTotal.toLocaleString('vi-VN')}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">đ</span>
+                        </div>
+                      </div>
+                      <div className="w-[1px] h-8 bg-slate-100" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền dịch vụ</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-sm font-bold text-slate-700">{totalProductCost.toLocaleString('vi-VN')}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">đ</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Tổng thanh toán</span>
                       <div className="flex items-baseline gap-1 text-indigo-600">
                         <span className="text-2xl lg:text-3xl font-black tracking-tighter leading-none">
-                          {totalProductCost.toLocaleString('vi-VN')}
+                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}
                         </span>
                         <span className="text-xs font-bold uppercase">đ</span>
                       </div>
@@ -1931,12 +1955,18 @@ export default function RoomPage() {
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
-                        <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1 })} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
+                        <button onClick={() => {
+                          const p = products.find(prod => prod.id === item.productId);
+                          handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
+                        }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
                         <input type="text" className="w-12 text-center font-black text-slate-900 bg-transparent border-none focus:ring-0"
                           value={editingQuantities[index] ?? item.quantity}
                           onChange={(e) => handleQuantityChange(index, e.target.value)}
                           onBlur={() => handleQuantityBlur(index)} />
-                        <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1 })} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
+                        <button onClick={() => {
+                          const p = products.find(prod => prod.id === item.productId);
+                          handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
+                        }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
                       </div>
                       <div className="min-w-[80px] text-right font-black text-indigo-600 text-sm sm:text-base">
                         {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
@@ -1951,9 +1981,21 @@ export default function RoomPage() {
             )}
           </div>
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng tiền dịch vụ</span>
-              <span className="text-2xl font-black text-slate-900">{totalProductCost.toLocaleString('vi-VN')}đ</span>
+            <div className="flex gap-8">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiền phòng</span>
+                <span className="text-lg font-bold text-slate-700">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tiền dịch vụ</span>
+                <span className="text-lg font-bold text-slate-700">{totalProductCost.toLocaleString('vi-VN')}đ</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Tổng cộng</span>
+                <span className="text-2xl font-black text-indigo-600">
+                  {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
+                </span>
+              </div>
             </div>
             <Button onClick={() => setIsCartModalOpen(false)} className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-8 h-12 rounded-xl">Đóng</Button>
           </div>
