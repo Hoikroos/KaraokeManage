@@ -1891,7 +1891,7 @@ export default function RoomPage() {
           style={{ fontFamily: 'Arial, sans-serif' }}>
           <style dangerouslySetInnerHTML={{ __html: `@media print { body { -webkit-print-color-adjust: exact; } }` }} />
           {/* Tiêu đề */}
-          <div className="text-center mb-2" style={{ borderBottom: '2px dashed #000', paddingBottom: 6 }}>
+          <div className="text-center mb-2" style={{ paddingBottom: 6 }}>
             <h2 className="text-[22px] font-black tracking-wider mt-1 uppercase">Phiếu Tạm Tính</h2>
             <p className="text-[11px] font-normal">Mã: TẠM-{String(session.id || (session as any).Id).substring(0, 6).toUpperCase()}</p>
             <p className="text-[13px] font-black">PHÒNG: {room.roomNumber}</p>
@@ -1938,7 +1938,7 @@ export default function RoomPage() {
           </table>
 
           {/* Tổng */}
-          <div style={{ borderTop: '2px dashed #000', paddingTop: 6 }}>
+          <div style={{ paddingTop: 6 }}>
             <div className="flex justify-between text-[12px] font-black" style={{ letterSpacing: '0.5px' }}>
               <span>Tiền phòng:</span>
               <span>{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
@@ -1952,10 +1952,15 @@ export default function RoomPage() {
               <span>0%</span>
             </div>
           </div>
-          <div className="flex justify-between text-[18px] font-black mt-2 pt-2"
+          <div className="flex justify-between text-[18px] font-black mt-4 pt-2"
             style={{ borderTop: '2px solid #000', letterSpacing: '0.5px' }}>
             <span>TỔNG CỘNG:</span>
             <span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+          </div>
+
+          {/* Dòng ghi tay hoa hồng (Không lưu CSDL) */}
+          <div className="mt-6 mb-2 flex justify-between text-[13px] font-bold italic pt-2">
+            <span>Hoa hồng:</span>
           </div>
 
           {/* Footer */}
