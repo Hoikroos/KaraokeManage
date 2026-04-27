@@ -1938,12 +1938,8 @@ export default function RoomPage() {
           {/* Tổng */}
           <div style={{ paddingTop: 6 }}>
             <div className="flex justify-between text-[12px] font-black" style={{ letterSpacing: '0.5px' }}>
-              <span>Tiền phòng:</span>
-              <span>{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
-            </div>
-            <div className="flex justify-between text-[12px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
-              <span>Tổng hàng hóa:</span>
-              <span>{totalProductCost.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+              <span>Tổng chi phí:</span>
+              <span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
             </div>
             <div className="flex justify-between text-[12px] font-black mt-1" style={{ letterSpacing: '0.5px' }}>
               <span>Chiết khấu:</span>
@@ -1955,11 +1951,9 @@ export default function RoomPage() {
             <span>TỔNG CỘNG:</span>
             <span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
           </div>
-
           {/* Dòng ghi tay hoa hồng (Không lưu CSDL) */}
           <div className="mt-6 mb-2 flex justify-between text-[13px] font-bold italic pt-2">
           </div>
-
           {/* Footer */}
           <div className="text-center text-black mt-4"
             style={{ borderTop: '2px dashed #000', paddingTop: 8, fontSize: 11, breakInside: 'avoid' }}>
