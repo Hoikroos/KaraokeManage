@@ -140,17 +140,26 @@ export default function RoomPage() {
       .slice(0, 5);
   }, [customerName, allCustomerNames]);
 
+  // Stable sort products by ID để giữ menu không nhảy
+  const stableSortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      const idA = (a.id || (a as any).Id || '').toString();
+      const idB = (b.id || (b as any).Id || '').toString();
+      return idA.localeCompare(idB);
+    });
+  }, [products]);
+
   // Logic lọc gợi ý sản phẩm (Desktop)
   const productSuggestions = useMemo(() => {
     if (!searchTerm || searchTerm.trim().length === 0) return [];
     const search = searchTerm.toLowerCase();
-    return products
+    return stableSortedProducts
       .filter(p =>
         p.name.toLowerCase().includes(search) &&
         p.name.toLowerCase() !== search
       )
       .slice(0, 8);
-  }, [searchTerm, products]);
+  }, [searchTerm, stableSortedProducts]);
 
   // Đồng bộ tên khách hàng lên server
   useEffect(() => {
@@ -329,9 +338,16 @@ export default function RoomPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Polling để tự động cập nhật giỏ hàng mỗi 0.1 giây nếu có session active
+  // Polling để tự động cập nhật giá giỏ hàng mỗi 0.1 giây nếu có session active
+  // Chỉ cập nhật giá, không reload products để giữ menu ổn định
+  const orderItemsRef = useRef(orderItems);
+
   useEffect(() => {
-    if (!session) return;
+    orderItemsRef.current = orderItems;
+  }, [orderItems]);
+
+  useEffect(() => {
+    if (!session || !products.length) return;
 
     const interval = setInterval(async () => {
       try {
@@ -341,21 +357,32 @@ export default function RoomPage() {
         const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`);
         if (ordersRes.ok) {
           const ordersData = await ordersRes.json();
-          const sortedOrders = Array.isArray(ordersData)
-            ? [...ordersData].sort((a, b) =>
+          if (Array.isArray(ordersData)) {
+            const sortedOrders = [...ordersData].sort((a, b) =>
               new Date(a.orderedAt || a.OrderedAt || 0).getTime() -
               new Date(b.orderedAt || b.OrderedAt || 0).getTime()
-            )
-            : [];
-          setOrderItems(sortedOrders);
+            );
+
+            // Chỉ update nếu có sự thay đổi về giá hoặc số lượng
+            const needsUpdate = sortedOrders.some((newItem, idx) => {
+              const oldItem = orderItemsRef.current[idx];
+              return !oldItem ||
+                newItem.price !== oldItem.price ||
+                newItem.quantity !== oldItem.quantity;
+            });
+
+            if (needsUpdate) {
+              setOrderItems(sortedOrders);
+            }
+          }
         }
       } catch (err) {
         console.error('Error polling order items:', err);
       }
-    }, 100); // 2 giây
+    }, 100); // 0.1 giây
 
     return () => clearInterval(interval);
-  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session, products]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -886,16 +913,16 @@ export default function RoomPage() {
   }, [selectedStartTime, selectedEndTime, room, customPricePerHour, session]);
 
   const desktopFiltered = useMemo(() =>
-    products.filter((p) =>
+    stableSortedProducts.filter((p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (activeCategory === 'all' || p.category === activeCategory)
-    ), [products, searchTerm, activeCategory]);
+    ), [stableSortedProducts, searchTerm, activeCategory]);
 
   const mobileFiltered = useMemo(() =>
-    products.filter((p) =>
+    stableSortedProducts.filter((p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (mobileCat === 'all' || p.category === mobileCat)
-    ), [products, searchTerm, mobileCat]);
+    ), [stableSortedProducts, searchTerm, mobileCat]);
 
   const totalProductCost = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
   const roomChargeTotal = roomCharge;
