@@ -154,6 +154,28 @@ export async function PUT(request: Request) {
       },
     });
 
+    // Cập nhật giá và tên trong giỏ hàng của các session chưa hoàn thành
+    const updates: any = {};
+    if (priceValue !== Number(currentProduct.Price)) {
+      updates.Price = priceValue;
+    }
+    if (name !== currentProduct.Name) {
+      updates.ProductName = name;
+    }
+    if (Object.keys(updates).length > 0) {
+      await prisma.orderItem.updateMany({
+        where: {
+          ProductId: id,
+          RoomSession: {
+            Status: {
+              not: 'completed'
+            }
+          }
+        },
+        data: updates
+      });
+    }
+
     return Response.json({
       id: updated.Id,
       storeId: updated.StoreId,
