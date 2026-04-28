@@ -84,7 +84,7 @@ export default function ProductsPage() {
           return;
         }
 
-        if (user?.role !== 'admin' && user?.storeId) {
+        if (user?.storeId && user?.storeId !== 'all') {
           data = data.filter((store: Store) => store.id === user.storeId);
         }
 

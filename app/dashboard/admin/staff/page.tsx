@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/app/context';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -35,6 +36,7 @@ interface StaffUser {
 }
 
 export default function StaffPage() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,11 +58,18 @@ export default function StaffPage() {
   const fetchData = async () => {
     try {
       const storesRes = await fetch('/api/admin/stores');
-      const storesData = await storesRes.json();
-      setStores(storesData);
+      let storesData = await storesRes.json();
 
       const usersRes = await fetch('/api/admin/user');
-      const usersData = await usersRes.json();
+      let usersData = await usersRes.json();
+
+      // Lọc dữ liệu theo chi nhánh cho Branch Admin
+      if (user?.storeId && user.storeId !== 'all') {
+        storesData = storesData.filter((s: Store) => s.id === user.storeId);
+        usersData = usersData.filter((u: StaffUser) => u.storeId === user.storeId);
+      }
+
+      setStores(storesData);
       setUsers(usersData);
 
       setIsLoading(false);
