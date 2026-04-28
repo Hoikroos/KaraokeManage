@@ -56,11 +56,17 @@ export default function StaffPage() {
   const fetchData = async () => {
     try {
       const storesRes = await fetch('/api/admin/stores');
-      const storesData = await storesRes.json();
-      setStores(storesData);
+      let storesData = await storesRes.json();
 
       const usersRes = await fetch('/api/admin/user');
-      const usersData = await usersRes.json();
+      let usersData = await usersRes.json();
+
+      if (user?.storeId && user.storeId !== 'all') {
+        storesData = storesData.filter((s: Store) => s.id === user.storeId);
+        usersData = usersData.filter((u: StaffUser) => u.storeId === user.storeId);
+      }
+
+      setStores(storesData);
       setUsers(usersData);
 
       setIsLoading(false);

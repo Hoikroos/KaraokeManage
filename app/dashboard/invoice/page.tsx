@@ -46,7 +46,7 @@ export default function InvoiceHistoryPage() {
             const storesRes = await fetch('/api/admin/stores');
             let storesData = (await storesRes.json()) || [];
 
-            if (user?.role !== 'admin' && user?.storeId) {
+            if (user?.storeId && user?.storeId !== 'all') {
                 storesData = storesData.filter((s: Store) => s.id === user.storeId);
             }
             setStores(storesData);

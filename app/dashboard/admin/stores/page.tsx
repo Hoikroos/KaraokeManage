@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/app/context';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import Swal from 'sweetalert2';
 import { Building2, MapPin, Phone, Plus, Edit2, Trash2, DoorOpen } from 'lucide-react';
 
 export default function StoresPage() {
+  const { user } = useAuth();
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +30,13 @@ export default function StoresPage() {
   const fetchStores = async () => {
     try {
       const response = await fetch('/api/admin/stores');
-      const data = await response.json();
+      let data = await response.json();
+
+      // Nếu admin được gán chi nhánh, chỉ hiển thị chi nhánh đó
+      if (user?.storeId && user.storeId !== 'all') {
+        data = data.filter((s: Store) => s.id === user.storeId);
+      }
+
       setStores(data);
     } catch (error) {
       console.error('Error fetching stores:', error);
@@ -214,13 +222,15 @@ export default function StoresPage() {
                     >
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="ghost" size="icon"
-                      onClick={() => handleDelete(store)}
-                      className="text-slate-400 hover:text-rose-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {(!user?.storeId || user?.storeId === 'all') && (
+                      <Button
+                        variant="ghost" size="icon"
+                        onClick={() => handleDelete(store)}
+                        className="text-slate-400 hover:text-rose-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-4">{store.name}</h3>
