@@ -96,11 +96,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const storeId = searchParams.get('storeId');
     const id = searchParams.get('id');
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
 
     const invoices = await prisma.invoice.findMany({
       where: id ? { Id: id } : {
         ...(storeId ? { StoreId: storeId } : {}),
-        DeletedAt: null, // Chỉ lấy những hóa đơn chưa bị xóa (không nằm trong thùng rác)
+        ...(includeDeleted ? {} : { DeletedAt: null }),
       },
       include: {
         RoomSession: {
