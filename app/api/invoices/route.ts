@@ -158,22 +158,19 @@ export async function DELETE(request: NextRequest) {
     const { id, all, storeId, permanent } = await request.json();
     const now = new Date();
 
-    // Xử lý xóa hàng loạt (Bulk delete)
     if (all) {
       if (permanent) {
-        // Xóa vĩnh viễn khỏi CSDL
-        if (storeId && storeId !== 'all') {
-          await prisma.$executeRaw`DELETE FROM Invoices WHERE StoreId = ${storeId}`;
-        } else {
-          await prisma.$executeRaw`DELETE FROM Invoices`;
-        }
+        await prisma.invoice.deleteMany({
+          where: storeId && storeId !== 'all' ? { StoreId: storeId } : {}
+        });
       } else {
-        // Xóa tạm (Soft delete) - Chuyển vào thùng rác
-        if (storeId && storeId !== 'all') {
-          await prisma.$executeRaw`UPDATE Invoices SET DeletedAt = ${now} WHERE StoreId = ${storeId} AND DeletedAt IS NULL`;
-        } else {
-          await prisma.$executeRaw`UPDATE Invoices SET DeletedAt = ${now} WHERE DeletedAt IS NULL`;
-        }
+        await prisma.invoice.updateMany({
+          where: {
+            ...(storeId && storeId !== 'all' ? { StoreId: storeId } : {}),
+            DeletedAt: null
+          },
+          data: { DeletedAt: now }
+        });
       }
       return Response.json({ success: true });
     }
@@ -183,13 +180,17 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (permanent) {
-      await prisma.$executeRaw`DELETE FROM Invoices WHERE Id = ${id}`;
+      await prisma.invoice.delete({ where: { Id: id } });
     } else {
-      await prisma.$executeRaw`UPDATE Invoices SET DeletedAt = ${now} WHERE Id = ${id}`;
+      await prisma.invoice.update({
+        where: { Id: id },
+        data: { DeletedAt: now }
+      });
     }
 
     return Response.json({ success: true });
   } catch (error) {
-  } console.error('Invoice delete error:');
-  return Response.json({ error: 'Server error' }, { status: 500 });
+    console.error('Invoice delete error:', error);
+    return Response.json({ error: 'Server error' }, { status: 500 });
+  }
 }

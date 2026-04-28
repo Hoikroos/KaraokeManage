@@ -62,13 +62,14 @@ export async function PATCH(request: NextRequest) {
     try {
         const { id, all, storeId } = await request.json();
 
-        // Xử lý khôi phục tất cả
         if (all) {
-            if (storeId && storeId !== 'all') {
-                await prisma.$executeRaw`UPDATE Invoices SET DeletedAt = NULL WHERE DeletedAt IS NOT NULL AND StoreId = ${storeId}`;
-            } else {
-                await prisma.$executeRaw`UPDATE Invoices SET DeletedAt = NULL WHERE DeletedAt IS NOT NULL`;
-            }
+            await prisma.invoice.updateMany({
+                where: {
+                    DeletedAt: { not: null },
+                    ...(storeId && storeId !== 'all' ? { StoreId: storeId } : {})
+                },
+                data: { DeletedAt: null }
+            });
             return Response.json({ success: true });
         }
 
@@ -76,8 +77,10 @@ export async function PATCH(request: NextRequest) {
             return Response.json({ error: 'ID hóa đơn là bắt buộc' }, { status: 400 });
         }
 
-        // Sử dụng template tag để an toàn hơn
-        await prisma.$executeRaw`UPDATE Invoices SET DeletedAt = NULL WHERE Id = ${id}`;
+        await prisma.invoice.update({
+            where: { Id: id },
+            data: { DeletedAt: null }
+        });
 
         return Response.json({ success: true });
     } catch (error) {
@@ -91,13 +94,13 @@ export async function DELETE(request: NextRequest) {
     try {
         const { id, all, storeId } = await request.json();
 
-        // Xử lý xóa tất cả (Bulk delete)
         if (all) {
-            if (storeId && storeId !== 'all') {
-                await prisma.$executeRaw`DELETE FROM Invoices WHERE DeletedAt IS NOT NULL AND StoreId = ${storeId}`;
-            } else {
-                await prisma.$executeRaw`DELETE FROM Invoices WHERE DeletedAt IS NOT NULL`;
-            }
+            await prisma.invoice.deleteMany({
+                where: {
+                    DeletedAt: { not: null },
+                    ...(storeId && storeId !== 'all' ? { StoreId: storeId } : {})
+                }
+            });
             return Response.json({ success: true });
         }
 
