@@ -756,11 +756,6 @@ export default function RoomPage() {
           const newIndex = orderItems.length;
           setOrderItems([...orderItems, newItem]);
           setLastAddedIndex(newIndex);
-          toast.success(`Đã thêm: ${newItem.productName}`, {
-            description: `Số lượng: ${quantity}`,
-            position: isMobile ? 'top-center' : 'bottom-right',
-            duration: 2000,
-          });
         }
       }
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
