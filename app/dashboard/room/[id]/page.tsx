@@ -1336,7 +1336,6 @@ export default function RoomPage() {
                           )}
                         </div>
                       </div>
-                      )}
 
                       {/* ── BLOCK 2: Danh sách món ── */}
                       <div className="mx-4 mt-4 space-y-0">
