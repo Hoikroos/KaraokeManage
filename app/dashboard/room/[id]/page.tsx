@@ -771,6 +771,18 @@ export default function RoomPage() {
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
   };
 
+  const handleSearchEnter = () => {
+    if (!searchTerm.trim()) return;
+    const trimmed = searchTerm.trim().toLowerCase();
+    const product = products.find(p => p.name.toLowerCase() === trimmed);
+    if (product) {
+      handleAddProduct(product.id, 1);
+      setShowProductSuggestions(false);
+    } else {
+      toast.error('Không tìm thấy sản phẩm khớp với tên đã nhập');
+    }
+  };
+
   const handleOpenAddProduct = () => {
     setNewProductForm({
       id: '',
@@ -1214,8 +1226,8 @@ export default function RoomPage() {
                     Tab: Giỏ hàng  — bao gồm tiền giờ & thanh toán
                 ══════════════════════════════════════════ */}
                 {mobileTab === 'cart' && (
-                  <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
-                    <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto">
+                    <div className="flex-1">
 
                       {/* ── BLOCK 1: Tiền giờ (luôn hiển thị đầu tiên) ── */}
                       <div className="mx-4 mt-4 bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -1324,6 +1336,7 @@ export default function RoomPage() {
                           )}
                         </div>
                       </div>
+                      )}
 
                       {/* ── BLOCK 2: Danh sách món ── */}
                       <div className="mx-4 mt-4 space-y-0">
@@ -1415,9 +1428,9 @@ export default function RoomPage() {
                           </div>
                         )}
                       </div>
-                    </div>{/* end scrollable */}
+                    </div>
 
-                    {/* ── BLOCK 3: Tổng cộng (Đưa ra ngoài vùng cuộn để cố định) ── */}
+                    {/* ── BLOCK 3: Tổng cộng ── */}
                     <div className="mx-4 mt-4 bg-indigo-600 rounded-2xl p-4 shadow-lg">
                       <div className="flex justify-between items-center text-sm text-indigo-200 mb-1">
                         <span>Tiền phòng</span>
@@ -1435,8 +1448,8 @@ export default function RoomPage() {
                       </div>
                     </div>
 
-                    {/* ── BLOCK 4: Nút hành động (Đưa ra ngoài vùng cuộn) ── */}
-                    <div className="mx-4 mt-4 mb-6 grid grid-cols-2 gap-3">
+                    {/* ── BLOCK 4: Nút hành động ── */}
+                    <div className="mx-4 mt-4 mb-8 grid grid-cols-2 gap-3">
                       {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
                         <>
                           <button
@@ -1888,6 +1901,7 @@ export default function RoomPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <Input placeholder="Tìm món ăn, đồ uống..." value={searchTerm}
                       onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { handleSearchEnter(); } }}
                       onFocus={() => setShowProductSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
                       className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200" />
