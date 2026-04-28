@@ -980,7 +980,7 @@ export default function RoomPage() {
     ), [stableSortedProducts, searchTerm, activeCategory]);
 
   const mobileFiltered = useMemo(() =>
-    stableSortedProducts.filter((p) =>
+    [...stableSortedProducts].reverse().filter((p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (mobileCat === 'all' || p.category === mobileCat)
     ), [stableSortedProducts, searchTerm, mobileCat]);
@@ -1666,45 +1666,53 @@ export default function RoomPage() {
     <>
       <div className="min-h-screen lg:h-screen flex flex-col bg-[#F8FAFC] print:hidden overflow-x-hidden">
         {/* Header */}
-        <div className="bg-white border-b border-slate-100 z-40">
-          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}
-                className="text-slate-500 hover:text-indigo-600 gap-2 font-bold px-3">
-                <ChevronLeft className="w-5 h-5" />
-                <span className="hidden sm:inline">Quay lại</span>
-              </Button>
-              <div className="h-8 w-px bg-slate-100 mx-1 hidden sm:block" />
-              <div className="flex flex-col">
-                <h1 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight uppercase">P. {room.roomNumber}</h1>
-                <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-                  {room.status === 'occupied' ? 'Đang hoạt động' : 'Phòng trống'}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 lg:gap-3">
-              {session ? (
-                <Button onClick={openTransferModal} variant="ghost"
-                  className="text-indigo-600 hover:bg-indigo-50 font-bold rounded-xl px-3 lg:px-6 text-xs lg:text-sm gap-2">
-                  <ArrowRightLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chuyển phòng</span>
-                </Button>
-              ) : null}
-              {session ? (
-                <Button onClick={handleCancelSession} variant="ghost"
-                  className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 font-bold rounded-xl px-3 lg:px-6 text-xs lg:text-sm">
-                  Hủy phòng
-                </Button>
-              ) : (
-                <Button onClick={handleStartSession}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 lg:px-8 rounded-xl shadow-lg shadow-indigo-200 font-bold transition-all hover:-translate-y-0.5 text-xs lg:text-sm">
-                  <Plus className="w-4 h-4 mr-1 lg:hidden" />
-                  <span>Mở phòng / Order trước</span>
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Header */}
+<div className="bg-white border-b border-slate-100 z-40">
+  <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 grid grid-cols-3 items-center">
+    
+    {/* Left: Nút quay lại */}
+    <div className="flex items-center">
+      <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}
+        className="text-slate-500 hover:text-indigo-600 gap-2 font-bold px-3">
+        <ChevronLeft className="w-5 h-5" />
+        <span className="hidden sm:inline">Quay lại</span>
+      </Button>
+    </div>
+
+    {/* Center: Tên phòng & trạng thái — căn giữa hoàn toàn */}
+    <div className="flex flex-col items-center justify-center">
+      <h1 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight uppercase">
+        P. {room.roomNumber}
+      </h1>
+      <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+        {room.status === 'occupied' ? 'Đang hoạt động' : 'Phòng trống'}
+      </span>
+    </div>
+
+    {/* Right: Các nút hành động — căn phải */}
+    <div className="flex items-center justify-end gap-2 lg:gap-3">
+      {session ? (
+        <>
+          <Button onClick={openTransferModal} variant="ghost"
+            className="text-indigo-600 hover:bg-indigo-50 font-bold rounded-xl px-3 lg:px-5 text-xs lg:text-sm gap-2">
+            <ArrowRightLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Chuyển phòng</span>
+          </Button>
+          <Button onClick={handleCancelSession} variant="ghost"
+            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 font-bold rounded-xl px-3 lg:px-5 text-xs lg:text-sm">
+            Hủy phòng
+          </Button>
+        </>
+      ) : (
+        <Button onClick={handleStartSession}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 lg:px-8 rounded-xl shadow-lg shadow-indigo-200 font-bold transition-all hover:-translate-y-0.5 text-xs lg:text-sm">
+          <Plus className="w-4 h-4 mr-1 lg:hidden" />
+          <span>Mở phòng / Order trước</span>
+        </Button>
+      )}
+    </div>
+  </div>
+</div>
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
           {session ? (
@@ -1781,65 +1789,121 @@ export default function RoomPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96 lg:max-h-none">
-                  <div className="flex items-center justify-between mb-2 px-2">
-                    <div className="flex items-center gap-2 text-slate-800">
-                      <ShoppingCart className="w-4 h-4 text-slate-400" />
-                      <span className="font-bold text-xs uppercase">Giỏ hàng ({orderItems.length})</span>
-                    </div>
-                    {orderItems.length > 0 && (
-                      <Button variant="ghost" size="sm" onClick={() => setIsCartModalOpen(true)}
-                        className="text-[10px] text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-black uppercase tracking-tighter h-7 px-2 gap-1">
-                        <Expand className="w-3 h-3" /> Xem tất cả
-                      </Button>
-                    )}
-                  </div>
-                  {orderItems.length === 0 ? (
-                    <div className="h-40 flex flex-col items-center justify-center text-slate-400">
-                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                        <ShoppingCart className="w-6 h-6 opacity-20" />
-                      </div>
-                      <p className="text-xs font-medium italic">Giỏ hàng của bạn đang trống</p>
-                    </div>
-                  ) : (
-                    orderItems.map((item, index) => (
-                      <div key={item.id ?? index} ref={(el) => (itemRefs.current[index] = el)} className="group relative flex flex-col p-3.5 pl-8 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
-                        <div className="absolute left-2 top-4 w-5 h-5 flex items-center justify-center bg-slate-50 rounded-full text-[10px] font-black text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                          {/* STT */}
-                          {index + 1}
-                        </div>
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="font-bold text-slate-900 text-sm line-clamp-2">{item.productName}</div>
-                          <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center bg-white shadow-sm ring-1 ring-slate-100 rounded-lg overflow-hidden">
-                            <button onClick={() => {
-                              const p = products.find(prod => prod.id === item.productId);
-                              handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
-                            }} className="p-1.5 hover:bg-slate-50 transition-colors"><Minus className="w-3 h-3 text-slate-400" /></button>
-                            <input type="text" className="w-8 text-center text-xs font-black text-slate-700 bg-transparent"
-                              value={editingQuantities[index] ?? item.quantity}
-                              onChange={(e) => handleQuantityChange(index, e.target.value)}
-                              onBlur={() => handleQuantityBlur(index)} />
-                            <button onClick={() => {
-                              const p = products.find(prod => prod.id === item.productId);
-                              handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
-                            }} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-black text-slate-900 text-sm">{item.price.toLocaleString('vi-VN')}đ</div>
-                            <div className="text-[10px] font-bold text-indigo-500 mt-0.5">
-                              {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {/* Giỏ hàng - dạng bảng */}
+<div className="flex-1 overflow-y-auto p-4 max-h-96 lg:max-h-none">
+  <div className="flex items-center justify-between mb-3 px-1">
+    <div className="flex items-center gap-2 text-slate-800">
+      <ShoppingCart className="w-4 h-4 text-slate-400" />
+      <span className="font-bold text-xs uppercase">Giỏ hàng ({orderItems.length})</span>
+    </div>
+    {orderItems.length > 0 && (
+      <Button variant="ghost" size="sm" onClick={() => setIsCartModalOpen(true)}
+        className="text-[10px] text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-black uppercase tracking-tighter h-7 px-2 gap-1">
+        <Expand className="w-3 h-3" /> Xem tất cả
+      </Button>
+    )}
+  </div>
+
+  {orderItems.length === 0 ? (
+    <div className="h-40 flex flex-col items-center justify-center text-slate-400">
+      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+        <ShoppingCart className="w-6 h-6 opacity-20" />
+      </div>
+      <p className="text-xs font-medium italic">Giỏ hàng của bạn đang trống</p>
+    </div>
+  ) : (
+    <table className="w-full text-sm border-separate border-spacing-y-1">
+      <thead>
+        <tr>
+          <th className="text-[10px] font-black text-slate-400 uppercase text-center w-7 pb-2">#</th>
+          <th className="text-[10px] font-black text-slate-400 uppercase text-left pb-2 pl-2">Tên</th>
+          <th className="text-[10px] font-black text-slate-400 uppercase text-center pb-2 w-28">Số lượng</th>
+          <th className="text-[10px] font-black text-slate-400 uppercase text-right pb-2 w-24">Đơn giá</th>
+          <th className="text-[10px] font-black text-slate-400 uppercase text-right pb-2 w-24">Thành tiền</th>
+          <th className="w-8 pb-2" />
+        </tr>
+      </thead>
+      <tbody>
+        {orderItems.map((item, index) => (
+          <tr
+            key={item.id ?? index}
+            ref={(el) => (itemRefs.current[index] = el)}
+            className="group bg-white hover:bg-indigo-50/40 transition-colors rounded-xl"
+          >
+            {/* STT */}
+            <td className="text-center rounded-l-xl py-3 pl-2">
+              <span className="w-5 h-5 inline-flex items-center justify-center bg-slate-100 group-hover:bg-indigo-100 group-hover:text-indigo-600 rounded-full text-[10px] font-black text-slate-400 transition-colors">
+                {index + 1}
+              </span>
+            </td>
+
+            {/* Tên */}
+            <td className="py-3 pl-2 pr-2">
+              <span className="font-semibold text-slate-800 text-xs leading-snug line-clamp-2">
+                {item.productName}
+              </span>
+            </td>
+
+            {/* Số lượng */}
+            <td className="py-3 text-center">
+              <div className="flex items-center justify-center bg-slate-100 rounded-lg p-0.5 gap-0.5 mx-auto w-fit">
+                <button
+                  onClick={() => {
+                    const p = products.find(prod => prod.id === item.productId);
+                    handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
+                  }}
+                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <input
+                  type="text"
+                  className="w-7 text-center text-xs font-black text-slate-700 bg-transparent outline-none"
+                  value={editingQuantities[index] ?? item.quantity}
+                  onChange={(e) => handleQuantityChange(index, e.target.value)}
+                  onBlur={() => handleQuantityBlur(index)}
+                />
+                <button
+                  onClick={() => {
+                    const p = products.find(prod => prod.id === item.productId);
+                    handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
+                  }}
+                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+            </td>
+
+            {/* Đơn giá */}
+            <td className="py-3 text-right pr-2">
+              <span className="text-xs font-bold text-slate-600">
+                {item.price.toLocaleString('vi-VN')}đ
+              </span>
+            </td>
+
+            {/* Thành tiền */}
+            <td className="py-3 text-right pr-2">
+              <span className="text-xs font-black text-indigo-600">
+                {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+              </span>
+            </td>
+
+            {/* Xóa */}
+            <td className="py-3 text-center rounded-r-xl pr-1">
+              <button
+                onClick={() => handleRemoveItem(index)}
+                className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</div>
 
                 <div className="p-4 lg:p-6 bg-white border-t border-slate-100">
                   <div className="flex items-center justify-between mb-8">
