@@ -773,13 +773,27 @@ export default function RoomPage() {
 
   const handleSearchEnter = () => {
     if (!searchTerm.trim()) return;
+    if (!session) {
+      toast.error('Vui lòng mở phòng để bắt đầu order');
+      return;
+    }
+
     const trimmed = searchTerm.trim().toLowerCase();
-    const product = products.find(p => p.name.toLowerCase() === trimmed);
+    
+    // Tìm khớp chính xác trước
+    let product = products.find(p => p.name.toLowerCase() === trimmed);
+    
+    // Nếu không có khớp chính xác, tìm sản phẩm chứa text từ gợi ý
+    if (!product && productSuggestions.length > 0) {
+      product = productSuggestions[0];
+    }
+    
     if (product) {
       handleAddProduct(product.id, 1);
       setShowProductSuggestions(false);
+      setSearchTerm('');
     } else {
-      toast.error('Không tìm thấy sản phẩm khớp với tên đã nhập');
+      toast.error('Không tìm thấy sản phẩm');
     }
   };
 
@@ -1900,7 +1914,7 @@ export default function RoomPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <Input placeholder="Tìm món ăn, đồ uống..." value={searchTerm}
                       onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { handleSearchEnter(); } }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
                       onFocus={() => setShowProductSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
                       className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200" />
