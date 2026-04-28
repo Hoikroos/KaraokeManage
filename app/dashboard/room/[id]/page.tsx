@@ -745,11 +745,6 @@ export default function RoomPage() {
           quantity: (existing.quantity || 0) + quantity,
           price: product.price
         });
-        toast.success(`Đã thêm: ${product.name}`, {
-          description: `Tổng số lượng trong giỏ: ${existing.quantity + quantity}`,
-          position: isMobile ? 'top-center' : 'bottom-right',
-          duration: 2000,
-        });
       } else {
         const res = await fetch('/api/orders', {
           method: 'POST',
