@@ -233,7 +233,7 @@ export default function InvoiceHistoryPage() {
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Bộ lọc */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 items-end">
-                    <div className={`w-full ${user?.role !== 'admin' ? 'hidden' : ''}`}>
+                    <div className={`w-full ${(user?.role !== 'admin' || (user?.storeId && user.storeId !== 'all')) ? 'hidden' : ''}`}>
                         <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
                         <select
                             value={selectedStoreId}

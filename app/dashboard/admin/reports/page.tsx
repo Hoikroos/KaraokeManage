@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/app/context';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { Invoice, Store } from '@/lib/db';
@@ -102,6 +103,7 @@ const RevenueTooltip = ({ active, payload, label }: any) => {
 /* ─── Main Page ──────────────────────────────────────────────── */
 
 export default function ReportsPage() {
+    const { user } = useAuth();
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
     const [selectedStoreId, setSelectedStoreId] = useState<string>('');
@@ -116,11 +118,19 @@ export default function ReportsPage() {
         const init = async () => {
             try {
                 const res = await fetch('/api/admin/stores');
-                const data: Store[] = await res.json();
+                let data: Store[] = await res.json();
+
+                // Lọc chi nhánh cho Admin chi nhánh
+                if (user?.storeId && user.storeId !== 'all') {
+                    data = data.filter((s: Store) => s.id === user.storeId);
+                }
+
                 setStores(data);
-                if (data.length > 0) {
-                    setSelectedStoreId(data[0].id);
-                    await fetchInvoices(data[0].id);
+                
+                const initialStoreId = (user?.storeId && user.storeId !== 'all') ? user.storeId : (data[0]?.id || '');
+                if (initialStoreId) {
+                    setSelectedStoreId(initialStoreId);
+                    await fetchInvoices(initialStoreId);
                 }
             } catch {
                 toast.error('Không thể tải dữ liệu');
@@ -128,8 +138,8 @@ export default function ReportsPage() {
                 setIsLoading(false);
             }
         };
-        init();
-    }, []);
+        if (user) init();
+    }, [user]);
 
     const fetchInvoices = useCallback(async (storeId: string) => {
         if (!storeId) return;

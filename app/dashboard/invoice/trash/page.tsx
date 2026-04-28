@@ -222,7 +222,7 @@ export default function TrashPage() {
 
                     <div className="flex items-center gap-3">
                         {/* Lọc chi nhánh (chỉ admin) */}
-                        {user?.role === 'admin' && stores.length > 0 && (
+                        {user?.role === 'admin' && (!user?.storeId || user.storeId === 'all') && stores.length > 0 && (
                             <select
                                 value={selectedStoreId}
                                 onChange={(e) => {
