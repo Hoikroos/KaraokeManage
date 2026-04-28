@@ -1962,96 +1962,184 @@ export default function RoomPage() {
               </div>
 
               {/* Right column — Product menu */}
-              <div className="flex-1 min-w-0 flex flex-col p-4 lg:p-6 overflow-hidden order-2 lg:order-1">
-                <div className="flex flex-col lg:flex-row gap-4 mb-6 items-stretch">
-                  <div className="relative flex-1 lg:max-w-sm">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <Input placeholder="Tìm món ăn, đồ uống..." value={searchTerm}
-                      onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
-                      onFocus={() => setShowProductSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
-                      className="pl-12 pr-4 h-12 rounded-xl bg-slate-100 border-none text-sm focus:ring-2 focus:ring-indigo-200" />
-                    {showProductSuggestions && productSuggestions.length > 0 && (
-                      <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-72 overflow-auto py-2 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
-                        {productSuggestions.map((product) => (
-                          <li key={product.id} onClick={() => { setSearchTerm(product.name); setShowProductSuggestions(false); }}
-                            className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group">
-                            <div className="flex items-center gap-3">
-                              <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors">
-                                <Package className="w-4 h-4 text-slate-400 group-hover:text-indigo-600" />
-                              </div>
-                              <span>{product.name}</span>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-indigo-600 font-black">{product.price.toLocaleString('vi-VN')}đ</div>
-                              <div className="text-[10px] text-slate-400 font-bold uppercase">Kho: {product.quantity}</div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+              <div className="flex-1 min-w-0 flex flex-col p-4 lg:p-5 overflow-hidden order-2 lg:order-1 bg-slate-50/50">
+
+  {/* ── Toolbar: Search + Categories ── */}
+  <div className="mb-4 space-y-3">
+
+    {/* Search bar */}
+    <div className="relative">
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+      <Input
+        placeholder="Tìm món ăn, đồ uống... (Enter để thêm nhanh)"
+        value={searchTerm}
+        onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
+        onFocus={() => setShowProductSuggestions(true)}
+        onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+        className="pl-11 pr-10 h-11 rounded-xl bg-white border border-slate-200 text-sm shadow-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition placeholder:text-slate-400"
+      />
+      {searchTerm && (
+        <button
+          onClick={() => setSearchTerm('')}
+          className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition"
+        >
+          <X className="w-3 h-3 text-slate-500" />
+        </button>
+      )}
+
+      {/* Suggestions dropdown */}
+      {showProductSuggestions && productSuggestions.length > 0 && (
+        <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-64 overflow-auto py-1.5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+          {productSuggestions.map((product) => (
+            <li
+              key={product.id}
+              onClick={() => { setSearchTerm(product.name); setShowProductSuggestions(false); }}
+              className="px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors shrink-0">
+                  <Package className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
+                </div>
+                <span>{product.name}</span>
+              </div>
+              <div className="text-right shrink-0 ml-4">
+                <div className="text-indigo-600 font-black text-sm">{product.price.toLocaleString('vi-VN')}đ</div>
+                <div className="text-[10px] text-slate-400 font-bold">Kho: {product.quantity}</div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+
+    {/* Category tabs + Add button */}
+    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <button
+        onClick={handleOpenAddProduct}
+        className="shrink-0 flex items-center gap-1.5 h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-200 transition active:scale-95 whitespace-nowrap"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Thêm món
+      </button>
+      <div className="w-px h-6 bg-slate-200 shrink-0" />
+      {DESKTOP_CATEGORIES.map((cat) => (
+        <button
+          key={cat.id}
+          onClick={() => setActiveCategory(cat.id)}
+          className={`flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95
+            ${activeCategory === cat.id
+              ? 'bg-slate-900 text-white shadow-sm'
+              : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-700'
+            }`}
+        >
+          {cat.icon}
+          {cat.name}
+          {activeCategory === cat.id && desktopFiltered.length > 0 && (
+            <span className="ml-0.5 bg-white/20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+              {desktopFiltered.length}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  {/* ── Product Grid ── */}
+  <div className="flex-1 overflow-y-auto pr-0.5">
+    {desktopFiltered.length === 0 ? (
+      <div className="h-full flex flex-col items-center justify-center py-16 text-slate-400 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
+          <Box className="w-7 h-7 opacity-30" />
+        </div>
+        <p className="text-sm font-semibold text-slate-500 mb-1">Không tìm thấy sản phẩm</p>
+        <p className="text-xs text-slate-400 mb-5">
+          {searchTerm ? `Không có kết quả cho "${searchTerm}"` : 'Danh mục này chưa có sản phẩm'}
+        </p>
+        {searchTerm && (
+          <button
+            onClick={handleOpenAddProduct}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 transition active:scale-95"
+          >
+            <Plus className="w-4 h-4" /> Tạo món "{searchTerm}"
+          </button>
+        )}
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+        {desktopFiltered.map((product) => {
+          const inCart = orderItems.find((item) => item.productId === product.id)?.quantity || 0;
+          const available = product.quantity - inCart;
+          const outOfStock = product.quantity <= 0;
+          const lowStock = available > 0 && available <= 5;
+
+          return (
+            <div
+              key={product.id}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('button')) return;
+                !outOfStock && handleAddProduct(product.id, 1);
+              }}
+              className={`group relative bg-white rounded-2xl border transition-all flex flex-col
+                ${outOfStock
+                  ? 'opacity-40 cursor-not-allowed border-slate-100'
+                  : inCart > 0
+                    ? 'cursor-pointer border-indigo-300 shadow-sm shadow-indigo-100 hover:shadow-md hover:shadow-indigo-100'
+                    : 'cursor-pointer border-slate-100 hover:border-slate-200 hover:shadow-md'
+                }`}
+            >
+              {/* In-cart badge */}
+              {inCart > 0 && (
+                <div className="absolute -top-2 -right-2 z-10 w-6 h-6 bg-indigo-600 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-md shadow-indigo-200">
+                  {inCart}
+                </div>
+              )}
+
+              <div className="p-3.5 flex-1 flex flex-col">
+                {/* Tên */}
+                <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug mb-1.5 flex-1">
+                  {product.name}
+                </div>
+
+                {/* Giá */}
+                <div className="text-indigo-600 font-black text-base leading-none mb-3">
+                  {product.price.toLocaleString('vi-VN')}đ
+                </div>
+
+                {/* Footer: tồn kho + actions */}
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-lg
+                    ${outOfStock
+                      ? 'bg-red-50 text-red-400'
+                      : lowStock
+                        ? 'bg-orange-50 text-orange-500'
+                        : 'bg-emerald-50 text-emerald-600'
+                    }`}>
+                    {outOfStock ? 'Hết hàng' : `${available} còn`}
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenEditProduct(product); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-100 transition active:scale-90"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    {!outOfStock && (
+                      <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900 group-hover:bg-indigo-600 text-white transition">
+                        <Plus className="w-4 h-4" />
+                      </div>
                     )}
                   </div>
-                  <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    <Button variant="outline" onClick={handleOpenAddProduct}
-                      className="h-10 w-10 p-0 shrink-0 bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 rounded-xl shadow-sm transition-all flex items-center justify-center"
-                      title="Thêm sản phẩm mới">
-                      <Plus className="w-5 h-5" />
-                    </Button>
-                    <div className="w-px h-8 bg-slate-100 shrink-0 mx-1" />
-                    {DESKTOP_CATEGORIES.map((cat) => (
-                      <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition
-            ${activeCategory === cat.id ? "bg-indigo-600 text-white shadow" : "bg-white text-slate-500 border border-slate-100 hover:bg-slate-50"}`}>
-                        {cat.icon}{cat.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto pr-1">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {desktopFiltered.map((product) => {
-                      const inCart = orderItems.find((item) => item.productId === product.id)?.quantity || 0;
-                      const available = product.quantity - inCart;
-                      return (
-                        <div key={product.id}
-                          onClick={(e) => { if ((e.target as HTMLElement).closest('button')) return; product.quantity > 0 && handleAddProduct(product.id, 1); }}
-                          className={`group bg-white p-4 rounded-2xl border border-slate-100 hover:shadow-md transition flex flex-col justify-between text-left relative overflow-hidden ${product.quantity <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                          <div>
-                            <div className="font-semibold text-slate-800 text-sm line-clamp-2 mb-1">{product.name}</div>
-                            <div className="text-indigo-600 font-bold text-base">{product.price.toLocaleString("vi-VN")}đ</div>
-                          </div>
-                          <div className="flex justify-between items-center mt-3">
-                            <div className={`text-[10px] font-semibold px-2 py-1 rounded-md ${available > 5 ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600"}`}>
-                              {available} còn
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button onClick={(e) => { e.stopPropagation(); handleOpenEditProduct(product); }}
-                                className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition active:scale-95">
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-900 text-white group-hover:bg-indigo-600 transition">
-                                <Plus className="w-4 h-4" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {desktopFiltered.length === 0 && (
-                    <div className="col-span-full py-20 text-center text-slate-400 bg-slate-50/50 rounded-4xl border-2 border-dashed border-slate-100">
-                      <Box className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                      <p className="text-sm font-medium">Không tìm thấy sản phẩm nào khớp với từ khóa</p>
-                      {searchTerm && (
-                        <Button onClick={handleOpenAddProduct} className="mt-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl h-12 px-8 font-bold shadow-lg shadow-indigo-100">
-                          <Plus className="w-4 h-4 mr-2" /> Tạo món mới "{searchTerm}" vào kho ngay
-                        </Button>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+</div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
