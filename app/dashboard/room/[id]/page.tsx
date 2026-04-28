@@ -98,7 +98,7 @@ export default function RoomPage() {
   const [isOrderQuantityModalOpen, setIsOrderQuantityModalOpen] = useState(false);
   const [selectedProductForOrder, setSelectedProductForOrder] = useState<Product | null>(null);
   const [orderQuantityInput, setOrderQuantityInput] = useState('1');
-  const [allCustomerNames, setAllCustomerNames] = useState<string[]>([]);
+  const [allCustomerNames, setAllCustomerNames] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
     id: '', // Thêm id để tránh lỗi khi tạo mới
@@ -110,6 +110,8 @@ export default function RoomPage() {
 
   const isFirstRender = useRef(true);
   const lastItemRef = useRef<HTMLDivElement>(null); // Ref cho món hàng cuối cùng trong giỏ
+  const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Reset cờ mỗi khi session mới được load
   useEffect(() => {
@@ -129,6 +131,19 @@ export default function RoomPage() {
     };
     fetchUniqueNames();
   }, []);
+
+  // Cuộn đến item vừa thêm
+  useEffect(() => {
+    if (lastAddedIndex !== null && itemRefs.current[lastAddedIndex]) {
+      itemRefs.current[lastAddedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setLastAddedIndex(null);
+    }
+  }, [lastAddedIndex]);
+
+  // Reset refs khi orderItems thay đổi
+  useEffect(() => {
+    itemRefs.current = itemRefs.current.slice(0, orderItems.length);
+  }, [orderItems.length]);
 
   // Logic lọc gợi ý
   const customerSuggestions = useMemo(() => {
@@ -437,7 +452,7 @@ export default function RoomPage() {
     if (s.status === 'active' || s.Status === 'active') {
       const result = await Swal.fire({
         title: 'Xử lý giờ chơi',
-        html: `Bạn muốn <b>cập nhật</b> giờ vào là <b>${new Date(selectedStartTime).toLocaleTimeString('vi-VN')}</b> <br/> hay <b>xóa giờ</b> để quay về trạng thái chờ?`,
+        html: `Bạn muốn <b>cập nhật</b> giờ vào là <b>${selectedStartTime ? new Date(selectedStartTime).toLocaleTimeString('vi-VN') : ''}</b> <br/> hay <b>xóa giờ</b> để quay về trạng thái chờ?`,
         icon: 'question',
         showCancelButton: true,
         showDenyButton: true,
@@ -638,6 +653,7 @@ export default function RoomPage() {
   const handleOpenEditProduct = (product: Product) => {
     setEditingProductForMenu(product);
     setNewProductForm({
+      id: product.id,
       name: product.name,
       category: product.category,
       price: product.price.toString(),
@@ -702,7 +718,12 @@ export default function RoomPage() {
     if (existingIndex !== -1) {
       // Nếu đã có trong giỏ, cập nhật về số lượng mới (ghi đè)
       const currentProduct = products.find(p => p.id === selectedProductForOrder.id);
-      handleUpdateOrderItem(existingIndex, { quantity: qty, price: currentProduct?.price });
+      handleUpdateOrderItem(existingIndex, { quantity: qty, price: currentProduct?.price ?? 0 });
+      toast.success(`Đã cập nhật: ${selectedProductForOrder.name}`, {
+        description: `Số lượng mới trong giỏ: ${qty}`,
+        position: isMobile ? 'top-center' : 'bottom-right',
+        duration: 2000,
+      });
     } else if (qty > 0) {
       // Nếu chưa có, thêm mới vào giỏ
       handleAddProduct(selectedProductForOrder.id, qty);
@@ -721,8 +742,13 @@ export default function RoomPage() {
       if (existing) {
         // Cập nhật cả số lượng và giá mới nhất từ thực đơn khi cộng dồn
         await handleUpdateOrderItem(existingIndex, {
-          quantity: existing.quantity + quantity,
+          quantity: (existing.quantity || 0) + quantity,
           price: product.price
+        });
+        toast.success(`Đã thêm: ${product.name}`, {
+          description: `Tổng số lượng trong giỏ: ${existing.quantity + quantity}`,
+          position: isMobile ? 'top-center' : 'bottom-right',
+          duration: 2000,
         });
       } else {
         const res = await fetch('/api/orders', {
@@ -732,8 +758,14 @@ export default function RoomPage() {
         });
         if (res.ok) {
           const newItem = await res.json();
+          const newIndex = orderItems.length;
           setOrderItems([...orderItems, newItem]);
-          setShouldScrollToLastItem(true); // Kích hoạt cuộn
+          setLastAddedIndex(newIndex);
+          toast.success(`Đã thêm: ${newItem.productName}`, {
+            description: `Số lượng: ${quantity}`,
+            position: isMobile ? 'top-center' : 'bottom-right',
+            duration: 2000,
+          });
         }
       }
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
@@ -741,6 +773,7 @@ export default function RoomPage() {
 
   const handleOpenAddProduct = () => {
     setNewProductForm({
+      id: '',
       name: searchTerm,
       category: 'food',
       price: '',
@@ -761,7 +794,7 @@ export default function RoomPage() {
         body: JSON.stringify({
           storeId: sId,
           name: newProductForm.name,
-          category: newProductForm.category,
+          category: newProductForm.category as any,
           price: parseFloat(newProductForm.price),
           quantity: parseInt(newProductForm.quantity) || 0,
           logNote: `Thêm nhanh từ phòng ${room.roomNumber}`,
@@ -772,7 +805,7 @@ export default function RoomPage() {
         const newProduct = await res.json();
         setProducts(prev => [...prev, newProduct]);
         setIsAddProductModalOpen(false);
-        setNewProductForm({ name: '', category: 'food', price: '', quantity: '0' });
+        setNewProductForm({ id: '', name: '', category: 'food', price: '', quantity: '0' });
         toast.success('Đã thêm sản phẩm mới vào danh mục');
       } else {
         const error = await res.json();
@@ -851,7 +884,7 @@ export default function RoomPage() {
     const item = orderItems[index];
     if (!isNaN(qty) && qty >= 0 && item && item.quantity !== qty) {
       const p = products.find(prod => prod.id === item.productId);
-      handleUpdateOrderItem(index, { quantity: qty, price: p?.price });
+      handleUpdateOrderItem(index, { quantity: qty, price: p?.price ?? item.price });
     }
     else setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
   };
@@ -936,7 +969,7 @@ export default function RoomPage() {
       (mobileCat === 'all' || p.category === mobileCat)
     ), [stableSortedProducts, searchTerm, mobileCat]);
 
-  const totalProductCost = orderItems.reduce((s, i) => s + i.price * i.quantity, 0);
+  const totalProductCost = orderItems.reduce((s, i) => s + (Number(i.price || 0) * Number(i.quantity || 0)), 0);
   const roomChargeTotal = roomCharge;
   const total = roomChargeTotal + totalProductCost;
   const totalItems = orderItems.reduce((s, i) => s + i.quantity, 0);
@@ -974,7 +1007,7 @@ export default function RoomPage() {
   if (isMobile) {
     return (
       <>
-        <div className="flex flex-col h-[100dvh] bg-slate-50 overflow-hidden font-sans">
+        <div className="flex flex-col h-dvh bg-slate-50 overflow-hidden font-sans">
           <style jsx global>{`
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1017,7 +1050,7 @@ export default function RoomPage() {
               <h2 className="text-xl font-bold text-slate-900 mb-1 text-center">
                 Sẵn sàng phục vụ
               </h2>
-              <p className="text-slate-500 text-sm text-center mb-8 leading-relaxed max-w-[260px]">
+              <p className="text-slate-500 text-sm text-center mb-8 leading-relaxed max-w-xs">
                 Phòng hiện đang trống. Bạn có thể mở phòng để order đồ trước.
               </p>
               <button
@@ -1087,7 +1120,7 @@ export default function RoomPage() {
                       >
                         <Plus className="w-5 h-5" />
                       </button>
-                      <div className="w-[1px] h-6 bg-slate-200 shrink-0 mx-1" />
+                      <div className="w-px h-6 bg-slate-200 shrink-0 mx-1" />
                       {MOBILE_CATEGORIES.map(cat => (
                         <button
                           key={cat.id}
@@ -1346,7 +1379,7 @@ export default function RoomPage() {
                                   <button
                                     onClick={() => {
                                       const p = products.find(prod => prod.id === item.productId);
-                                      handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
+                                      handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
                                     }}
                                     className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
                                   >
@@ -1364,7 +1397,7 @@ export default function RoomPage() {
                                   <button
                                     onClick={() => {
                                       const p = products.find(prod => prod.id === item.productId);
-                                      handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
+                                      handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
                                     }}
                                     className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
                                   >
@@ -1458,7 +1491,7 @@ export default function RoomPage() {
 
         {/* ── Transfer Room Modal (Mobile) ── */}
         <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
-          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
+          <DialogContent className="max-w-[90vw] w-full rounded-4xl p-6">
             <DialogHeader>
               <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Chọn phòng chuyển đến</DialogTitle>
               <DialogDescription className="font-medium text-xs">
@@ -1486,7 +1519,7 @@ export default function RoomPage() {
 
         {/* ── Order Quantity Modal (Mobile) ── */}
         <Dialog open={isOrderQuantityModalOpen} onOpenChange={setIsOrderQuantityModalOpen}>
-          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6 z-[200]">
+          <DialogContent className="max-w-[90vw] w-full rounded-4xl p-6 z-200">
             <DialogHeader>
               <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">
                 Gọi món: {selectedProductForOrder?.name}
@@ -1518,7 +1551,7 @@ export default function RoomPage() {
 
         {/* ── Quick Add Product Modal (Mobile) ── */}
         <Dialog open={isAddProductModalOpen} onOpenChange={setIsAddProductModalOpen}>
-          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6">
+          <DialogContent className="max-w-[90vw] w-full rounded-4xl p-6">
             <DialogHeader>
               <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Thêm sản phẩm mới</DialogTitle>
             </DialogHeader>
@@ -1530,7 +1563,7 @@ export default function RoomPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                  <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                  <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val as any })}>
                     <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                     <SelectContent className="rounded-2xl">
                       <SelectItem value="food">Đồ ăn</SelectItem>
@@ -1563,7 +1596,7 @@ export default function RoomPage() {
 
         {/* ── Quick Edit Product Modal (Mobile) ── */}
         <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
-          <DialogContent className="max-w-[90vw] w-full rounded-[2rem] p-6 z-[150]">
+          <DialogContent className="max-w-[90vw] w-full rounded-4xl p-6 z-150">
             <DialogHeader>
               <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Sửa thông tin sản phẩm</DialogTitle>
             </DialogHeader>
@@ -1575,7 +1608,7 @@ export default function RoomPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                  <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                  <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val as any })}>
                     <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                     <SelectContent className="rounded-2xl">
                       <SelectItem value="food">Đồ ăn</SelectItem>
@@ -1618,14 +1651,14 @@ export default function RoomPage() {
       <div className="min-h-screen lg:h-screen flex flex-col bg-[#F8FAFC] print:hidden overflow-x-hidden">
         {/* Header */}
         <div className="bg-white border-b border-slate-100 z-40">
-          <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-3 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}
                 className="text-slate-500 hover:text-indigo-600 gap-2 font-bold px-3">
                 <ChevronLeft className="w-5 h-5" />
                 <span className="hidden sm:inline">Quay lại</span>
               </Button>
-              <div className="h-8 w-[1px] bg-slate-100 mx-1 hidden sm:block" />
+              <div className="h-8 w-px bg-slate-100 mx-1 hidden sm:block" />
               <div className="flex flex-col">
                 <h1 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight uppercase">P. {room.roomNumber}</h1>
                 <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
@@ -1732,7 +1765,7 @@ export default function RoomPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[800px] lg:max-h-none">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96 lg:max-h-none">
                   <div className="flex items-center justify-between mb-2 px-2">
                     <div className="flex items-center gap-2 text-slate-800">
                       <ShoppingCart className="w-4 h-4 text-slate-400" />
@@ -1754,7 +1787,7 @@ export default function RoomPage() {
                     </div>
                   ) : (
                     orderItems.map((item, index) => (
-                      <div key={item.id ?? index} className="group relative flex flex-col p-3.5 pl-8 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
+                      <div key={item.id ?? index} ref={(el) => (itemRefs.current[index] = el)} className="group relative flex flex-col p-3.5 pl-8 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
                         <div className="absolute left-2 top-4 w-5 h-5 flex items-center justify-center bg-slate-50 rounded-full text-[10px] font-black text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                           {/* STT */}
                           {index + 1}
@@ -1769,7 +1802,7 @@ export default function RoomPage() {
                           <div className="flex items-center bg-white shadow-sm ring-1 ring-slate-100 rounded-lg overflow-hidden">
                             <button onClick={() => {
                               const p = products.find(prod => prod.id === item.productId);
-                              handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
+                              handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
                             }} className="p-1.5 hover:bg-slate-50 transition-colors"><Minus className="w-3 h-3 text-slate-400" /></button>
                             <input type="text" className="w-8 text-center text-xs font-black text-slate-700 bg-transparent"
                               value={editingQuantities[index] ?? item.quantity}
@@ -1777,7 +1810,7 @@ export default function RoomPage() {
                               onBlur={() => handleQuantityBlur(index)} />
                             <button onClick={() => {
                               const p = products.find(prod => prod.id === item.productId);
-                              handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
+                              handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
                             }} className="p-1.5 hover:bg-slate-50 transition-colors"><Plus className="w-3 h-3 text-slate-400" /></button>
                           </div>
                           <div className="text-right">
@@ -1802,7 +1835,7 @@ export default function RoomPage() {
                           <span className="text-[10px] text-slate-400 font-medium">đ</span>
                         </div>
                       </div>
-                      <div className="w-[1px] h-8 bg-slate-100" />
+                      <div className="w-px h-8 bg-slate-100" />
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tiền dịch vụ</span>
                         <div className="flex items-baseline gap-1">
@@ -1884,7 +1917,7 @@ export default function RoomPage() {
                       title="Thêm sản phẩm mới">
                       <Plus className="w-5 h-5" />
                     </Button>
-                    <div className="w-[1px] h-8 bg-slate-100 shrink-0 mx-1" />
+                    <div className="w-px h-8 bg-slate-100 shrink-0 mx-1" />
                     {DESKTOP_CATEGORIES.map((cat) => (
                       <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition
@@ -1926,7 +1959,7 @@ export default function RoomPage() {
                     })}
                   </div>
                   {desktopFiltered.length === 0 && (
-                    <div className="col-span-full py-20 text-center text-slate-400 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100">
+                    <div className="col-span-full py-20 text-center text-slate-400 bg-slate-50/50 rounded-4xl border-2 border-dashed border-slate-100">
                       <Box className="w-12 h-12 mx-auto mb-4 opacity-20" />
                       <p className="text-sm font-medium">Không tìm thấy sản phẩm nào khớp với từ khóa</p>
                       {searchTerm && (
@@ -1941,7 +1974,7 @@ export default function RoomPage() {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
-              <Card className="bg-white border-none p-8 lg:p-16 text-center max-w-lg shadow-[0_40px_100px_rgba(0,0,0,0.05)] rounded-[2rem] lg:rounded-[3rem]">
+              <Card className="bg-white border-none p-8 lg:p-16 text-center max-w-lg shadow-[0_40px_100px_rgba(0,0,0,0.05)] rounded-4xl lg:rounded-6xl">
                 <div className="w-16 h-16 lg:w-24 lg:h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6 lg:mb-8 animate-bounce">
                   <Clock className="w-8 h-8 lg:w-12 lg:h-12 text-indigo-600" />
                 </div>
@@ -2002,7 +2035,7 @@ export default function RoomPage() {
               {/* Các món */}
               {orderItems.map((item, index) => (
                 <tr key={item.id ?? index} style={{ borderTop: '1px dashed #000' }}>
-                  <td className="py-1.5 break-words max-w-[40mm]">
+                  <td className="py-1.5 text-wrap break-word max-w-[40mm]">
                     <div className="font-bold leading-tight">{item.productName}</div>
                     <div className="text-[11px] font-normal text-black">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
@@ -2044,7 +2077,7 @@ export default function RoomPage() {
 
       {/* ── Desktop Cart Modal ── */}
       <Dialog open={isCartModalOpen} onOpenChange={setIsCartModalOpen}>
-        <DialogContent id="cart-modal-content" className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-[2rem]">
+        <DialogContent id="cart-modal-content" className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-4xl">
           <DialogHeader className="p-6 pb-0">
             <div className="flex items-center gap-3 text-indigo-600 mb-2">
               <ShoppingCart className="w-6 h-6" />
@@ -2062,14 +2095,14 @@ export default function RoomPage() {
                 {orderItems.map((item, index) => (
                   <div
                     key={item.id ?? index}
-                    ref={index === orderItems.length - 1 ? lastItemRef : null} // Gán ref cho món cuối cùng
+                    ref={(el) => (itemRefs.current[index] = el)}
                     className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-full text-xs font-black text-slate-400 shrink-0">
                         {index + 1}
                       </div>
                       <div className="flex-1 w-full sm:min-w-0">
-                        <div className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug">{item.productName}</div>
+                        <div className="font-bold text-slate-900 text-sm sm:text-base text-wrap break-word leading-snug">{item.productName}</div>
                         <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
                       </div>
                       <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
@@ -2078,7 +2111,7 @@ export default function RoomPage() {
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
                         <button onClick={() => {
                           const p = products.find(prod => prod.id === item.productId);
-                          handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
+                          handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
                         }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
                         <div
                           onClick={() => {
@@ -2091,10 +2124,10 @@ export default function RoomPage() {
                         </div>
                         <button onClick={() => {
                           const p = products.find(prod => prod.id === item.productId);
-                          handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
+                          handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
                         }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
                       </div>
-                      <div className="min-w-[80px] text-right font-black text-indigo-600 text-sm sm:text-base">
+                      <div className="min-w-20 text-right font-black text-indigo-600 text-sm sm:text-base">
                         {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
                       </div>
                       <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
@@ -2130,7 +2163,7 @@ export default function RoomPage() {
 
       {/* ── Transfer Room Modal ── */}
       <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
-        <DialogContent className="max-w-md rounded-[2rem]">
+        <DialogContent className="max-w-md rounded-4xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Chọn phòng chuyển đến</DialogTitle>
             <DialogDescription className="font-medium">
@@ -2156,7 +2189,7 @@ export default function RoomPage() {
 
       {/* ── Quick Edit Product Modal (Desktop) ── */}
       <Dialog open={isEditProductModalOpen} onOpenChange={setIsEditProductModalOpen}>
-        <DialogContent className="max-w-md rounded-[2rem]">
+        <DialogContent className="max-w-md rounded-4xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Chỉnh sửa sản phẩm</DialogTitle>
             <DialogDescription className="font-medium">Thay đổi thông tin gốc của sản phẩm trong thực đơn.</DialogDescription>
@@ -2169,7 +2202,7 @@ export default function RoomPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val as any })}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
                     <SelectItem value="food">Đồ ăn</SelectItem>
@@ -2199,7 +2232,7 @@ export default function RoomPage() {
 
       {/* ── Quick Add Product Modal (Desktop) ── */}
       <Dialog open={isAddProductModalOpen} onOpenChange={setIsAddProductModalOpen}>
-        <DialogContent className="max-w-md rounded-[2rem]">
+        <DialogContent className="max-w-md rounded-4xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-indigo-600">Thêm sản phẩm mới</DialogTitle>
             <DialogDescription className="font-medium">Tạo món mới nhanh chóng mà không cần rời trang order.</DialogDescription>
@@ -2212,7 +2245,7 @@ export default function RoomPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Loại</label>
-                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val })}>
+                <Select value={newProductForm.category} onValueChange={(val) => setNewProductForm({ ...newProductForm, category: val as any })}>
                   <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white text-sm"><SelectValue placeholder="Chọn loại" /></SelectTrigger>
                   <SelectContent className="rounded-2xl">
                     <SelectItem value="food">Đồ ăn</SelectItem>
