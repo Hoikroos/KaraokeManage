@@ -1363,10 +1363,15 @@ export default function RoomPage() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            {orderItems.map((item, index) => (
+                            {[...orderItems].reverse().map((item, i) => {
+                              const index = orderItems.length - 1 - i;
+                              return (
                               <div
                                 key={item.id ?? index}
-                                ref={index === orderItems.length - 1 ? lastItemRef : null} // Gán ref cho món cuối cùng
+                                ref={(el) => {
+                                  itemRefs.current[index] = el;
+                                  if (index === orderItems.length - 1) (lastItemRef as any).current = el;
+                                }}
                                 className="bg-white rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2"
                               >
                                 <div className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded-lg text-[10px] font-black text-slate-400 shrink-0">
@@ -1427,7 +1432,8 @@ export default function RoomPage() {
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
