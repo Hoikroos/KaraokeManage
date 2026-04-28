@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/app/context';
 import {
     Dialog,
     DialogContent,
@@ -152,7 +151,6 @@ const CustomPieTooltip = ({ active, payload }: any) => {
 /* ─── Main Page ──────────────────────────────────────────────── */
 
 export default function InventoryStatsPage() {
-    const { user } = useAuth();
     const [stores, setStores] = useState<Store[]>([]);
     const [selectedStoreId, setSelectedStoreId] = useState<string>('');
     const [reportType, setReportType] = useState<PeriodType>('daily');
@@ -170,22 +168,15 @@ export default function InventoryStatsPage() {
         const fetchInitialData = async () => {
             try {
                 const res = await fetch('/api/admin/stores');
-                let data = await res.json();
-
-                // Lọc chi nhánh cho Branch Admin
-                if (user?.storeId && user.storeId !== 'all') {
-                    data = data.filter((s: Store) => s.id === user.storeId);
-                }
-
+                const data = await res.json();
                 setStores(data);
-                const initialStoreId = user?.storeId && user.storeId !== 'all' ? user.storeId : (data[0]?.id || '');
-                setSelectedStoreId(initialStoreId);
+                if (data.length > 0) setSelectedStoreId(data[0].id);
             } catch {
                 toast.error('Không thể tải danh sách chi nhánh');
             }
         };
         fetchInitialData();
-    }, [user]);
+    }, []);
 
     /* ── Fetch stats when filters change ─── */
     useEffect(() => {
@@ -676,4 +667,4 @@ export default function InventoryStatsPage() {
             </Dialog>
         </div>
     );
-}
+}z
