@@ -6,51 +6,36 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const storeId = searchParams.get('storeId') || '';
-        let rows: any[] = [];
-        // Sử dụng $queryRaw để tránh lỗi SQL Injection và tối ưu JOIN
-        if (storeId && storeId !== 'all') {
-            rows = await prisma.$queryRaw`
-SELECT 
-    i.Id, 
-    i.CustomerName, 
-    i.StoreId, 
-    i.TotalPrice, 
-    i.CreatedAt, 
-    i.DeletedAt, 
-    r.RoomNumber
-FROM Invoices i
-LEFT JOIN Room r ON i.RoomId = r.Id
-WHERE i.DeletedAt IS NOT NULL AND i.StoreId = ${storeId}
-ORDER BY i.DeletedAt DESC
-`;
-        } else {
-            rows = await prisma.$queryRaw`
-SELECT 
-    i.Id, 
-    i.CustomerName, 
-    i.StoreId, 
-    i.TotalPrice, 
-    i.CreatedAt, 
-    i.DeletedAt, 
-    r.RoomNumber
-FROM Invoices i
-LEFT JOIN Room r ON i.RoomId = r.Id
-WHERE i.DeletedAt IS NOT NULL
-ORDER BY i.DeletedAt DESC
-`;
-        }
-        return NextResponse.json(
-            rows.map((inv: any) => ({
-                // Map linh hoạt cả trường hợp DB trả về tên cột viết hoa hoặc viết thường
-                id: inv.Id || inv.id,
-                customerName: inv.CustomerName || inv.customerName || 'Khách lẻ',
-                storeId: inv.StoreId || inv.storeId,
-                roomNumber: inv.RoomNumber || inv.roomNumber || '',
-                totalPrice: Number(inv.TotalPrice || inv.totalprice || 0),
-                createdAt: inv.CreatedAt || inv.createdat,
-                deletedAt: inv.DeletedAt || inv.deletedat,
-            }))
-        );
+
+        // Sử dụng findMany thay vì $queryRaw để tránh lỗi tên bảng (Invoices vs Invoice)
+        const invoices = await prisma.invoice.findMany({
+            where: {
+                DeletedAt: { not: null },
+                ...(storeId && storeId !== 'all' ? { StoreId: storeId } : {})
+            },
+            include: {
+                RoomSession: {
+                    include: {
+                        Room: true
+                    }
+                }
+            },
+            orderBy: {
+                DeletedAt: 'desc'
+            }
+        });
+
+        const transformed = invoices.map((inv) => ({
+            id: inv.Id,
+            customerName: inv.CustomerName || 'Khách lẻ',
+            storeId: inv.StoreId,
+            roomNumber: (inv.RoomSession?.Room as any)?.RoomNumber || (inv.RoomSession?.Room as any)?.roomNumber || '',
+            totalPrice: Number(inv.TotalPrice || 0),
+            createdAt: inv.CreatedAt,
+            deletedAt: inv.DeletedAt,
+        }));
+
+        return NextResponse.json(transformed);
     } catch (error) {
         console.error('Trash fetch error:', error);
         return Response.json({ error: 'Server error' }, { status: 500 });
