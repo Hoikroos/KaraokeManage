@@ -2088,13 +2088,6 @@ export default function RoomPage() {
                     : 'cursor-pointer border-slate-100 hover:border-slate-200 hover:shadow-md'
                 }`}
             >
-              {/* In-cart badge */}
-              {inCart > 0 && (
-                <div className="absolute -top-2 -right-2 z-10 w-6 h-6 bg-indigo-600 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-md shadow-indigo-200">
-                  {inCart}
-                </div>
-              )}
-
               <div className="p-3.5 flex-1 flex flex-col">
                 {/* Tên */}
                 <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug mb-1.5 flex-1">
@@ -2274,7 +2267,6 @@ export default function RoomPage() {
                         <div className="font-bold text-slate-900 text-sm sm:text-base text-wrap break-word leading-snug">{item.productName}</div>
                         <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
