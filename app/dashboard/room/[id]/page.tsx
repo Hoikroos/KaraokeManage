@@ -1194,13 +1194,19 @@ export default function RoomPage() {
                   ${unavail ? 'opacity-40' : 'active:scale-[0.98] cursor-pointer'}
                   ${inCart > 0 ? 'ring-2 ring-indigo-400 ring-offset-1' : 'shadow-sm'}`}
               >
-                {/* In-cart indicator */}
-                {inCart > 0 && (
-                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-500 rounded-t-2xl" />
-                )}
+                {/* Số lượng trong giỏ — luôn hiển thị */}
+                <div className="absolute top-2 right-2">
+                  <div className={`w-6 h-6 text-[11px] font-black rounded-full flex items-center justify-center transition-all
+                    ${inCart > 0
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200 scale-110'
+                      : 'bg-slate-100 text-slate-300'
+                    }`}>
+                    {inCart}
+                  </div>
+                </div>
 
                 {/* Name & price */}
-                <div className="mb-3">
+                <div className="mb-3 pr-7">
                   <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug">
                     {product.name}
                   </div>
