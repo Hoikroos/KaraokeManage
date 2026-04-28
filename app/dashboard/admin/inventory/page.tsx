@@ -678,4 +678,4 @@ export default function InventoryStatsPage() {
             </Dialog>
         </div>
     );
-}z
+}

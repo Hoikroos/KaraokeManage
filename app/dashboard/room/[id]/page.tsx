@@ -2056,7 +2056,7 @@ export default function RoomPage() {
     <div className="relative">
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
       <Input
-        placeholder="Tìm món ăn, đồ uống... (Enter để thêm nhanh)"
+        placeholder="Tìm món ăn, đồ uống..."
         value={searchTerm}
         onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
