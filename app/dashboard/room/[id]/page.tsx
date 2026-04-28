@@ -111,7 +111,7 @@ export default function RoomPage() {
   const isFirstRender = useRef(true);
   const lastItemRef = useRef<HTMLDivElement>(null); // Ref cho món hàng cuối cùng trong giỏ
   const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLElement | null)[]>([]);
 
   // Reset cờ mỗi khi session mới được load
   useEffect(() => {
@@ -266,6 +266,24 @@ export default function RoomPage() {
 
     return () => clearTimeout(timer);
   }, [customPricePerHour]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Real-time timer: Auto-update end time during active sessions ────────────
+  useEffect(() => {
+    const sessionStatus = session?.status ?? (session as any)?.Status;
+
+    // Only update end time if session is active (not paused, not pending)
+    if (!session || sessionStatus !== 'active') {
+      return;
+    }
+
+    const timerInterval = setInterval(() => {
+      const now = new Date();
+      setSelectedEndTime(formatDateTimeLocal(now));
+    }, 1000); // Update every second
+
+    return () => clearInterval(timerInterval);
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Data loading ───────────────────────────────────────────────────────────
 
   const loadRoomData = async (currentRoomId: string) => {
@@ -769,15 +787,15 @@ export default function RoomPage() {
     }
 
     const trimmed = searchTerm.trim().toLowerCase();
-    
+
     // Tìm khớp chính xác trước
     let product = products.find(p => p.name.toLowerCase() === trimmed);
-    
+
     // Nếu không có khớp chính xác, tìm sản phẩm chứa text từ gợi ý
     if (!product && productSuggestions.length > 0) {
       product = productSuggestions[0];
     }
-    
+
     if (product) {
       handleAddProduct(product.id, 1);
       setShowProductSuggestions(false);
@@ -1108,152 +1126,152 @@ export default function RoomPage() {
                     Tab: Menu
                 ══════════════════════════════════════════ */}
                 {mobileTab === 'menu' && (
-  <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
+                  <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
 
-    {/* ── Search ── */}
-    <div className="px-3 py-2.5 bg-white border-b border-slate-100">
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Tìm món..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-slate-100 rounded-xl pl-10 pr-9 py-2.5 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition"
-        />
-        {searchTerm && (
-          <button
-            onClick={() => setSearchTerm('')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-slate-300 active:scale-90 transition"
-          >
-            <X className="w-3 h-3 text-white" />
-          </button>
-        )}
-      </div>
-    </div>
+                    {/* ── Search ── */}
+                    <div className="px-3 py-2.5 bg-white border-b border-slate-100">
+                      <div className="relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Tìm món..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full bg-slate-100 rounded-xl pl-10 pr-9 py-2.5 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition"
+                        />
+                        {searchTerm && (
+                          <button
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-slate-300 active:scale-90 transition"
+                          >
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-    {/* ── Categories ── */}
-    <div className="px-3 py-2 flex gap-2 items-center overflow-x-auto no-scrollbar bg-white border-b border-slate-100">
-      <button
-        onClick={handleOpenAddProduct}
-        className="shrink-0 flex items-center gap-1 h-8 px-3 bg-indigo-600 text-white rounded-xl text-xs font-bold active:scale-95 transition whitespace-nowrap"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Thêm
-      </button>
-      <div className="w-px h-5 bg-slate-200 shrink-0" />
-      {MOBILE_CATEGORIES.map(cat => (
-        <button
-          key={cat.id}
-          onClick={() => setMobileCat(cat.id)}
-          className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95
+                    {/* ── Categories ── */}
+                    <div className="px-3 py-2 flex gap-2 items-center overflow-x-auto no-scrollbar bg-white border-b border-slate-100">
+                      <button
+                        onClick={handleOpenAddProduct}
+                        className="shrink-0 flex items-center gap-1 h-8 px-3 bg-indigo-600 text-white rounded-xl text-xs font-bold active:scale-95 transition whitespace-nowrap"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Thêm
+                      </button>
+                      <div className="w-px h-5 bg-slate-200 shrink-0" />
+                      {MOBILE_CATEGORIES.map(cat => (
+                        <button
+                          key={cat.id}
+                          onClick={() => setMobileCat(cat.id)}
+                          className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95
             ${mobileCat === cat.id
-              ? 'bg-slate-900 text-white'
-              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-            }`}
-        >
-          {cat.icon}
-          {cat.name}
-        </button>
-      ))}
-    </div>
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                        >
+                          {cat.icon}
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
 
-    {/* ── Product Grid ── */}
-    <div className="flex-1 overflow-y-auto p-3">
-      {mobileFiltered.length === 0 ? (
-        <div className="py-16 flex flex-col items-center text-slate-400">
-          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-3 shadow-sm">
-            <Search className="w-6 h-6 opacity-30" />
-          </div>
-          <p className="text-sm font-semibold text-slate-500 mb-1">Không tìm thấy món</p>
-          {searchTerm && (
-            <button
-              onClick={handleOpenAddProduct}
-              className="mt-4 flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 active:scale-95 transition"
-            >
-              <Plus className="w-3.5 h-3.5" /> Thêm "{searchTerm}"
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2.5">
-          {mobileFiltered.map(product => {
-            const inCart = orderItems.find(i => i.productId === product.id)?.quantity || 0;
-            const available = product.quantity - inCart;
-            const unavail = available <= 0;
-            const lowStock = available > 0 && available <= 5;
+                    {/* ── Product Grid ── */}
+                    <div className="flex-1 overflow-y-auto p-3">
+                      {mobileFiltered.length === 0 ? (
+                        <div className="py-16 flex flex-col items-center text-slate-400">
+                          <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-3 shadow-sm">
+                            <Search className="w-6 h-6 opacity-30" />
+                          </div>
+                          <p className="text-sm font-semibold text-slate-500 mb-1">Không tìm thấy món</p>
+                          {searchTerm && (
+                            <button
+                              onClick={handleOpenAddProduct}
+                              className="mt-4 flex items-center gap-2 bg-indigo-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 active:scale-95 transition"
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Thêm "{searchTerm}"
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {mobileFiltered.map(product => {
+                            const inCart = orderItems.find(i => i.productId === product.id)?.quantity || 0;
+                            const available = product.quantity - inCart;
+                            const unavail = available <= 0;
+                            const lowStock = available > 0 && available <= 5;
 
-            return (
-              <div
-                key={product.id}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest('button')) return;
-                  !unavail && handleOpenOrderQuantityModal(product);
-                }}
-                className={`bg-white rounded-2xl p-3 flex flex-col justify-between relative overflow-hidden transition
+                            return (
+                              <div
+                                key={product.id}
+                                onClick={(e) => {
+                                  if ((e.target as HTMLElement).closest('button')) return;
+                                  !unavail && handleOpenOrderQuantityModal(product);
+                                }}
+                                className={`bg-white rounded-2xl p-3 flex flex-col justify-between relative overflow-hidden transition
                   ${unavail ? 'opacity-40' : 'active:scale-[0.98] cursor-pointer'}
                   ${inCart > 0 ? 'ring-2 ring-indigo-400 ring-offset-1' : 'shadow-sm'}`}
-              >
-                {/* Số lượng trong giỏ — luôn hiển thị */}
-                <div className="absolute top-2 right-2">
-                  <div className={`w-6 h-6 text-[11px] font-black rounded-full flex items-center justify-center transition-all
+                              >
+                                {/* Số lượng trong giỏ — luôn hiển thị */}
+                                <div className="absolute top-2 right-2">
+                                  <div className={`w-6 h-6 text-[11px] font-black rounded-full flex items-center justify-center transition-all
                     ${inCart > 0
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200 scale-110'
-                      : 'bg-slate-100 text-slate-300'
-                    }`}>
-                    {inCart}
-                  </div>
-                </div>
+                                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200 scale-110'
+                                      : 'bg-slate-100 text-slate-300'
+                                    }`}>
+                                    {inCart}
+                                  </div>
+                                </div>
 
-                {/* Name & price */}
-                <div className="mb-3 pr-7">
-                  <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug">
-                    {product.name}
-                  </div>
-                  <div className="text-indigo-600 font-black text-sm mt-1">
-                    {product.price.toLocaleString('vi-VN')}đ
-                  </div>
-                </div>
+                                {/* Name & price */}
+                                <div className="mb-3 pr-7">
+                                  <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug">
+                                    {product.name}
+                                  </div>
+                                  <div className="text-indigo-600 font-black text-sm mt-1">
+                                    {product.price.toLocaleString('vi-VN')}đ
+                                  </div>
+                                </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-lg
+                                {/* Footer */}
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-[10px] font-bold px-2 py-1 rounded-lg
                     ${unavail
-                      ? 'bg-red-50 text-red-400'
-                      : lowStock
-                        ? 'bg-amber-50 text-amber-500'
-                        : 'bg-emerald-50 text-emerald-600'
-                    }`}>
-                    {unavail ? 'Hết' : `${available} còn`}
-                  </span>
+                                      ? 'bg-red-50 text-red-400'
+                                      : lowStock
+                                        ? 'bg-amber-50 text-amber-500'
+                                        : 'bg-emerald-50 text-emerald-600'
+                                    }`}>
+                                    {unavail ? 'Hết' : `${available} còn`}
+                                  </span>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleOpenEditProduct(product); }}
-                      className="w-9 h-9 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center active:scale-90 transition touch-manipulation"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    {!unavail && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleAddProduct(product.id, 1); }}
-                        className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center active:scale-95 transition touch-manipulation"
-                      >
-                        <Plus className="w-4 h-4 text-white" />
-                      </button>
-                    )}
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleOpenEditProduct(product); }}
+                                      className="w-9 h-9 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center active:scale-90 transition touch-manipulation"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    {!unavail && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleAddProduct(product.id, 1); }}
+                                        className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center active:scale-95 transition touch-manipulation"
+                                      >
+                                        <Plus className="w-4 h-4 text-white" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                )}
 
                 {/* ══════════════════════════════════════════
                     Tab: Giỏ hàng  — bao gồm tiền giờ & thanh toán
@@ -1395,72 +1413,72 @@ export default function RoomPage() {
                             {[...orderItems].reverse().map((item, i) => {
                               const index = orderItems.length - 1 - i;
                               return (
-                              <div
-                                key={item.id ?? index}
-                                ref={(el) => {
-                                  itemRefs.current[index] = el;
-                                  if (index === orderItems.length - 1) (lastItemRef as any).current = el;
-                                }}
-                                className="bg-white rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2"
-                              >
-                                <div className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded-lg text-[10px] font-black text-slate-400 shrink-0">
-                                  {index + 1}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <input
-                                    type="text"
-                                    value={editingNames[index] ?? item.productName}
-                                    onChange={(e) => handleNameChange(index, e.target.value)}
-                                    onBlur={() => handleNameBlur(index)}
-                                    className="font-semibold text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 w-full"
-                                  />
-                                  <input
-                                    type="text"
-                                    value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                                    onChange={(e) => handlePriceChange(index, e.target.value)}
-                                    onBlur={() => handlePriceBlur(index)}
-                                    className="text-indigo-500 text-sm mt-0.5 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
-                                  />
-                                  <div className="text-[10px] font-bold text-slate-400">
-                                    Tổng: {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                                  </div>
-                                </div>
-                                <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
-                                  <button
-                                    onClick={() => {
-                                      const p = products.find(prod => prod.id === item.productId);
-                                      handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
-                                    }}
-                                    className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <div
-                                    onClick={() => {
-                                      const p = products.find(prod => prod.id === item.productId);
-                                      if (p) handleOpenOrderQuantityModal(p);
-                                    }}
-                                    className="w-8 h-7 flex items-center justify-center font-bold text-slate-900 text-base cursor-pointer active:bg-white rounded-lg transition-colors touch-manipulation"
-                                  >
-                                    {item.quantity}
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      const p = products.find(prod => prod.id === item.productId);
-                                      handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
-                                    }}
-                                    className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                </div>
-                                <button
-                                  onClick={() => handleRemoveItem(index)}
-                                  className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
+                                <div
+                                  key={item.id ?? index}
+                                  ref={(el) => {
+                                    itemRefs.current[index] = el;
+                                    if (index === orderItems.length - 1) (lastItemRef as any).current = el;
+                                  }}
+                                  className="bg-white rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2"
                                 >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
+                                  <div className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded-lg text-[10px] font-black text-slate-400 shrink-0">
+                                    {index + 1}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <input
+                                      type="text"
+                                      value={editingNames[index] ?? item.productName}
+                                      onChange={(e) => handleNameChange(index, e.target.value)}
+                                      onBlur={() => handleNameBlur(index)}
+                                      className="font-semibold text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 w-full"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
+                                      onChange={(e) => handlePriceChange(index, e.target.value)}
+                                      onBlur={() => handlePriceBlur(index)}
+                                      className="text-indigo-500 text-sm mt-0.5 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
+                                    />
+                                    <div className="text-[10px] font-bold text-slate-400">
+                                      Tổng: {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
+                                    <button
+                                      onClick={() => {
+                                        const p = products.find(prod => prod.id === item.productId);
+                                        handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
+                                      }}
+                                      className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </button>
+                                    <div
+                                      onClick={() => {
+                                        const p = products.find(prod => prod.id === item.productId);
+                                        if (p) handleOpenOrderQuantityModal(p);
+                                      }}
+                                      className="w-8 h-7 flex items-center justify-center font-bold text-slate-900 text-base cursor-pointer active:bg-white rounded-lg transition-colors touch-manipulation"
+                                    >
+                                      {item.quantity}
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const p = products.find(prod => prod.id === item.productId);
+                                        handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
+                                      }}
+                                      className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => handleRemoveItem(index)}
+                                    className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 active:scale-90"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -1702,52 +1720,52 @@ export default function RoomPage() {
       <div className="min-h-screen lg:h-screen flex flex-col bg-[#F8FAFC] print:hidden overflow-x-hidden">
         {/* Header */}
         {/* Header */}
-<div className="bg-white border-b border-slate-100 z-40">
-  <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 grid grid-cols-3 items-center">
-    
-    {/* Left: Nút quay lại */}
-    <div className="flex items-center">
-      <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}
-        className="text-slate-500 hover:text-indigo-600 gap-2 font-bold px-3">
-        <ChevronLeft className="w-5 h-5" />
-        <span className="hidden sm:inline">Quay lại</span>
-      </Button>
-    </div>
+        <div className="bg-white border-b border-slate-100 z-40">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-3 grid grid-cols-3 items-center">
 
-    {/* Center: Tên phòng & trạng thái — căn giữa hoàn toàn */}
-    <div className="flex flex-col items-center justify-center">
-      <h1 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight uppercase">
-        P. {room.roomNumber}
-      </h1>
-      <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-        {room.status === 'occupied' ? 'Đang hoạt động' : 'Phòng trống'}
-      </span>
-    </div>
+            {/* Left: Nút quay lại */}
+            <div className="flex items-center">
+              <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}
+                className="text-slate-500 hover:text-indigo-600 gap-2 font-bold px-3">
+                <ChevronLeft className="w-5 h-5" />
+                <span className="hidden sm:inline">Quay lại</span>
+              </Button>
+            </div>
 
-    {/* Right: Các nút hành động — căn phải */}
-    <div className="flex items-center justify-end gap-2 lg:gap-3">
-      {session ? (
-        <>
-          <Button onClick={openTransferModal} variant="ghost"
-            className="text-indigo-600 hover:bg-indigo-50 font-bold rounded-xl px-3 lg:px-5 text-xs lg:text-sm gap-2">
-            <ArrowRightLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Chuyển phòng</span>
-          </Button>
-          <Button onClick={handleCancelSession} variant="ghost"
-            className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 font-bold rounded-xl px-3 lg:px-5 text-xs lg:text-sm">
-            Hủy phòng
-          </Button>
-        </>
-      ) : (
-        <Button onClick={handleStartSession}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 lg:px-8 rounded-xl shadow-lg shadow-indigo-200 font-bold transition-all hover:-translate-y-0.5 text-xs lg:text-sm">
-          <Plus className="w-4 h-4 mr-1 lg:hidden" />
-          <span>Mở phòng / Order trước</span>
-        </Button>
-      )}
-    </div>
-  </div>
-</div>
+            {/* Center: Tên phòng & trạng thái — căn giữa hoàn toàn */}
+            <div className="flex flex-col items-center justify-center">
+              <h1 className="text-lg lg:text-xl font-black text-slate-900 tracking-tight uppercase">
+                P. {room.roomNumber}
+              </h1>
+              <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                {room.status === 'occupied' ? 'Đang hoạt động' : 'Phòng trống'}
+              </span>
+            </div>
+
+            {/* Right: Các nút hành động — căn phải */}
+            <div className="flex items-center justify-end gap-2 lg:gap-3">
+              {session ? (
+                <>
+                  <Button onClick={openTransferModal} variant="ghost"
+                    className="text-indigo-600 hover:bg-indigo-50 font-bold rounded-xl px-3 lg:px-5 text-xs lg:text-sm gap-2">
+                    <ArrowRightLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Chuyển phòng</span>
+                  </Button>
+                  <Button onClick={handleCancelSession} variant="ghost"
+                    className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 font-bold rounded-xl px-3 lg:px-5 text-xs lg:text-sm">
+                    Hủy phòng
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={handleStartSession}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 lg:px-8 rounded-xl shadow-lg shadow-indigo-200 font-bold transition-all hover:-translate-y-0.5 text-xs lg:text-sm">
+                  <Plus className="w-4 h-4 mr-1 lg:hidden" />
+                  <span>Mở phòng / Order trước</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
           {session ? (
@@ -1756,239 +1774,239 @@ export default function RoomPage() {
               <div className="flex-1 min-w-0 bg-white border-t lg:border-t-0 lg:border-r border-slate-100 flex flex-col order-2 lg:order-2">
                 <div className="p-4 lg:p-5 border-b border-slate-100">
 
-  {/* ── Header row: luôn hiển thị ── */}
-  <div className="flex items-center justify-between mb-3">
-    <div className="flex items-center gap-2 text-slate-700">
-      <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center">
-        <Clock className="w-3.5 h-3.5 text-indigo-600" />
-      </div>
-      <span className="font-black text-xs uppercase tracking-widest text-slate-600">Thời gian sử dụng</span>
-    </div>
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-        {durationText}
-      </span>
-      <button
-        onClick={() => setShowTimeDetails(!showTimeDetails)}
-        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all
+                  {/* ── Header row: luôn hiển thị ── */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-slate-700">
+                      <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                      </div>
+                      <span className="font-black text-xs uppercase tracking-widest text-slate-600">Thời gian sử dụng</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                        {durationText}
+                      </span>
+                      <button
+                        onClick={() => setShowTimeDetails(!showTimeDetails)}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all
           ${showTimeDetails ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-      >
-        <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${showTimeDetails ? 'rotate-90' : ''}`} />
-      </button>
-    </div>
-  </div>
+                      >
+                        <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${showTimeDetails ? 'rotate-90' : ''}`} />
+                      </button>
+                    </div>
+                  </div>
 
-  {/* ── Expandable detail ── */}
-  {showTimeDetails && (
-    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                  {/* ── Expandable detail ── */}
+                  {showTimeDetails && (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
 
-      {/* Giờ vào + Ra */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
-            Giờ vào
-          </label>
-          <div className="flex gap-1.5">
-            <Input
-              type="datetime-local"
-              value={selectedStartTime}
-              onChange={(e) => setSelectedStartTime(e.target.value)}
-              className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold flex-1 focus:bg-white transition"
-            />
-            <Button
-              type="button" size="sm" variant="outline"
-              onClick={handleUpdateStartTime}
-              className="h-9 px-2.5 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 rounded-xl shrink-0 transition"
-            >
-              {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Sửa' : 'Bắt đầu'}
-            </Button>
-          </div>
-        </div>
+                      {/* Giờ vào + Ra */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
+                            Giờ vào
+                          </label>
+                          <div className="flex gap-1.5">
+                            <Input
+                              type="datetime-local"
+                              value={selectedStartTime}
+                              onChange={(e) => setSelectedStartTime(e.target.value)}
+                              className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold flex-1 focus:bg-white transition"
+                            />
+                            <Button
+                              type="button" size="sm" variant="outline"
+                              onClick={handleUpdateStartTime}
+                              className="h-9 px-2.5 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 rounded-xl shrink-0 transition"
+                            >
+                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Sửa' : 'Bắt đầu'}
+                            </Button>
+                          </div>
+                        </div>
 
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
-            Giờ ra
-          </label>
-          <Input
-            type="datetime-local"
-            value={selectedEndTime}
-            onChange={(e) => setSelectedEndTime(e.target.value)}
-            className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition"
-          />
-        </div>
-      </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
+                            Giờ ra
+                          </label>
+                          <Input
+                            type="datetime-local"
+                            value={selectedEndTime}
+                            onChange={(e) => setSelectedEndTime(e.target.value)}
+                            className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition"
+                          />
+                        </div>
+                      </div>
 
-      {/* Giá giờ + Tên khách */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
-            Giá / giờ
-          </label>
-          <div className="relative">
-            <Input
-              type="text"
-              value={customPricePerHour.toLocaleString('vi-VN')}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '');
-                setCustomPricePerHour(val ? parseInt(val) : 0);
-              }}
-              className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-black text-indigo-600 pr-6 focus:bg-white transition"
-            />
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
-          </div>
-        </div>
+                      {/* Giá giờ + Tên khách */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
+                            Giá / giờ
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="text"
+                              value={customPricePerHour.toLocaleString('vi-VN')}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setCustomPricePerHour(val ? parseInt(val) : 0);
+                              }}
+                              className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-black text-indigo-600 pr-6 focus:bg-white transition"
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
+                          </div>
+                        </div>
 
-        <div className="space-y-1 relative">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
-            Tên khách
-          </label>
-          <div className="relative">
-            <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-300 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Tên hoặc SĐT..."
-              value={customerName}
-              onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold pl-7 focus:bg-white transition"
-            />
-          </div>
-          {showSuggestions && customerSuggestions.length > 0 && (
-            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-2xl max-h-40 overflow-auto py-1 ring-1 ring-black/5">
-              {customerSuggestions.map((name) => (
-                <li
-                  key={name}
-                  onClick={() => { setCustomerName(name); setShowSuggestions(false); }}
-                  className="px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2 transition-colors"
-                >
-                  <Users className="w-3 h-3 text-slate-400 shrink-0" /> {name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+                        <div className="space-y-1 relative">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
+                            Tên khách
+                          </label>
+                          <div className="relative">
+                            <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-300 pointer-events-none" />
+                            <Input
+                              type="text"
+                              placeholder="Tên hoặc SĐT..."
+                              value={customerName}
+                              onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
+                              onFocus={() => setShowSuggestions(true)}
+                              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                              className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold pl-7 focus:bg-white transition"
+                            />
+                          </div>
+                          {showSuggestions && customerSuggestions.length > 0 && (
+                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl mt-1 shadow-2xl max-h-40 overflow-auto py-1 ring-1 ring-black/5">
+                              {customerSuggestions.map((name) => (
+                                <li
+                                  key={name}
+                                  onClick={() => { setCustomerName(name); setShowSuggestions(false); }}
+                                  className="px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2 transition-colors"
+                                >
+                                  <Users className="w-3 h-3 text-slate-400 shrink-0" /> {name}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
 
-    </div>
-  )}
-</div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Giỏ hàng - dạng bảng */}
-<div className="flex-1 overflow-y-auto p-4 max-h-96 lg:max-h-none">
-  <div className="flex items-center justify-between mb-3 px-1">
-    <div className="flex items-center gap-2 text-slate-800">
-      <ShoppingCart className="w-4 h-4 text-slate-400" />
-      <span className="font-bold text-xs uppercase">Giỏ hàng ({orderItems.length})</span>
-    </div>
-    {orderItems.length > 0 && (
-      <Button variant="ghost" size="sm" onClick={() => setIsCartModalOpen(true)}
-        className="text-[10px] text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-black uppercase tracking-tighter h-7 px-2 gap-1">
-        <Expand className="w-3 h-3" /> Xem tất cả
-      </Button>
-    )}
-  </div>
+                <div className="flex-1 overflow-y-auto p-4 max-h-96 lg:max-h-none">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <div className="flex items-center gap-2 text-slate-800">
+                      <ShoppingCart className="w-4 h-4 text-slate-400" />
+                      <span className="font-bold text-xs uppercase">Giỏ hàng ({orderItems.length})</span>
+                    </div>
+                    {orderItems.length > 0 && (
+                      <Button variant="ghost" size="sm" onClick={() => setIsCartModalOpen(true)}
+                        className="text-[10px] text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-black uppercase tracking-tighter h-7 px-2 gap-1">
+                        <Expand className="w-3 h-3" /> Xem tất cả
+                      </Button>
+                    )}
+                  </div>
 
-  {orderItems.length === 0 ? (
-    <div className="h-40 flex flex-col items-center justify-center text-slate-400">
-      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-        <ShoppingCart className="w-6 h-6 opacity-20" />
-      </div>
-      <p className="text-xs font-medium italic">Giỏ hàng của bạn đang trống</p>
-    </div>
-  ) : (
-    <table className="w-full text-sm border-separate border-spacing-y-1">
-      <thead>
-        <tr>
-          <th className="text-[10px] font-black text-slate-400 uppercase text-center w-7 pb-2">#</th>
-          <th className="text-[10px] font-black text-slate-400 uppercase text-left pb-2 pl-2">Tên</th>
-          <th className="text-[10px] font-black text-slate-400 uppercase text-center pb-2 w-28">Số lượng</th>
-          <th className="text-[10px] font-black text-slate-400 uppercase text-right pb-2 w-24">Đơn giá</th>
-          <th className="text-[10px] font-black text-slate-400 uppercase text-right pb-2 w-24">Thành tiền</th>
-          <th className="w-8 pb-2" />
-        </tr>
-      </thead>
-      <tbody>
-        {orderItems.map((item, index) => (
-          <tr
-            key={item.id ?? index}
-            ref={(el) => (itemRefs.current[index] = el)}
-            className="group bg-white hover:bg-indigo-50/40 transition-colors rounded-xl"
-          >
-            {/* STT */}
-            <td className="text-center rounded-l-xl py-3 pl-2">
-              <span className="w-5 h-5 inline-flex items-center justify-center bg-slate-100 group-hover:bg-indigo-100 group-hover:text-indigo-600 rounded-full text-[10px] font-black text-slate-400 transition-colors">
-                {index + 1}
-              </span>
-            </td>
+                  {orderItems.length === 0 ? (
+                    <div className="h-40 flex flex-col items-center justify-center text-slate-400">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <ShoppingCart className="w-6 h-6 opacity-20" />
+                      </div>
+                      <p className="text-xs font-medium italic">Giỏ hàng của bạn đang trống</p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm border-separate border-spacing-y-1">
+                      <thead>
+                        <tr>
+                          <th className="text-[10px] font-black text-slate-400 uppercase text-center w-7 pb-2">#</th>
+                          <th className="text-[10px] font-black text-slate-400 uppercase text-left pb-2 pl-2">Tên</th>
+                          <th className="text-[10px] font-black text-slate-400 uppercase text-center pb-2 w-28">Số lượng</th>
+                          <th className="text-[10px] font-black text-slate-400 uppercase text-right pb-2 w-24">Đơn giá</th>
+                          <th className="text-[10px] font-black text-slate-400 uppercase text-right pb-2 w-24">Thành tiền</th>
+                          <th className="w-8 pb-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderItems.map((item, index) => (
+                          <tr
+                            key={item.id ?? index}
+                            ref={(el: HTMLTableRowElement | null) => void (itemRefs.current[index] = el)}
+                            className="group bg-white hover:bg-indigo-50/40 transition-colors rounded-xl"
+                          >
+                            {/* STT */}
+                            <td className="text-center rounded-l-xl py-3 pl-2">
+                              <span className="w-5 h-5 inline-flex items-center justify-center bg-slate-100 group-hover:bg-indigo-100 group-hover:text-indigo-600 rounded-full text-[10px] font-black text-slate-400 transition-colors">
+                                {index + 1}
+                              </span>
+                            </td>
 
-            {/* Tên */}
-            <td className="py-3 pl-2 pr-2">
-              <span className="font-semibold text-slate-800 text-xs leading-snug line-clamp-2">
-                {item.productName}
-              </span>
-            </td>
+                            {/* Tên */}
+                            <td className="py-3 pl-2 pr-2">
+                              <span className="font-semibold text-slate-800 text-xs leading-snug line-clamp-2">
+                                {item.productName}
+                              </span>
+                            </td>
 
-            {/* Số lượng */}
-            <td className="py-3 text-center">
-              <div className="flex items-center justify-center bg-slate-100 rounded-lg p-0.5 gap-0.5 mx-auto w-fit">
-                <button
-                  onClick={() => {
-                    const p = products.find(prod => prod.id === item.productId);
-                    handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
-                  }}
-                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <input
-                  type="text"
-                  className="w-7 text-center text-xs font-black text-slate-700 bg-transparent outline-none"
-                  value={editingQuantities[index] ?? item.quantity}
-                  onChange={(e) => handleQuantityChange(index, e.target.value)}
-                  onBlur={() => handleQuantityBlur(index)}
-                />
-                <button
-                  onClick={() => {
-                    const p = products.find(prod => prod.id === item.productId);
-                    handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
-                  }}
-                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-            </td>
+                            {/* Số lượng */}
+                            <td className="py-3 text-center">
+                              <div className="flex items-center justify-center bg-slate-100 rounded-lg p-0.5 gap-0.5 mx-auto w-fit">
+                                <button
+                                  onClick={() => {
+                                    const p = products.find(prod => prod.id === item.productId);
+                                    handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <input
+                                  type="text"
+                                  className="w-7 text-center text-xs font-black text-slate-700 bg-transparent outline-none"
+                                  value={editingQuantities[index] ?? item.quantity}
+                                  onChange={(e) => handleQuantityChange(index, e.target.value)}
+                                  onBlur={() => handleQuantityBlur(index)}
+                                />
+                                <button
+                                  onClick={() => {
+                                    const p = products.find(prod => prod.id === item.productId);
+                                    handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </td>
 
-            {/* Đơn giá */}
-            <td className="py-3 text-right pr-2">
-              <span className="text-xs font-bold text-slate-600">
-                {item.price.toLocaleString('vi-VN')}đ
-              </span>
-            </td>
+                            {/* Đơn giá */}
+                            <td className="py-3 text-right pr-2">
+                              <span className="text-xs font-bold text-slate-600">
+                                {item.price.toLocaleString('vi-VN')}đ
+                              </span>
+                            </td>
 
-            {/* Thành tiền */}
-            <td className="py-3 text-right pr-2">
-              <span className="text-xs font-black text-indigo-600">
-                {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-              </span>
-            </td>
+                            {/* Thành tiền */}
+                            <td className="py-3 text-right pr-2">
+                              <span className="text-xs font-black text-indigo-600">
+                                {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                              </span>
+                            </td>
 
-            {/* Xóa */}
-            <td className="py-3 text-center rounded-r-xl pr-1">
-              <button
-                onClick={() => handleRemoveItem(index)}
-                className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )}
-</div>
+                            {/* Xóa */}
+                            <td className="py-3 text-center rounded-r-xl pr-1">
+                              <button
+                                onClick={() => handleRemoveItem(index)}
+                                className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
 
                 <div className="p-4 lg:p-6 bg-white border-t border-slate-100">
                   <div className="flex items-center justify-between mb-8">
@@ -2049,175 +2067,175 @@ export default function RoomPage() {
               {/* Right column — Product menu */}
               <div className="flex-1 min-w-0 flex flex-col p-4 lg:p-5 overflow-hidden order-2 lg:order-1 bg-slate-50/50">
 
-  {/* ── Toolbar: Search + Categories ── */}
-  <div className="mb-4 space-y-3">
+                {/* ── Toolbar: Search + Categories ── */}
+                <div className="mb-4 space-y-3">
 
-    {/* Search bar */}
-    <div className="relative">
-      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-      <Input
-        placeholder="Tìm món ăn, đồ uống..."
-        value={searchTerm}
-        onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
-        onFocus={() => setShowProductSuggestions(true)}
-        onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
-        className="pl-11 pr-10 h-11 rounded-xl bg-white border border-slate-200 text-sm shadow-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition placeholder:text-slate-400"
-      />
-      {searchTerm && (
-        <button
-          onClick={() => setSearchTerm('')}
-          className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition"
-        >
-          <X className="w-3 h-3 text-slate-500" />
-        </button>
-      )}
+                  {/* Search bar */}
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <Input
+                      placeholder="Tìm món ăn, đồ uống..."
+                      value={searchTerm}
+                      onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
+                      onFocus={() => setShowProductSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                      className="pl-11 pr-10 h-11 rounded-xl bg-white border border-slate-200 text-sm shadow-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition placeholder:text-slate-400"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition"
+                      >
+                        <X className="w-3 h-3 text-slate-500" />
+                      </button>
+                    )}
 
-      {/* Suggestions dropdown */}
-      {showProductSuggestions && productSuggestions.length > 0 && (
-        <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-64 overflow-auto py-1.5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
-          {productSuggestions.map((product) => (
-            <li
-              key={product.id}
-              onClick={() => { setSearchTerm(product.name); setShowProductSuggestions(false); }}
-              className="px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors shrink-0">
-                  <Package className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
-                </div>
-                <span>{product.name}</span>
-              </div>
-              <div className="text-right shrink-0 ml-4">
-                <div className="text-indigo-600 font-black text-sm">{product.price.toLocaleString('vi-VN')}đ</div>
-                <div className="text-[10px] text-slate-400 font-bold">Kho: {product.quantity}</div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-
-    {/* Category tabs + Add button */}
-    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-      <button
-        onClick={handleOpenAddProduct}
-        className="shrink-0 flex items-center gap-1.5 h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-200 transition active:scale-95 whitespace-nowrap"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Thêm món
-      </button>
-      <div className="w-px h-6 bg-slate-200 shrink-0" />
-      {DESKTOP_CATEGORIES.map((cat) => (
-        <button
-          key={cat.id}
-          onClick={() => setActiveCategory(cat.id)}
-          className={`flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95
-            ${activeCategory === cat.id
-              ? 'bg-slate-900 text-white shadow-sm'
-              : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-700'
-            }`}
-        >
-          {cat.icon}
-          {cat.name}
-          {activeCategory === cat.id && desktopFiltered.length > 0 && (
-            <span className="ml-0.5 bg-white/20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-              {desktopFiltered.length}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  </div>
-
-  {/* ── Product Grid ── */}
-  <div className="flex-1 overflow-y-auto pr-0.5">
-    {desktopFiltered.length === 0 ? (
-      <div className="h-full flex flex-col items-center justify-center py-16 text-slate-400 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
-          <Box className="w-7 h-7 opacity-30" />
-        </div>
-        <p className="text-sm font-semibold text-slate-500 mb-1">Không tìm thấy sản phẩm</p>
-        <p className="text-xs text-slate-400 mb-5">
-          {searchTerm ? `Không có kết quả cho "${searchTerm}"` : 'Danh mục này chưa có sản phẩm'}
-        </p>
-        {searchTerm && (
-          <button
-            onClick={handleOpenAddProduct}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 transition active:scale-95"
-          >
-            <Plus className="w-4 h-4" /> Tạo món "{searchTerm}"
-          </button>
-        )}
-      </div>
-    ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-        {desktopFiltered.map((product) => {
-          const inCart = orderItems.find((item) => item.productId === product.id)?.quantity || 0;
-          const available = product.quantity - inCart;
-          const outOfStock = product.quantity <= 0;
-          const lowStock = available > 0 && available <= 5;
-
-          return (
-            <div
-              key={product.id}
-              onClick={(e) => {
-                if ((e.target as HTMLElement).closest('button')) return;
-                !outOfStock && handleAddProduct(product.id, 1);
-              }}
-              className={`group relative bg-white rounded-2xl border transition-all flex flex-col
-                ${outOfStock
-                  ? 'opacity-40 cursor-not-allowed border-slate-100'
-                  : inCart > 0
-                    ? 'cursor-pointer border-indigo-300 shadow-sm shadow-indigo-100 hover:shadow-md hover:shadow-indigo-100'
-                    : 'cursor-pointer border-slate-100 hover:border-slate-200 hover:shadow-md'
-                }`}
-            >
-              <div className="p-3.5 flex-1 flex flex-col">
-                {/* Tên */}
-                <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug mb-1.5 flex-1">
-                  {product.name}
-                </div>
-
-                {/* Giá */}
-                <div className="text-indigo-600 font-black text-base leading-none mb-3">
-                  {product.price.toLocaleString('vi-VN')}đ
-                </div>
-
-                {/* Footer: tồn kho + actions */}
-                <div className="flex items-center justify-between">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-lg
-                    ${outOfStock
-                      ? 'bg-red-50 text-red-400'
-                      : lowStock
-                        ? 'bg-orange-50 text-orange-500'
-                        : 'bg-emerald-50 text-emerald-600'
-                    }`}>
-                    {outOfStock ? 'Hết hàng' : `${available} còn`}
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOpenEditProduct(product); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-100 transition active:scale-90"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    {!outOfStock && (
-                      <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900 group-hover:bg-indigo-600 text-white transition">
-                        <Plus className="w-4 h-4" />
-                      </div>
+                    {/* Suggestions dropdown */}
+                    {showProductSuggestions && productSuggestions.length > 0 && (
+                      <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-64 overflow-auto py-1.5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+                        {productSuggestions.map((product) => (
+                          <li
+                            key={product.id}
+                            onClick={() => { setSearchTerm(product.name); setShowProductSuggestions(false); }}
+                            className="px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors shrink-0">
+                                <Package className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
+                              </div>
+                              <span>{product.name}</span>
+                            </div>
+                            <div className="text-right shrink-0 ml-4">
+                              <div className="text-indigo-600 font-black text-sm">{product.price.toLocaleString('vi-VN')}đ</div>
+                              <div className="text-[10px] text-slate-400 font-bold">Kho: {product.quantity}</div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
+
+                  {/* Category tabs + Add button */}
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <button
+                      onClick={handleOpenAddProduct}
+                      className="shrink-0 flex items-center gap-1.5 h-9 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-200 transition active:scale-95 whitespace-nowrap"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Thêm món
+                    </button>
+                    <div className="w-px h-6 bg-slate-200 shrink-0" />
+                    {DESKTOP_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={`flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-semibold whitespace-nowrap transition active:scale-95
+            ${activeCategory === cat.id
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-700'
+                          }`}
+                      >
+                        {cat.icon}
+                        {cat.name}
+                        {activeCategory === cat.id && desktopFiltered.length > 0 && (
+                          <span className="ml-0.5 bg-white/20 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                            {desktopFiltered.length}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Product Grid ── */}
+                <div className="flex-1 overflow-y-auto pr-0.5">
+                  {desktopFiltered.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center py-16 text-slate-400 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
+                        <Box className="w-7 h-7 opacity-30" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-500 mb-1">Không tìm thấy sản phẩm</p>
+                      <p className="text-xs text-slate-400 mb-5">
+                        {searchTerm ? `Không có kết quả cho "${searchTerm}"` : 'Danh mục này chưa có sản phẩm'}
+                      </p>
+                      {searchTerm && (
+                        <button
+                          onClick={handleOpenAddProduct}
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-100 transition active:scale-95"
+                        >
+                          <Plus className="w-4 h-4" /> Tạo món "{searchTerm}"
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {desktopFiltered.map((product) => {
+                        const inCart = orderItems.find((item) => item.productId === product.id)?.quantity || 0;
+                        const available = product.quantity - inCart;
+                        const outOfStock = product.quantity <= 0;
+                        const lowStock = available > 0 && available <= 5;
+
+                        return (
+                          <div
+                            key={product.id}
+                            onClick={(e) => {
+                              if ((e.target as HTMLElement).closest('button')) return;
+                              !outOfStock && handleAddProduct(product.id, 1);
+                            }}
+                            className={`group relative bg-white rounded-2xl border transition-all flex flex-col
+                ${outOfStock
+                                ? 'opacity-40 cursor-not-allowed border-slate-100'
+                                : inCart > 0
+                                  ? 'cursor-pointer border-indigo-300 shadow-sm shadow-indigo-100 hover:shadow-md hover:shadow-indigo-100'
+                                  : 'cursor-pointer border-slate-100 hover:border-slate-200 hover:shadow-md'
+                              }`}
+                          >
+                            <div className="p-3.5 flex-1 flex flex-col">
+                              {/* Tên */}
+                              <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-snug mb-1.5 flex-1">
+                                {product.name}
+                              </div>
+
+                              {/* Giá */}
+                              <div className="text-indigo-600 font-black text-base leading-none mb-3">
+                                {product.price.toLocaleString('vi-VN')}đ
+                              </div>
+
+                              {/* Footer: tồn kho + actions */}
+                              <div className="flex items-center justify-between">
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg
+                    ${outOfStock
+                                    ? 'bg-red-50 text-red-400'
+                                    : lowStock
+                                      ? 'bg-orange-50 text-orange-500'
+                                      : 'bg-emerald-50 text-emerald-600'
+                                  }`}>
+                                  {outOfStock ? 'Hết hàng' : `${available} còn`}
+                                </span>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleOpenEditProduct(product); }}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-100 transition active:scale-90"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  {!outOfStock && (
+                                    <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900 group-hover:bg-indigo-600 text-white transition">
+                                      <Plus className="w-4 h-4" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-</div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
@@ -2338,7 +2356,7 @@ export default function RoomPage() {
                 {orderItems.map((item, index) => (
                   <div
                     key={item.id ?? index}
-                    ref={(el) => (itemRefs.current[index] = el)}
+                    ref={(el: HTMLDivElement | null) => void (itemRefs.current[index] = el)}
                     className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-full text-xs font-black text-slate-400 shrink-0">
