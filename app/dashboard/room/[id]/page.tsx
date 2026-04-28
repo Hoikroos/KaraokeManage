@@ -1305,8 +1305,11 @@ export default function RoomPage() {
                             {orderItems.map((item, index) => (
                               <div
                                 key={item.id ?? index}
-                                className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3"
+                                className="bg-white rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2"
                               >
+                                <div className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded-lg text-[10px] font-black text-slate-400 shrink-0">
+                                  {index + 1}
+                                </div>
                                 <div className="flex-1 min-w-0">
                                   <input
                                     type="text"
@@ -1738,7 +1741,10 @@ export default function RoomPage() {
                     </div>
                   ) : (
                     orderItems.map((item, index) => (
-                      <div key={item.id ?? index} className="group relative flex flex-col p-3.5 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
+                      <div key={item.id ?? index} className="group relative flex flex-col p-3.5 pl-8 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
+                        <div className="absolute left-2 top-4 w-5 h-5 flex items-center justify-center bg-slate-50 rounded-full text-[10px] font-black text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                          {index + 1}
+                        </div>
                         <div className="flex justify-between items-start mb-2">
                           <div className="font-bold text-slate-900 text-sm line-clamp-2">{item.productName}</div>
                           <button onClick={() => handleRemoveItem(index)} className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
@@ -1956,6 +1962,7 @@ export default function RoomPage() {
           <table className="w-full text-[13px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #000' }}>
+                <th className="text-center py-1 text-[11px] tracking-wide">STT</th>
                 <th className="text-left py-1 text-[11px] tracking-wide uppercase">Chi tiết</th>
                 <th className="text-center py-1 text-[11px] tracking-wide">SL</th>
                 <th className="text-right py-1 text-[11px] tracking-wide uppercase">T.Tiền</th>
@@ -1974,6 +1981,7 @@ export default function RoomPage() {
                     {' '}({durationText})
                   </div>
                 </td>
+                <td className="text-center py-1.5 text-[11px]">--</td>
                 <td className="text-center py-1.5">{(durationMinutes / 60).toFixed(2)}</td>
                 <td className="text-right py-1.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
               </tr>
@@ -1984,6 +1992,7 @@ export default function RoomPage() {
                     <div className="font-bold leading-tight">{item.productName}</div>
                     <div className="text-[11px] font-normal text-black">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
+                  <td className="text-center py-1.5">{index + 1}</td>
                   <td className="text-center py-1.5">{item.quantity}</td>
                   <td className="text-right py-1.5 font-black">{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
                 </tr>
@@ -2038,8 +2047,14 @@ export default function RoomPage() {
               <div className="divide-y divide-slate-100">
                 {orderItems.map((item, index) => (
                   <div key={item.id ?? index} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
-                    <div className="flex-1 w-full sm:min-w-0">
-                      <div className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug">{item.productName}</div>
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-full text-xs font-black text-slate-400 shrink-0">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 w-full sm:min-w-0">
+                        <div className="font-bold text-slate-900 text-sm sm:text-base break-words leading-snug">{item.productName}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
+                      </div>
                       <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
