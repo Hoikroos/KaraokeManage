@@ -962,7 +962,7 @@ export default function RoomPage() {
   if (isMobile) {
     return (
       <>
-        <div className="flex flex-col h-screen bg-slate-50 overflow-hidden font-sans">
+        <div className="flex flex-col h-[100dvh] bg-slate-50 overflow-hidden font-sans">
           <style jsx global>{`
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1198,7 +1198,7 @@ export default function RoomPage() {
                                 type="datetime-local"
                                 value={selectedStartTime}
                                 onChange={(e) => setSelectedStartTime(e.target.value)}
-                                className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
+                                className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                               />
                               <button
                                 onClick={handleUpdateStartTime}
@@ -1216,7 +1216,7 @@ export default function RoomPage() {
                               type="datetime-local"
                               value={selectedEndTime}
                               onChange={(e) => setSelectedEndTime(e.target.value)}
-                              className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
+                              className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                             />
                           </div>
 
@@ -1231,7 +1231,7 @@ export default function RoomPage() {
                                   const val = e.target.value.replace(/\D/g, '');
                                   setCustomPricePerHour(val ? parseInt(val) : 0);
                                 }}
-                                className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
+                                className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-200"
                               />
                             </div>
                             <div className="relative">
@@ -1243,7 +1243,7 @@ export default function RoomPage() {
                                 onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
                                 onFocus={() => setShowSuggestions(true)}
                                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-sm font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
+                                className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
                               />
                               {showSuggestions && customerSuggestions.length > 0 && (
                                 <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-48 overflow-auto py-1 ring-1 ring-black/5">
@@ -1336,13 +1336,15 @@ export default function RoomPage() {
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <input
-                                    type="text"
-                                    value={editingQuantities[index] ?? item.quantity}
-                                    onChange={(e) => handleQuantityChange(index, e.target.value)}
-                                    onBlur={() => handleQuantityBlur(index)}
-                                    className="w-7 text-center font-bold text-slate-900 bg-transparent text-sm outline-none"
-                                  />
+                                  <div
+                                    onClick={() => {
+                                      const p = products.find(prod => prod.id === item.productId);
+                                      if (p) handleOpenOrderQuantityModal(p);
+                                    }}
+                                    className="w-8 h-7 flex items-center justify-center font-bold text-slate-900 text-base cursor-pointer active:bg-white rounded-lg transition-colors touch-manipulation"
+                                  >
+                                    {item.quantity}
+                                  </div>
                                   <button
                                     onClick={() => {
                                       const p = products.find(prod => prod.id === item.productId);
@@ -1364,73 +1366,72 @@ export default function RoomPage() {
                           </div>
                         )}
                       </div>
-
-                      {/* ── BLOCK 3: Tổng cộng ── */}
-                      <div className="mx-4 mt-4 bg-indigo-600 rounded-2xl p-4 shadow-lg">
-                        <div className="flex justify-between items-center text-sm text-indigo-200 mb-1">
-                          <span>Tiền phòng</span>
-                          <span className="font-semibold text-white">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm text-indigo-200 mb-3">
-                          <span>Dịch vụ</span>
-                          <span className="font-semibold text-white">{totalProductCost.toLocaleString('vi-VN')}đ</span>
-                        </div>
-                        <div className="border-t border-indigo-500 pt-3 flex justify-between items-center">
-                          <span className="text-xs font-black text-indigo-300 uppercase tracking-widest">Tổng cộng</span>
-                          <span className="text-2xl font-black text-white">
-                            {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* ── BLOCK 4: Nút hành động ── */}
-                      <div className="mx-4 mt-4 mb-8 grid grid-cols-2 gap-3">
-                        {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
-                          <>
-                            <button
-                              onClick={handleResumeSession}
-                              className="bg-emerald-600 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
-                            >
-                              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-                                <ChevronRight className="w-5 h-5" />
-                              </div>
-                              <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
-                            </button>
-                            <button
-                              onClick={() => window.print()}
-                              className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                            >
-                              <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center">
-                                <ReceiptText className="w-5 h-5 text-slate-500" />
-                              </div>
-                              <span className="text-[11px] font-black uppercase tracking-wider">In phiếu</span>
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={handlePauseSession}
-                            className="bg-amber-100 text-amber-600 rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                          >
-                            <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
-                              <Clock className="w-5 h-5" />
-                            </div>
-                            <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
-                          </button>
-                        )}
-
-                        <button
-                          onClick={handleGenerateInvoice}
-                          disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
-                          className="bg-indigo-600 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-40"
-                        >
-                          <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-                            <CheckCircle2 className="w-5 h-5" />
-                          </div>
-                          <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
-                        </button>
-                      </div>
-
                     </div>{/* end scrollable */}
+
+                    {/* ── BLOCK 3: Tổng cộng (Đưa ra ngoài vùng cuộn để cố định) ── */}
+                    <div className="mx-4 mt-4 bg-indigo-600 rounded-2xl p-4 shadow-lg">
+                      <div className="flex justify-between items-center text-sm text-indigo-200 mb-1">
+                        <span>Tiền phòng</span>
+                        <span className="font-semibold text-white">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm text-indigo-200 mb-3">
+                        <span>Dịch vụ</span>
+                        <span className="font-semibold text-white">{totalProductCost.toLocaleString('vi-VN')}đ</span>
+                      </div>
+                      <div className="border-t border-indigo-500 pt-3 flex justify-between items-center">
+                        <span className="text-xs font-black text-indigo-300 uppercase tracking-widest">Tổng cộng</span>
+                        <span className="text-2xl font-black text-white">
+                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ── BLOCK 4: Nút hành động (Đưa ra ngoài vùng cuộn) ── */}
+                    <div className="mx-4 mt-4 mb-6 grid grid-cols-2 gap-3">
+                      {(session?.status === 'paused' || (session as any)?.Status === 'paused') ? (
+                        <>
+                          <button
+                            onClick={handleResumeSession}
+                            className="bg-emerald-600 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+                          >
+                            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                              <ChevronRight className="w-5 h-5" />
+                            </div>
+                            <span className="text-[11px] font-black uppercase tracking-wider">Tiếp tục</span>
+                          </button>
+                          <button
+                            onClick={() => window.print()}
+                            className="bg-white border border-slate-200 text-slate-600 rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                          >
+                            <div className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center">
+                              <ReceiptText className="w-5 h-5 text-slate-500" />
+                            </div>
+                            <span className="text-[11px] font-black uppercase tracking-wider">In phiếu</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={handlePauseSession}
+                          className="bg-amber-100 text-amber-600 rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                        >
+                          <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+                            <Clock className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Tạm tính</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={handleGenerateInvoice}
+                        disabled={!!timeError || (durationMinutes === 0 && orderItems.length === 0)}
+                        className="bg-indigo-600 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-1.5 shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-40"
+                      >
+                        <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-wider">Thanh toán</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -2047,10 +2048,15 @@ export default function RoomPage() {
                           const p = products.find(prod => prod.id === item.productId);
                           handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price });
                         }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
-                        <input type="text" className="w-12 text-center font-black text-slate-900 bg-transparent border-none focus:ring-0"
-                          value={editingQuantities[index] ?? item.quantity}
-                          onChange={(e) => handleQuantityChange(index, e.target.value)}
-                          onBlur={() => handleQuantityBlur(index)} />
+                        <div
+                          onClick={() => {
+                            const p = products.find(prod => prod.id === item.productId);
+                            if (p) handleOpenOrderQuantityModal(p);
+                          }}
+                          className="w-12 h-8 flex items-center justify-center font-black text-slate-900 text-sm cursor-pointer hover:bg-white/50 rounded-lg transition-colors"
+                        >
+                          {item.quantity}
+                        </div>
                         <button onClick={() => {
                           const p = products.find(prod => prod.id === item.productId);
                           handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price });
