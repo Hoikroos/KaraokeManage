@@ -269,20 +269,22 @@ export default function RoomPage() {
 
   // ── Real-time timer: Auto-update end time during active sessions ────────────
   useEffect(() => {
-    const sessionStatus = session?.status ?? (session as any)?.Status;
+    // Check if session exists and is in active status
+    if (!session) return;
 
-    // Only update end time if session is active (not paused, not pending)
-    if (!session || sessionStatus !== 'active') {
+    const sessionStatus = session.status ?? (session as any).Status;
+
+    // Only start timer if status is 'active', clear it otherwise
+    if (sessionStatus !== 'active') {
       return;
     }
 
     const timerInterval = setInterval(() => {
-      const now = new Date();
-      setSelectedEndTime(formatDateTimeLocal(now));
-    }, 1000); // Update every second
+      setSelectedEndTime(formatDateTimeLocal(new Date()));
+    }, 100); // Update every 100ms to match order polling interval
 
     return () => clearInterval(timerInterval);
-  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.id ?? (session as any)?.Id, session?.status ?? (session as any)?.Status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -534,6 +536,11 @@ export default function RoomPage() {
     if (!session || !room) return;
     const sessionId = session.id ?? (session as any).Id;
     const now = new Date();
+    
+    // Immediately update local state to stop timer
+    setSession({ ...session, status: 'paused' } as any);
+    setSelectedEndTime(formatDateTimeLocal(now));
+    
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
@@ -542,8 +549,8 @@ export default function RoomPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setSession(updated);
-        setSelectedEndTime(formatDateTimeLocal(now));
+        // Update with server response to sync state
+        setSession({ ...updated, status: 'paused' } as any);
       }
     } catch (err) { console.error(err); }
   };
@@ -552,6 +559,10 @@ export default function RoomPage() {
     if (!session || !room) return;
     const sessionId = session.id ?? (session as any).Id;
 
+    // Immediately update local state to start timer
+    setSession({ ...session, status: 'active' } as any);
+    setSelectedEndTime(formatDateTimeLocal(new Date()));
+    
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
@@ -560,8 +571,8 @@ export default function RoomPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setSession(updated);
-        setSelectedEndTime(formatDateTimeLocal(new Date()));
+        // Update with server response to sync state
+        setSession({ ...updated, status: 'active' } as any);
       }
     } catch (err) { console.error(err); }
   };
