@@ -331,25 +331,27 @@ export default function ReportsPage() {
             {/* ── Filter bar ── */}
             <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-end gap-4">
                 {/* Stores */}
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
-                    <div className="flex gap-1.5 flex-wrap">
-                        {stores.map(store => (
-                            <button
-                                key={store.id}
-                                onClick={() => handleStoreChange(store.id)}
-                                className={`
-                                    px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
-                                    ${selectedStoreId === store.id
-                                        ? 'bg-blue-700 text-white border-blue-700'
-                                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}
-                                `}
-                            >
-                                {store.name}
-                            </button>
-                        ))}
+                {stores.length > 1 && (
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
+                        <div className="flex gap-1.5 flex-wrap">
+                            {stores.map(store => (
+                                <button
+                                    key={store.id}
+                                    onClick={() => handleStoreChange(store.id)}
+                                    className={`
+                                        px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
+                                        ${selectedStoreId === store.id
+                                            ? 'bg-blue-700 text-white border-blue-700'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}
+                                    `}
+                                >
+                                    {store.name}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Date range */}
                 {[

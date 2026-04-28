@@ -330,25 +330,27 @@ export default function InventoryStatsPage() {
             {/* ── Filter bar ── */}
             <div className="bg-white border-b border-slate-200 px-7 py-3 flex flex-wrap items-center gap-5">
                 {/* Stores */}
-                <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
-                    <div className="flex gap-2 flex-wrap">
-                        {stores.map(store => (
-                            <button
-                                key={store.id}
-                                onClick={() => setSelectedStoreId(store.id)}
-                                className={`
-                                    px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
-                                    ${selectedStoreId === store.id
-                                        ? 'bg-emerald-600 text-white border-emerald-600'
-                                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}
-                                `}
-                            >
-                                {store.name}
-                            </button>
-                        ))}
+                {stores.length > 1 && (
+                    <div className="flex flex-col gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
+                        <div className="flex gap-2 flex-wrap">
+                            {stores.map(store => (
+                                <button
+                                    key={store.id}
+                                    onClick={() => setSelectedStoreId(store.id)}
+                                    className={`
+                                        px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
+                                        ${selectedStoreId === store.id
+                                            ? 'bg-emerald-600 text-white border-emerald-600'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}
+                                    `}
+                                >
+                                    {store.name}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Date range */}
                 <div className="flex items-end gap-3">

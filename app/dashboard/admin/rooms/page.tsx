@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/app/context';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import { Plus, Edit2, Trash2, ArrowLeft, Users, Banknote, Building, LayoutGrid }
 
 export default function RoomsPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const storeId = searchParams.get('storeId');
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -27,24 +29,31 @@ export default function RoomsPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, [storeId]);
+    if (user) fetchData();
+  }, [storeId, user]);
 
   const fetchData = async () => {
     try {
       // Fetch stores
       const storesRes = await fetch('/api/admin/stores');
-      const storesData = await storesRes.json();
+      let storesData = await storesRes.json();
+
+      // Lọc chi nhánh cho Admin chi nhánh
+      if (user?.storeId && user.storeId !== 'all') {
+        storesData = storesData.filter((s: Store) => s.id === user.storeId);
+      }
+
       setStores(storesData);
 
       // Set selected store
-      if (storeId) {
-        const store = storesData.find((s: Store) => s.id === storeId);
-        if (store) {
-          setSelectedStore(store);
-          await fetchRooms(storeId);
-        }
+      const targetStoreId = storeId || (user?.storeId && user.storeId !== 'all' ? user.storeId : (storesData.length > 0 ? storesData[0].id : ''));
+      
+      const store = storesData.find((s: Store) => s.id === targetStoreId);
+      if (store) {
+        setSelectedStore(store);
+        await fetchRooms(store.id);
       }
+      
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -192,23 +201,25 @@ export default function RoomsPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Store Selection */}
-        <div className="mb-8">
-          <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Chọn chi nhánh</h2>
-          <div className="flex flex-wrap gap-3">
-            {stores.map((store) => (
-              <button
-                key={store.id}
-                onClick={() => handleStoreChange(store)}
-                className={`px-6 py-3 rounded-xl border-2 transition-all text-sm font-bold flex items-center gap-2 ${selectedStore?.id === store.id
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
-                  }`}
-              >
-                <Building className="w-4 h-4" /> {store.name}
-              </button>
-            ))}
+        {stores.length > 1 && (
+          <div className="mb-8">
+            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Chọn chi nhánh</h2>
+            <div className="flex flex-wrap gap-3">
+              {stores.map((store) => (
+                <button
+                  key={store.id}
+                  onClick={() => handleStoreChange(store)}
+                  className={`px-6 py-3 rounded-xl border-2 transition-all text-sm font-bold flex items-center gap-2 ${selectedStore?.id === store.id
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+                    }`}
+                >
+                  <Building className="w-4 h-4" /> {store.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {selectedStore && (
           <>
