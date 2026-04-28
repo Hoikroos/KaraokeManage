@@ -2273,7 +2273,6 @@ export default function RoomPage() {
                     {' '}({durationText})
                   </div>
                 </td>
-                <td className="text-center py-1.5 text-[11px]">--</td>
                 <td className="text-center py-1.5">{(durationMinutes / 60).toFixed(2)}</td>
                 <td className="text-right py-1.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
               </tr>
