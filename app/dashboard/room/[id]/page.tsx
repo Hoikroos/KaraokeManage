@@ -101,6 +101,7 @@ export default function RoomPage() {
   const [allCustomerNames, setAllCustomerNames] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
+    id: '', // Thêm id để tránh lỗi khi tạo mới
     name: '',
     category: 'food',
     price: '',
@@ -108,6 +109,7 @@ export default function RoomPage() {
   });
 
   const isFirstRender = useRef(true);
+  const lastItemRef = useRef<HTMLDivElement>(null); // Ref cho món hàng cuối cùng trong giỏ
 
   // Reset cờ mỗi khi session mới được load
   useEffect(() => {
@@ -191,6 +193,15 @@ export default function RoomPage() {
   // Mobile-only state — chỉ còn 2 tab: cart | menu
   const [mobileTab, setMobileTab] = useState<'menu' | 'cart'>('cart');
   const [mobileCat, setMobileCat] = useState('all');
+  const [shouldScrollToLastItem, setShouldScrollToLastItem] = useState(false);
+
+  // Effect để cuộn đến món hàng cuối cùng khi có món mới được thêm
+  useEffect(() => {
+    if (shouldScrollToLastItem && lastItemRef.current) {
+      lastItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      setShouldScrollToLastItem(false); // Reset cờ
+    }
+  }, [shouldScrollToLastItem, orderItems]); // orderItems là dependency để đảm bảo ref đã được gán
 
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
@@ -722,6 +733,7 @@ export default function RoomPage() {
         if (res.ok) {
           const newItem = await res.json();
           setOrderItems([...orderItems, newItem]);
+          setShouldScrollToLastItem(true); // Kích hoạt cuộn
         }
       }
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
@@ -1305,6 +1317,7 @@ export default function RoomPage() {
                             {orderItems.map((item, index) => (
                               <div
                                 key={item.id ?? index}
+                                ref={index === orderItems.length - 1 ? lastItemRef : null} // Gán ref cho món cuối cùng
                                 className="bg-white rounded-2xl px-3 py-3 shadow-sm flex items-center gap-2"
                               >
                                 <div className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded-lg text-[10px] font-black text-slate-400 shrink-0">
@@ -1743,6 +1756,7 @@ export default function RoomPage() {
                     orderItems.map((item, index) => (
                       <div key={item.id ?? index} className="group relative flex flex-col p-3.5 pl-8 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all">
                         <div className="absolute left-2 top-4 w-5 h-5 flex items-center justify-center bg-slate-50 rounded-full text-[10px] font-black text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                          {/* STT */}
                           {index + 1}
                         </div>
                         <div className="flex justify-between items-start mb-2">
@@ -2046,7 +2060,10 @@ export default function RoomPage() {
             ) : (
               <div className="divide-y divide-slate-100">
                 {orderItems.map((item, index) => (
-                  <div key={item.id ?? index} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
+                  <div
+                    key={item.id ?? index}
+                    ref={index === orderItems.length - 1 ? lastItemRef : null} // Gán ref cho món cuối cùng
+                    className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-full text-xs font-black text-slate-400 shrink-0">
                         {index + 1}
