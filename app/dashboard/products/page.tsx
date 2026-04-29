@@ -169,6 +169,7 @@ export default function ProductsPage() {
             'khô': 'dry',
             'trái cây': 'fruit',
             'hoa quả': 'fruit',
+            'khác':'other',
           };
 
           let category: Product['category'] = 'food';
