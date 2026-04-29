@@ -549,6 +549,12 @@ export default function ProductsPage() {
                       <th className="px-4 py-2.5 text-left text-xs font-bold text-slate-400 uppercase tracking-wide">Tên sản phẩm</th>
                       <th className="px-4 py-2.5 text-right text-xs font-bold text-slate-400 uppercase tracking-wide">Giá bán</th>
                       <th className="px-4 py-2.5 text-center text-xs font-bold text-slate-400 uppercase tracking-wide">Tồn kho</th>
+                      {cat.value === 'drink' && (
+                        <th className="px-4 py-2.5 text-center text-xs font-bold text-blue-400 uppercase tracking-wide hidden sm:table-cell">
+                          Quy đổi thùng
+                          <span className="ml-1 text-[10px] font-normal text-slate-300 normal-case">(24 lon)</span>
+                        </th>
+                      )}
                       <th className="px-4 py-2.5 text-right text-xs font-bold text-slate-400 uppercase tracking-wide hidden md:table-cell">Giá trị tồn</th>
                       <th className="px-4 py-2.5 text-center text-xs font-bold text-slate-400 uppercase tracking-wide">Thao tác</th>
                     </tr>
@@ -558,6 +564,10 @@ export default function ProductsPage() {
                       const rowNum = start + idx;
                       const isLow = product.quantity > 0 && product.quantity <= 5;
                       const isOut = product.quantity === 0;
+
+                      const CASE_SIZE = 24;
+                      const cases = Math.floor(product.quantity / CASE_SIZE);
+                      const remainder = product.quantity % CASE_SIZE;
 
                       return (
                         <tr key={product.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors group">
@@ -579,6 +589,20 @@ export default function ProductsPage() {
                               {isOut ? 'Hết hàng' : isLow ? `⚠ ${product.quantity}` : product.quantity}
                             </span>
                           </td>
+                          {cat.value === 'drink' && (
+                            <td className="px-4 py-3 text-center hidden sm:table-cell">
+                              {isOut ? (
+                                <span className="text-xs text-slate-300">—</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold tabular-nums">
+                                  {cases > 0 && <span>{cases} thùng</span>}
+                                  {cases > 0 && remainder > 0 && <span className="text-blue-300 font-normal">+</span>}
+                                  {remainder > 0 && <span>{remainder} lon</span>}
+                                  {cases === 0 && remainder === 0 && <span className="text-slate-300">0</span>}
+                                </span>
+                              )}
+                            </td>
+                          )}
                           <td className="px-4 py-3 text-right text-xs text-slate-500 tabular-nums hidden md:table-cell">
                             {(product.price * product.quantity).toLocaleString('vi-VN')} đ
                           </td>
