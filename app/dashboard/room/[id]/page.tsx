@@ -536,11 +536,11 @@ export default function RoomPage() {
     if (!session || !room) return;
     const sessionId = session.id ?? (session as any).Id;
     const now = new Date();
-    
+
     // Immediately update local state to stop timer
     setSession({ ...session, status: 'paused' } as any);
     setSelectedEndTime(formatDateTimeLocal(now));
-    
+
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
@@ -562,7 +562,7 @@ export default function RoomPage() {
     // Immediately update local state to start timer
     setSession({ ...session, status: 'active' } as any);
     setSelectedEndTime(formatDateTimeLocal(new Date()));
-    
+
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
@@ -748,11 +748,6 @@ export default function RoomPage() {
       // Nếu đã có trong giỏ, cập nhật về số lượng mới (ghi đè)
       const currentProduct = products.find(p => p.id === selectedProductForOrder.id);
       handleUpdateOrderItem(existingIndex, { quantity: qty, price: currentProduct?.price ?? 0 });
-      toast.success(`Đã cập nhật: ${selectedProductForOrder.name}`, {
-        description: `Số lượng mới trong giỏ: ${qty}`,
-        position: isMobile ? 'top-center' : 'bottom-right',
-        duration: 2000,
-      });
     } else if (qty > 0) {
       // Nếu chưa có, thêm mới vào giỏ
       handleAddProduct(selectedProductForOrder.id, qty);
@@ -1436,20 +1431,12 @@ export default function RoomPage() {
                                     {index + 1}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <input
-                                      type="text"
-                                      value={editingNames[index] ?? item.productName}
-                                      onChange={(e) => handleNameChange(index, e.target.value)}
-                                      onBlur={() => handleNameBlur(index)}
-                                      className="font-semibold text-slate-900 text-sm bg-transparent border-none focus:ring-0 p-0 w-full"
-                                    />
-                                    <input
-                                      type="text"
-                                      value={editingPrices[index] !== undefined ? editingPrices[index] : item.price.toLocaleString('vi-VN')}
-                                      onChange={(e) => handlePriceChange(index, e.target.value)}
-                                      onBlur={() => handlePriceBlur(index)}
-                                      className="text-indigo-500 text-sm mt-0.5 bg-transparent border-none focus:ring-0 w-24 p-0 font-medium"
-                                    />
+                                    <div className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">
+                                      {item.productName}
+                                    </div>
+                                    <div className="text-indigo-500 text-sm mt-0.5 font-medium">
+                                      {item.price.toLocaleString('vi-VN')}đ
+                                    </div>
                                     <div className="text-[10px] font-bold text-slate-400">
                                       Tổng: {(item.price * item.quantity).toLocaleString('vi-VN')}đ
                                     </div>

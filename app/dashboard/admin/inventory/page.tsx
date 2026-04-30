@@ -88,16 +88,16 @@ function KpiCard({
         <div
             onClick={onClick}
             className={`
-                bg-white rounded-2xl p-5 border border-slate-100
-                flex items-center gap-4 transition-shadow duration-150
-                hover:shadow-md
+                bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 border border-slate-200
+                flex items-center gap-4 transition-all duration-200 group
+                hover:shadow-lg hover:border-slate-300
                 ${onClick ? 'cursor-pointer' : ''}
             `}
         >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg} group-hover:scale-110 transition-transform duration-200`}>
                 {icon}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
                 <h3 className="text-lg font-extrabold text-slate-900 truncate">{value}</h3>
                 <p className={`text-xs font-semibold mt-0.5 ${subColor}`}>{sub}</p>
@@ -297,30 +297,30 @@ export default function InventoryStatsPage() {
     /* ─────────────────────────────────────────────────────────── */
 
     return (
-        <div className="min-h-screen bg-[#f0f2f5]" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
 
             {/* ── Top bar ── */}
-            <header className="bg-[#0f1117] sticky top-0 z-40 h-14 flex items-center justify-between px-7 shadow-md">
+            <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 sticky top-0 z-40 h-14 flex items-center justify-between px-7 shadow-lg border-b border-slate-700">
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/admin">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-slate-400 hover:text-white hover:bg-white/10 rounded-lg gap-1.5 text-xs font-semibold"
+                            className="text-slate-400 hover:text-white hover:bg-white/10 rounded-lg gap-2 text-xs font-semibold transition-all"
                         >
-                            <ArrowLeft className="w-3.5 h-3.5" />
+                            <ArrowLeft className="w-4 h-4" />
                             Quay lại
                         </Button>
                     </Link>
                     <h1 className="text-white text-[15px] font-bold tracking-tight flex items-center gap-2">
-                        <Boxes className="w-[18px] h-[18px] text-emerald-400" />
+                        <Boxes className="w-5 h-5 text-emerald-400" />
                         Báo cáo <span className="text-emerald-400">Kho hàng</span>
                     </h1>
                 </div>
 
                 <Button
                     onClick={exportToCSV}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2 transition-all shadow-md hover:shadow-lg"
                 >
                     <Download className="w-3.5 h-3.5" />
                     Xuất báo cáo
@@ -328,7 +328,7 @@ export default function InventoryStatsPage() {
             </header>
 
             {/* ── Filter bar ── */}
-            <div className="bg-white border-b border-slate-200 px-7 py-3 flex flex-wrap items-center gap-5">
+            <div className="bg-white border-b border-slate-200 px-7 py-4 flex flex-wrap items-center gap-5 shadow-sm">
                 {/* Stores */}
                 {stores.length > 1 && (
                     <div className="flex flex-col gap-1.5">
@@ -341,8 +341,8 @@ export default function InventoryStatsPage() {
                                     className={`
                                         px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
                                         ${selectedStoreId === store.id
-                                            ? 'bg-emerald-600 text-white border-emerald-600'
-                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}
+                                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border-emerald-700 shadow-md'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}
                                     `}
                                 >
                                     {store.name}
@@ -383,7 +383,7 @@ export default function InventoryStatsPage() {
                 {/* Period tabs */}
                 <div className="ml-auto flex flex-col gap-1.5">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chu kỳ</span>
-                    <div className="flex bg-slate-100 rounded-lg p-1 gap-0.5">
+                    <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
                         {PERIOD_OPTIONS.map(opt => (
                             <button
                                 key={opt.id}
@@ -391,8 +391,8 @@ export default function InventoryStatsPage() {
                                 className={`
                                     px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all
                                     ${reportType === opt.id
-                                        ? 'bg-white text-emerald-600 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'}
+                                        ? 'bg-white text-emerald-600 shadow-sm border border-emerald-200'
+                                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}
                                 `}
                             >
                                 {opt.label}
@@ -418,8 +418,8 @@ export default function InventoryStatsPage() {
                                 flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold
                                 border transition-all
                                 ${activeTab === tab.id
-                                    ? 'bg-slate-900 text-white border-slate-900'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'}
                             `}
                         >
                             {tab.icon}
@@ -461,7 +461,7 @@ export default function InventoryStatsPage() {
                 {activeTab === 'sales' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Best sellers bar */}
-                        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2 mb-5">
                                 <TrendingUp className="w-4 h-4 text-emerald-600" />
                                 Top 5 sản phẩm bán chạy
@@ -488,7 +488,7 @@ export default function InventoryStatsPage() {
                         </div>
 
                         {/* Category donut */}
-                        <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                             <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2 mb-5">
                                 <Package className="w-4 h-4 text-indigo-500" />
                                 Tiêu thụ theo danh mục
@@ -523,7 +523,7 @@ export default function InventoryStatsPage() {
                 )}
 
                 {/* Detail table */}
-                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                     {/* Table header */}
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
                         <h2 className="text-[13px] font-bold text-slate-800">
@@ -642,7 +642,7 @@ export default function InventoryStatsPage() {
 
             {/* ── Low-stock warning modal ── */}
             <Dialog open={isWarningModalOpen} onOpenChange={setIsWarningModalOpen}>
-                <DialogContent className="max-w-md rounded-3xl p-7">
+                <DialogContent className="max-w-md rounded-3xl p-7 border border-slate-200 shadow-lg">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-amber-600 font-extrabold text-base">
                             <AlertTriangle className="w-5 h-5" />
@@ -659,9 +659,9 @@ export default function InventoryStatsPage() {
                                 Hiện không có sản phẩm nào sắp hết
                             </p>
                         ) : lowStockProducts.map(p => (
-                            <div key={p.productId} className="py-3.5 flex items-center justify-between group">
+                            <div key={p.productId} className="py-3.5 flex items-center justify-between group hover:bg-slate-50 px-1 rounded transition-colors">
                                 <div>
-                                    <p className="text-[13px] font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                    <p className="text-[13px] font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
                                         {p.productName}
                                     </p>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">

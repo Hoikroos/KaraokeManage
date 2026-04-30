@@ -58,14 +58,14 @@ function KpiCard({
     label: string; value: string; valueColor?: string; sub: string;
 }) {
     return (
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow duration-150">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+        <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 border border-slate-200 flex items-center gap-4 hover:shadow-lg hover:border-slate-300 transition-all duration-200 group">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg} group-hover:scale-110 transition-transform duration-200`}>
                 {icon}
             </div>
-            <div className="min-w-0">
-                <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-                <p className={`text-[17px] font-extrabold leading-tight truncate ${valueColor ?? 'text-slate-900'}`}>{value}</p>
-                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{sub}</p>
+            <div className="min-w-0 flex-1">
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-2">{label}</p>
+                <p className={`text-[18px] font-extrabold leading-tight truncate ${valueColor ?? 'text-slate-900'}`}>{value}</p>
+                <p className="text-[9px] font-medium text-slate-400 mt-1">{sub}</p>
             </div>
         </div>
     );
@@ -126,7 +126,7 @@ export default function ReportsPage() {
                 }
 
                 setStores(data);
-                
+
                 const initialStoreId = (user?.storeId && user.storeId !== 'all') ? user.storeId : (data[0]?.id || '');
                 if (initialStoreId) {
                     setSelectedStoreId(initialStoreId);
@@ -287,24 +287,24 @@ export default function ReportsPage() {
     /* ─────────────────────────────────────────────────────────── */
 
     return (
-        <div className="min-h-screen bg-[#f4f6f9]" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
 
             {/* ── Top bar ── */}
-            <header className="bg-[#111827] sticky top-0 z-40 h-[52px] flex items-center justify-between px-6 shadow-md">
-                <div className="flex items-center gap-3">
+            <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 sticky top-0 z-40 h-14 flex items-center justify-between px-7 shadow-lg border-b border-slate-700">
+                <div className="flex items-center gap-4">
                     <Link href="/dashboard/admin">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-slate-500 hover:text-white hover:bg-white/10 gap-1.5 text-[12px] font-semibold rounded-lg"
+                            className="text-slate-400 hover:text-white hover:bg-white/10 gap-2 text-[12px] font-semibold rounded-lg transition-all"
                         >
-                            <ArrowLeft className="w-3.5 h-3.5" /> Quay lại
+                            <ArrowLeft className="w-4 h-4" /> Quay lại
                         </Button>
                     </Link>
-                    <div className="flex items-center gap-2 text-white text-[14px] font-bold tracking-tight">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                        Hóa đơn &amp; Thống kê
-                    </div>
+                    <h1 className="text-white text-[15px] font-bold tracking-tight flex items-center gap-2">
+                        <Receipt className="w-5 h-5 text-blue-400" />
+                        Báo cáo <span className="text-blue-400">Hóa đơn</span>
+                    </h1>
                 </div>
                 <div className="flex items-center gap-2">
                     {invoices.length > 0 && (
@@ -312,7 +312,7 @@ export default function ReportsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={handleDeleteAll}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-950/40 border border-red-950 text-[11px] font-bold gap-1.5 rounded-lg"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-950/20 border border-red-900/50 text-[11px] font-bold gap-2 rounded-lg transition-all"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
                             Xóa tất cả
@@ -321,7 +321,7 @@ export default function ReportsPage() {
                     <Button
                         size="sm"
                         onClick={exportToCSV}
-                        className="bg-blue-700 hover:bg-blue-800 text-white text-[11px] font-bold gap-1.5 rounded-lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold gap-2 rounded-lg transition-all shadow-md hover:shadow-lg h-9"
                     >
                         <Download className="w-3.5 h-3.5" /> Xuất Excel
                     </Button>
@@ -329,12 +329,12 @@ export default function ReportsPage() {
             </header>
 
             {/* ── Filter bar ── */}
-            <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-end gap-4">
+            <div className="bg-white border-b border-slate-200 px-7 py-4 flex flex-wrap items-end gap-5 shadow-sm">
                 {/* Stores */}
                 {stores.length > 1 && (
                     <div className="flex flex-col gap-1.5">
-                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
-                        <div className="flex gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
+                        <div className="flex gap-2 flex-wrap">
                             {stores.map(store => (
                                 <button
                                     key={store.id}
@@ -342,8 +342,8 @@ export default function ReportsPage() {
                                     className={`
                                         px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
                                         ${selectedStoreId === store.id
-                                            ? 'bg-blue-700 text-white border-blue-700'
-                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}
+                                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white border-blue-700 shadow-md'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}
                                     `}
                                 >
                                     {store.name}
@@ -354,42 +354,44 @@ export default function ReportsPage() {
                 )}
 
                 {/* Date range */}
-                {[
-                    { label: 'Từ ngày', value: startDate, setter: setStartDate },
-                    { label: 'Đến ngày', value: endDate, setter: setEndDate },
-                ].map(({ label, value, setter }) => (
-                    <div key={label} className="flex flex-col gap-1.5">
-                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">{label}</span>
-                        <div className="relative">
-                            <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                            <Input
-                                type="date"
-                                value={value}
-                                onChange={e => setter(e.target.value)}
-                                className="pl-8 h-9 text-[12px] bg-slate-50 border-slate-200 rounded-lg w-[140px]"
-                            />
+                <div className="flex items-end gap-3">
+                    {[
+                        { label: 'Từ ngày', value: startDate, setter: setStartDate },
+                        { label: 'Đến ngày', value: endDate, setter: setEndDate },
+                    ].map(({ label, value, setter }) => (
+                        <div key={label} className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                                <Input
+                                    type="date"
+                                    value={value}
+                                    onChange={e => setter(e.target.value)}
+                                    className="pl-9 h-9 text-[12px] bg-slate-50 border-slate-200 rounded-lg w-40 focus:bg-white focus:border-blue-400 transition-all"
+                                />
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
 
                 {/* Search */}
                 <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Tìm kiếm ID</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tìm kiếm ID</span>
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                         <Input
                             placeholder="Mã hóa đơn..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="pl-8 h-9 text-[12px] bg-slate-50 border-slate-200 rounded-lg w-[160px]"
+                            className="pl-9 h-9 text-[12px] bg-slate-50 border-slate-200 rounded-lg w-44 focus:bg-white focus:border-blue-400 transition-all"
                         />
                     </div>
                 </div>
 
                 {/* Period tabs */}
                 <div className="flex flex-col gap-1.5 ml-auto">
-                    <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Chu kỳ biểu đồ</span>
-                    <div className="flex bg-slate-100 rounded-lg p-1 gap-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chu kỳ biểu đồ</span>
+                    <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
                         {PERIOD_OPTIONS.map(opt => (
                             <button
                                 key={opt.id}
@@ -397,8 +399,8 @@ export default function ReportsPage() {
                                 className={`
                                     px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all
                                     ${reportType === opt.id
-                                        ? 'bg-white text-blue-700 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'}
+                                        ? 'bg-white text-blue-600 shadow-sm border border-blue-200'
+                                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}
                                 `}
                             >
                                 {opt.label}
@@ -420,10 +422,10 @@ export default function ReportsPage() {
             </div>
 
             {/* ── Main content ── */}
-            <main className="max-w-[1200px] mx-auto px-6 py-5 space-y-4">
+            <main className="max-w-[1200px] mx-auto px-7 py-6 space-y-5">
 
                 {/* KPI cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <KpiCard
                         iconBg="bg-blue-50"
                         icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
@@ -456,7 +458,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* Revenue chart */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                         <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-blue-600" />
@@ -522,7 +524,7 @@ export default function ReportsPage() {
                 </div>
 
                 {/* Invoice table */}
-                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                             <h2 className="text-[13px] font-bold text-slate-800">
@@ -562,9 +564,10 @@ export default function ReportsPage() {
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredInvoices.map(invoice => (
-                                        <tr key={invoice.id} className="hover:bg-slate-50/60 transition-colors">
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredInvoices.map((invoice, idx) => (
+                                        <tr key={invoice.id} className={`transition-colors ${idx % 2 === 0 ? 'hover:bg-blue-50/40' : 'bg-slate-50/50 hover:bg-blue-50/40'
+                                            }`}>
                                             <td className="px-4 py-3 font-mono text-[11px] font-semibold text-slate-500">
                                                 #{invoice.id.slice(0, 6).toUpperCase()}
                                             </td>
