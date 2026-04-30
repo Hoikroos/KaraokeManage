@@ -26,11 +26,9 @@ export default function Dashboard() {
 
   const fetchRooms = useCallback(async (storeId: string) => {
     try {
-      // Xóa dữ liệu cũ trong state trước khi tải mới
       setSessions({});
       setSessionTotals({});
 
-      // Sử dụng headers chống cache mạnh mẽ nhất
       const response = await fetch(`/api/admin/rooms?storeId=${storeId}&t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -39,36 +37,27 @@ export default function Dashboard() {
         }
       });
       const data: Room[] = await response.json();
-      setRooms(data);
 
-      // === SỬA Ở ĐÂY ===
       const sortedData = [...data].sort((a, b) => {
-        // Ưu tiên sắp xếp theo số phòng tự nhiên: P.VIP1, P.VIP2, ..., P.VIP10, P.VIP11, P.PARTY
         const numA = parseInt(a.roomNumber?.toString().replace(/\D/g, '') || '0');
         const numB = parseInt(b.roomNumber?.toString().replace(/\D/g, '') || '0');
 
-        // Nếu cả hai đều là số thì so sánh số
         if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
           return numA - numB;
         }
-
-        // Nếu một cái có chữ (như P.PARTY) thì đẩy xuống cuối
         if (!isNaN(numA) && isNaN(numB)) return -1;
         if (isNaN(numA) && !isNaN(numB)) return 1;
-
-        // So sánh chuỗi bình thường nếu không phải số
         return String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true });
       });
 
       setRooms(sortedData);
-      // Lấy thông tin phiên hoạt động cho các phòng đang sử dụng để tính thời gian và tiền
+
       const occupiedRooms = data.filter(r => r.status === 'occupied');
       const sessionData: Record<string, RoomSession> = {};
       const totalsData: Record<string, number> = {};
 
       await Promise.all(occupiedRooms.map(async (room) => {
         try {
-          // Lấy session mới nhất của phòng
           const sessionRes = await fetch(`/api/rooms/session?roomId=${room.id}&t=${Date.now()}`, {
             cache: 'no-store',
             headers: {
@@ -80,7 +69,6 @@ export default function Dashboard() {
             const session = await sessionRes.json();
             sessionData[room.id] = session;
 
-            // Tải danh sách món đã gọi để tính tổng tiền dịch vụ (products)
             const sessionId = session.id || (session as any).Id;
             const ordersRes = await fetch(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`, { cache: 'no-store' });
             if (ordersRes.ok) {
@@ -95,6 +83,7 @@ export default function Dashboard() {
           console.error(`Lỗi tải phiên cho phòng ${room.id}:`, err);
         }
       }));
+
       setSessions(sessionData);
       setSessionTotals(totalsData);
     } catch (error) {
@@ -104,7 +93,6 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetch stores
       const storesRes = await fetch(`/api/admin/stores?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -115,7 +103,6 @@ export default function Dashboard() {
       const storesData = await storesRes.json();
       setStores(storesData);
 
-      // Set initial store to user's store or first available
       const userStore = storesData.find((store: Store) => store.id === user?.storeId);
       const initialStoreId = userStore?.id || storesData[0]?.id;
       if (initialStoreId) {
@@ -133,12 +120,11 @@ export default function Dashboard() {
     if (user?.role === 'admin') {
       router.push('/dashboard/admin');
     } else {
-      router.refresh(); // Xoá sạch router cache khi quay lại dashboard
+      router.refresh();
       fetchData();
     }
   }, [user, router, fetchData]);
 
-  // Cập nhật thời gian hiện tại mỗi phút để làm mới số phút đã trôi qua
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -146,7 +132,6 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Refetch rooms when component focuses
   useEffect(() => {
     const handleFocus = () => {
       if (selectedStoreId) {
@@ -193,36 +178,27 @@ export default function Dashboard() {
               <span className="text-slate-900 font-semibold text-sm">{user?.name}</span>
               <span className="text-slate-500 text-[10px] uppercase tracking-wider">{user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</span>
             </div>
-            <Link href="/dashboard/invoice">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-600 hover:text-blue-600 gap-2"
-              >
+
+            {/* Ẩn 3 nút này trên mobile, chỉ hiện từ md trở lên */}
+            <Link href="/dashboard/invoice" className="hidden md:block">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-2">
                 <History className="w-4 h-4" />
                 <span className="hidden md:inline">Lịch sử</span>
               </Button>
             </Link>
-            <Link href="/dashboard/customers">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-600 hover:text-indigo-600 gap-2"
-              >
+            <Link href="/dashboard/customers" className="hidden md:block">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2">
                 <Users className="w-4 h-4" />
                 <span className="hidden md:inline">Khách hàng</span>
               </Button>
             </Link>
-            <Link href="/dashboard/products">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-slate-600 hover:text-blue-600 gap-2"
-              >
+            <Link href="/dashboard/products" className="hidden md:block">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-2">
                 <Package className="w-4 h-4" />
                 <span className="hidden md:inline">Thực đơn</span>
               </Button>
             </Link>
+
             <Button
               onClick={handleLogout}
               variant="ghost"
@@ -238,7 +214,6 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Main Interface Wrapper */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           {/* Filtering and Selection Header */}
           <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -250,9 +225,7 @@ export default function Dashboard() {
                   <button
                     key={store.id}
                     onClick={() => handleStoreChange(store.id)}
-                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedStoreId === store.id
-
-                      }`}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedStoreId === store.id ? '' : ''}`}
                   >
                   </button>
                 ))}
@@ -294,10 +267,7 @@ export default function Dashboard() {
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 {filteredRooms.map((room) => (
-                  <Link
-                    key={room.id}
-                    href={`/dashboard/room/${room.id}`}
-                  >
+                  <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
                       className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 ${room.status === 'empty'
                         ? 'bg-slate-100 border-blue-300 hover:border-blue-500 hover:bg-slate-200'
@@ -327,7 +297,8 @@ export default function Dashboard() {
                           }
                         </div>
                       </div>
-                      <div className="space-y-1.5 text-slate-600 text-sm mt-2 min-h-[52px]"> {/* ← thêm min-h-[52px] */}
+
+                      <div className="space-y-1.5 text-slate-600 text-sm mt-2 min-h-[52px]">
                         {room.status === 'occupied' && sessions[room.id] ? (
                           <div className="border-t border-slate-200 space-y-1">
                             <div className="flex items-center gap-1.5 text-blue-600 font-semibold">
@@ -373,7 +344,6 @@ export default function Dashboard() {
                             </div>
                           </div>
                         ) : (
-                          // ← THÊM: placeholder giữ chiều cao cho phòng trống
                           <div className="border-t border-slate-200 space-y-1 pt-1">
                             <div className="flex items-center gap-1.5 text-slate-300">
                               <Clock className="w-3.5 h-3.5" />
