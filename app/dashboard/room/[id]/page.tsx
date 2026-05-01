@@ -2293,8 +2293,8 @@ export default function RoomPage() {
               <tr>
                 <td className="py-1.5">
                   <div className="font-bold">Tiền phòng</div>
-                  <div className="text-[12px] font-semibold text-black">Giá: {customPricePerHour.toLocaleString('vi-VN')}đ/h</div>
-                  <div className="text-[12px] font-semibold text-black" style={{ lineHeight: 1.5 }}>
+                  <div className="text-[11px] font-normal text-black">Giá: {customPricePerHour.toLocaleString('vi-VN')}đ/h</div>
+                  <div className="text-[11px] font-semibold text-black" style={{ lineHeight: 1.5 }}>
                     {selectedStartTime ? new Date(selectedStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                     {' - '}
                     {selectedEndTime ? new Date(selectedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
