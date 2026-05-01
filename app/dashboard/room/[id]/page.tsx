@@ -348,6 +348,7 @@ export default function RoomPage() {
               // Nếu chưa có, tính toán theo trạng thái (paused thì lấy lúc dừng, active lấy hiện tại)
               const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
               setSelectedEndTime(formatDateTimeLocal(end));
+              setIsManualEndTime(false);
             }
             const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
             const ordersData = await ordersRes.json();
@@ -511,13 +512,16 @@ export default function RoomPage() {
     // Nếu giờ được chọn <= giờ hiện tại + 60 giây, tự động về chế độ real-time
     const diffSeconds = (selectedTime.getTime() - now.getTime()) / 1000;
     if (diffSeconds <= 60) {
-      setIsManualEndTime(false);
       try {
-        await fetch('/api/rooms/session', {
+        const res = await fetch('/api/rooms/session', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: sessionId, endTime: null }),
         });
+        if (res.ok) {
+          setIsManualEndTime(false);
+          setSelectedEndTime(formatDateTimeLocal(new Date()));
+        }
       } catch (err) {
         console.error('Lỗi khi xóa giờ ra thủ công:', err);
       }
@@ -541,12 +545,11 @@ export default function RoomPage() {
   };
 
   const handleResetManualEndTime = async () => {
-    setIsManualEndTime(false);
     if (!session) return;
 
     const sessionId = session.id ?? (session as any).Id;
     try {
-      await fetch('/api/rooms/session', {
+      const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -554,8 +557,11 @@ export default function RoomPage() {
           endTime: null // Xóa giờ kết thúc thủ công trong DB
         }),
       });
-      // Cập nhật lại giờ hiện tại ngay lập tức
-      setSelectedEndTime(formatDateTimeLocal(new Date()));
+      if (res.ok) {
+        setIsManualEndTime(false);
+        // Cập nhật lại giờ hiện tại ngay lập tức
+        setSelectedEndTime(formatDateTimeLocal(new Date()));
+      }
     } catch (err) { console.error('Lỗi khi đặt lại giờ:', err); }
   };
 
