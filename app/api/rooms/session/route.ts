@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     const session = await prisma.roomSession.findFirst({
       where: {
         RoomId: roomId,
-        Status: { in: ['active', 'pending','paused'] },
+        Status: { in: ['active', 'pending', 'paused'] },
       },
       orderBy: {
         StartTime: 'desc',      // ưu tiên session mới nhất
@@ -76,6 +76,7 @@ export async function GET(request: Request) {
         status: session.Status,
         updatedAt: session.UpdatedAt,
         customerName: session.CustomerName ?? 'Khách lẻ',
+        endTime: session.EndTime, // Trả thêm trường EndTime
       });
     }
 
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, startTime, StartTime, status, Status, customerName, CustomerName } = body;
+    const { id, startTime, StartTime, status, Status, customerName, CustomerName, endTime, EndTime } = body;
 
     if (!id) {
       return Response.json({ error: 'Session ID is required' }, { status: 400 });
@@ -100,6 +101,11 @@ export async function PUT(request: Request) {
     // Cập nhật thời gian bắt đầu nếu có
     if (startTime || StartTime) {
       updateData.StartTime = new Date(startTime || StartTime);
+    }
+
+    // Cập nhật giờ kết thúc (dự kiến) nếu có
+    if (endTime || EndTime) {
+      updateData.EndTime = new Date(endTime || EndTime);
     }
 
     // Cập nhật trạng thái nếu có
@@ -126,6 +132,7 @@ export async function PUT(request: Request) {
       status: session.Status,
       updatedAt: session.UpdatedAt,
       customerName: session.CustomerName, // ✅ THÊM: trả về tên khách hàng
+      endTime: session.EndTime,
     });
   } catch (error) {
     console.error('Error updating room session:', error);

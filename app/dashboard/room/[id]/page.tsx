@@ -337,9 +337,16 @@ export default function RoomPage() {
             setSession(sessionData);
             setCustomerName(sessionData.customerName ?? (sessionData as any).CustomerName ?? '');
             const start = new Date(sessionData.startTime || (sessionData as any).StartTime || new Date());
-            const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
             setSelectedStartTime(formatDateTimeLocal(start));
-            if (!isManualEndTime) {
+
+            // Kiểm tra nếu trên server đã có giờ ra dự kiến được lưu
+            const savedEnd = sessionData.endTime || (sessionData as any).EndTime;
+            if (savedEnd) {
+              setSelectedEndTime(formatDateTimeLocal(new Date(savedEnd)));
+              setIsManualEndTime(true); // Khóa timer lại vì đã có giờ thủ công
+            } else {
+              // Nếu chưa có, tính toán theo trạng thái (paused thì lấy lúc dừng, active lấy hiện tại)
+              const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
               setSelectedEndTime(formatDateTimeLocal(end));
             }
             const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
@@ -491,6 +498,46 @@ export default function RoomPage() {
         toast.success('Đã cập nhật giờ vào');
       }
     } catch (err) { console.error('Error auto-updating start time:', err); }
+  };
+
+  const handleEndTimeChange = async (newVal: string) => {
+    setSelectedEndTime(newVal);
+    setIsManualEndTime(true);
+
+    if (!session || !newVal) return;
+    const sessionId = session.id ?? (session as any).Id;
+
+    try {
+      await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sessionId,
+          endTime: new Date(newVal).toISOString()
+        }),
+      });
+    } catch (err) {
+      console.error('Lỗi khi lưu giờ ra dự kiến:', err);
+    }
+  };
+
+  const handleResetManualEndTime = async () => {
+    setIsManualEndTime(false);
+    if (!session) return;
+
+    const sessionId = session.id ?? (session as any).Id;
+    try {
+      await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sessionId,
+          endTime: null // Xóa giờ kết thúc thủ công trong DB
+        }),
+      });
+      // Cập nhật lại giờ hiện tại ngay lập tức
+      setSelectedEndTime(formatDateTimeLocal(new Date()));
+    } catch (err) { console.error('Lỗi khi đặt lại giờ:', err); }
   };
 
   const handleUpdateStartTime = async () => {
@@ -1379,7 +1426,7 @@ export default function RoomPage() {
                               <span>Giờ ra (dự kiến)</span>
                               {isManualEndTime && (
                                 <button
-                                  onClick={() => setIsManualEndTime(false)}
+                                  onClick={handleResetManualEndTime}
                                   className="text-indigo-600 lowercase font-normal"
                                 >
                                   (Đặt lại theo máy)
@@ -1390,10 +1437,7 @@ export default function RoomPage() {
                               <input
                                 type="datetime-local"
                                 value={selectedEndTime}
-                                onChange={(e) => {
-                                  setSelectedEndTime(e.target.value);
-                                  setIsManualEndTime(true);
-                                }}
+                                onChange={(e) => handleEndTimeChange(e.target.value)}
                                 className={`w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200 ${isManualEndTime ? 'border-2 border-indigo-400' : ''}`}
                               />
                             </div>
@@ -1897,7 +1941,7 @@ export default function RoomPage() {
                             <span>Giờ ra</span>
                             {isManualEndTime && (
                               <button
-                                onClick={() => setIsManualEndTime(false)}
+                                onClick={handleResetManualEndTime}
                                 className="text-indigo-600 lowercase font-bold hover:underline"
                               >
                                 (Đặt lại theo máy)
@@ -1908,10 +1952,7 @@ export default function RoomPage() {
                             <Input
                               type="datetime-local"
                               value={selectedEndTime}
-                              onChange={(e) => {
-                                setSelectedEndTime(e.target.value);
-                                setIsManualEndTime(true);
-                              }}
+                              onChange={(e) => handleEndTimeChange(e.target.value)}
                               className={`h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition ${isManualEndTime ? 'ring-2 ring-indigo-400' : ''}`}
                             />
                           </div>
