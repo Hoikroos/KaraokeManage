@@ -502,18 +502,37 @@ export default function RoomPage() {
 
   const handleEndTimeChange = async (newVal: string) => {
     setSelectedEndTime(newVal);
-    setIsManualEndTime(true);
 
     if (!session || !newVal) return;
     const sessionId = session.id ?? (session as any).Id;
 
+    const selectedTime = new Date(newVal);
+    const now = new Date();
+    // Nếu giờ được chọn <= giờ hiện tại + 60 giây, tự động về chế độ real-time
+    const diffSeconds = (selectedTime.getTime() - now.getTime()) / 1000;
+    if (diffSeconds <= 60) {
+      setIsManualEndTime(false);
+      try {
+        await fetch('/api/rooms/session', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: sessionId, endTime: null }),
+        });
+      } catch (err) {
+        console.error('Lỗi khi xóa giờ ra thủ công:', err);
+      }
+      return;
+    }
+
+    // Giờ được chọn > hiện tại => lưu thủ công
+    setIsManualEndTime(true);
     try {
       await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: sessionId,
-          endTime: new Date(newVal).toISOString()
+          endTime: selectedTime.toISOString()
         }),
       });
     } catch (err) {
