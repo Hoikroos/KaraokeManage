@@ -86,6 +86,10 @@ export default function RoomPage() {
   const [room, setRoom] = useState<Room | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [session, setSession] = useState<RoomSession | null>(null);
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherApplied, setVoucherApplied] = useState(false);
+  const VOUCHER_VALID = 'GIAM10';
+  const VOUCHER_DISCOUNT = 0.1;
   const [products, setProducts] = useState<Product[]>([]);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isManualEndTime, setIsManualEndTime] = useState(false);
@@ -1076,6 +1080,21 @@ export default function RoomPage() {
     } catch (err) { console.error('Error removing item:', err); toast.error('Lỗi khi xóa sản phẩm'); }
   };
 
+  const handleApplyVoucher = () => {
+    if (voucherCode.trim().toUpperCase() === VOUCHER_VALID) {
+      setVoucherApplied(true);
+      toast.success('Áp dụng voucher thành công! Giảm 10%');
+    } else {
+      setVoucherApplied(false);
+      toast.error('Mã voucher không hợp lệ');
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setVoucherApplied(false);
+    setVoucherCode('');
+  };
+
   const handleGenerateInvoice = async () => {
     if (!session || !room || timeError || (durationMinutes === 0 && orderItems.length === 0)) return;
     try {
@@ -1089,7 +1108,7 @@ export default function RoomPage() {
           startTime: new Date(selectedStartTime).toISOString(),
           endTime: new Date(selectedEndTime).toISOString(),
           roomCost: Math.round(roomChargeTotal),
-          totalPrice: Math.ceil(total / 1000) * 1000,
+          totalPrice: finalTotal,
           customerName: customerName.trim() || 'Khách lẻ',
         }),
       });
@@ -1141,6 +1160,8 @@ export default function RoomPage() {
   const totalProductCost = orderItems.reduce((s, i) => s + (Number(i.price || 0) * Number(i.quantity || 0)), 0);
   const roomChargeTotal = roomCharge;
   const total = roomChargeTotal + totalProductCost;
+  const discountAmount = voucherApplied ? Math.round(total * VOUCHER_DISCOUNT) : 0;
+  const finalTotal = Math.ceil((total - discountAmount) / 1000) * 1000;
   const totalItems = orderItems.reduce((s, i) => s + i.quantity, 0);
 
   // ── Loading / Not found ────────────────────────────────────────────────────
@@ -1631,21 +1652,57 @@ export default function RoomPage() {
                       </div>
                     </div>
 
-                    {/* ── BLOCK 3: Tổng cộng ── */}
-                    <div className="mx-4 mt-4 bg-indigo-600 rounded-2xl p-4 shadow-lg">
+                    {/* Voucher */}
+                    <div className="mx-4 mt-3">
+                      {!voucherApplied ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Nhập mã voucher..."
+                            value={voucherCode}
+                            onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                            onKeyDown={(e) => e.key === 'Enter' && handleApplyVoucher()}
+                            className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200 uppercase"
+                          />
+                          <button
+                            onClick={handleApplyVoucher}
+                            className="bg-indigo-600 text-white px-4 rounded-xl text-xs font-bold active:scale-95 transition whitespace-nowrap"
+                          >
+                            Áp dụng
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            <span className="text-xs font-bold text-emerald-700">Voucher <span className="uppercase">{voucherCode}</span> (-10%)</span>
+                          </div>
+                          <button onClick={handleRemoveVoucher} className="text-slate-400 active:scale-90">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tổng */}
+                    <div className="mx-4 mt-3 bg-indigo-600 rounded-2xl p-4 shadow-lg">
                       <div className="flex justify-between items-center text-sm text-indigo-200 mb-1">
                         <span>Tiền phòng</span>
                         <span className="font-semibold text-white">{roomChargeTotal.toLocaleString('vi-VN')}đ</span>
                       </div>
-                      <div className="flex justify-between items-center text-sm text-indigo-200 mb-3">
+                      <div className="flex justify-between items-center text-sm text-indigo-200 mb-1">
                         <span>Dịch vụ</span>
                         <span className="font-semibold text-white">{totalProductCost.toLocaleString('vi-VN')}đ</span>
                       </div>
+                      {voucherApplied && (
+                        <div className="flex justify-between items-center text-sm text-emerald-300 mb-1">
+                          <span>Giảm giá (10%)</span>
+                          <span className="font-semibold">-{discountAmount.toLocaleString('vi-VN')}đ</span>
+                        </div>
+                      )}
                       <div className="border-t border-indigo-500 pt-3 flex justify-between items-center">
                         <span className="text-xs font-black text-indigo-300 uppercase tracking-widest">Tổng cộng</span>
-                        <span className="text-2xl font-black text-white">
-                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
-                        </span>
+                        <span className="text-2xl font-black text-white">{finalTotal.toLocaleString('vi-VN')}đ</span>
                       </div>
                     </div>
 
@@ -2181,6 +2238,39 @@ export default function RoomPage() {
                 </div>
 
                 <div className="p-4 lg:p-6 bg-white border-t border-slate-100">
+                  {/* Voucher Desktop */}
+                  <div className="mb-4">
+                    {!voucherApplied ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Nhập mã voucher..."
+                          value={voucherCode}
+                          onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === 'Enter' && handleApplyVoucher()}
+                          className="flex-1 h-9 bg-slate-50 border border-slate-200 rounded-xl px-3 text-xs font-bold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200 uppercase"
+                        />
+                        <button
+                          onClick={handleApplyVoucher}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-xl text-xs font-bold transition active:scale-95 whitespace-nowrap"
+                        >
+                          Áp dụng
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="text-xs font-bold text-emerald-700">Voucher <span className="uppercase">{voucherCode}</span> — Giảm 10%</span>
+                        </div>
+                        <button onClick={handleRemoveVoucher} className="text-slate-400 hover:text-slate-600 transition">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dòng tổng — thêm discount vào giữa */}
                   <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-8">
                       <div className="flex flex-col">
@@ -2198,13 +2288,23 @@ export default function RoomPage() {
                           <span className="text-[10px] text-slate-400 font-medium">đ</span>
                         </div>
                       </div>
+                      {voucherApplied && (
+                        <>
+                          <div className="w-px h-8 bg-slate-100" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Giảm giá (10%)</span>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-sm font-bold text-emerald-600">-{discountAmount.toLocaleString('vi-VN')}</span>
+                              <span className="text-[10px] text-emerald-400 font-medium">đ</span>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Tổng thanh toán</span>
                       <div className="flex items-baseline gap-1 text-indigo-600">
-                        <span className="text-2xl lg:text-3xl font-black tracking-tighter leading-none">
-                          {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}
-                        </span>
+                        <span className="text-2xl lg:text-3xl font-black tracking-tighter leading-none">{finalTotal.toLocaleString('vi-VN')}</span>
                         <span className="text-xs font-bold uppercase">đ</span>
                       </div>
                     </div>
@@ -2498,11 +2598,17 @@ export default function RoomPage() {
               <span>Chiết khấu:</span>
               <span>0%</span>
             </div>
+            {voucherApplied && (
+              <div className="flex justify-between text-[12px] font-black mt-1">
+                <span>Voucher ({voucherCode}):</span>
+                <span>-{discountAmount.toLocaleString('vi-VN')}</span>
+              </div>
+            )}
           </div>
           <div className="flex justify-between text-[18px] font-black mt-4 pt-2"
             style={{ borderTop: '2px solid #000', letterSpacing: '0.5px' }}>
             <span>TỔNG CỘNG:</span>
-            <span>{(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</span>
+            <span>{finalTotal.toLocaleString('vi-VN')}</span>
           </div>
           {/* Dòng ghi tay hoa hồng (Không lưu CSDL) */}
           <div className="mt-6 mb-2 flex justify-between text-[13px] font-bold italic pt-2">
@@ -2585,9 +2691,7 @@ export default function RoomPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Tổng cộng</span>
-                <span className="text-2xl font-black text-indigo-600">
-                  {(Math.ceil(total / 1000) * 1000).toLocaleString('vi-VN')}đ
-                </span>
+                <span className="text-2xl font-black text-indigo-600">{finalTotal.toLocaleString('vi-VN')}đ</span>
               </div>
             </div>
 
