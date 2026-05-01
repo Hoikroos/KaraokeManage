@@ -378,6 +378,11 @@ export default function RoomPage() {
         const sessionRes = await fetchFresh(`/api/rooms/session?roomId=${currentRoomId}&t=${ts}`);
         if (sessionRes.ok) {
           const sessionData = await sessionRes.json();
+
+          // Kiểm tra xem người dùng có đang tập trung vào ô nhập liệu giờ không
+          const activeEl = document.activeElement;
+          const isTypingTime = activeEl instanceof HTMLInputElement && activeEl.type === 'datetime-local';
+
           const sessionId = sessionData?.id ?? (sessionData as any)?.Id;
           if (sessionId) {
             setSession(sessionData);
@@ -388,12 +393,15 @@ export default function RoomPage() {
 
             // Kiểm tra nếu trên server đã có giờ ra dự kiến được lưu
             const savedEnd = sessionData.endTime || (sessionData as any).EndTime;
-            if (savedEnd) {
-              const end = new Date(savedEnd);
-              // Chỉ ghi đè nếu giá trị trên server khác giá trị local (tránh mất tiêu điểm khi đang gõ)
-              if (!rawEndTimeRef.current || Math.abs(end.getTime() - rawEndTimeRef.current.getTime()) > 5000) {
-                setSelectedEndTime(formatDateTimeLocal(end));
-                setRawEndTime(end);
+            if (savedEnd || (sessionData.status === 'paused' || (sessionData as any).Status === 'paused')) {
+              const endValue = savedEnd ? new Date(savedEnd) : new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date());
+              
+              // Chỉ ghi đè nếu không đang gõ bàn phím và giá trị lệch đáng kể (> 5s)
+              if (!isTypingTime) {
+                if (!rawEndTimeRef.current || Math.abs(endValue.getTime() - rawEndTimeRef.current.getTime()) > 5000) {
+                  setSelectedEndTime(formatDateTimeLocal(endValue));
+                  setRawEndTime(endValue);
+                }
               }
               setIsManualEndTime(true); // Khóa timer lại vì đã có giờ thủ công
             } else {
