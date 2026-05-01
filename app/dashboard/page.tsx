@@ -128,7 +128,7 @@ export default function Dashboard() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -308,8 +308,16 @@ export default function Dashboard() {
                                   const session = sessions[room.id];
                                   if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
                                   const start = new Date((session.startTime || (session as any).StartTime)).getTime();
-                                  const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
-                                  const end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
+
+                                  let end: number;
+                                  const savedEnd = session.endTime || (session as any).EndTime;
+                                  if (savedEnd) {
+                                    end = new Date(savedEnd).getTime();
+                                  } else {
+                                    const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
+                                    end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
+                                  }
+
                                   const diffMs = end - start;
                                   if (diffMs <= 0) return '0p';
                                   const totalMinutes = Math.ceil(diffMs / 60000);
@@ -329,8 +337,16 @@ export default function Dashboard() {
                                   const isPending = (session as any).status === 'pending' || (session as any)?.Status === 'pending';
                                   if (!isPending) {
                                     const start = new Date((session.startTime || (session as any).StartTime)).getTime();
-                                    const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
-                                    const end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
+
+                                    let end: number;
+                                    const savedEnd = session.endTime || (session as any).EndTime;
+                                    if (savedEnd) {
+                                      end = new Date(savedEnd).getTime();
+                                    } else {
+                                      const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
+                                      end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
+                                    }
+
                                     const diffMs = end - start;
                                     if (diffMs > 0) {
                                       const minutes = Math.ceil(diffMs / 60000);
