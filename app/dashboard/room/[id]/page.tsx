@@ -393,17 +393,18 @@ export default function RoomPage() {
 
             // Kiểm tra nếu trên server đã có giờ ra dự kiến được lưu
             const savedEnd = sessionData.endTime || (sessionData as any).EndTime;
-            if (savedEnd || (sessionData.status === 'paused' || (sessionData as any).Status === 'paused')) {
+            const isPausedServer = sessionData.status === 'paused' || (sessionData as any).Status === 'paused';
+
+            if (savedEnd || isPausedServer) {
               const endValue = savedEnd ? new Date(savedEnd) : new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date());
               
-              // Chỉ ghi đè nếu không đang gõ bàn phím và giá trị lệch đáng kể (> 5s)
+              setIsManualEndTime(true); // Khóa timer vì đang tạm tính hoặc có giờ thủ công
+
+              // Chỉ ghi đè vào ô nhập liệu nếu người dùng không đang gõ
               if (!isTypingTime) {
-                if (!rawEndTimeRef.current || Math.abs(endValue.getTime() - rawEndTimeRef.current.getTime()) > 5000) {
-                  setSelectedEndTime(formatDateTimeLocal(endValue));
-                  setRawEndTime(endValue);
-                }
+                setSelectedEndTime(formatDateTimeLocal(endValue));
+                setRawEndTime(endValue);
               }
-              setIsManualEndTime(true); // Khóa timer lại vì đã có giờ thủ công
             } else {
               // Nếu chưa có, tính toán theo trạng thái (paused thì lấy lúc dừng, active lấy hiện tại)
               const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
