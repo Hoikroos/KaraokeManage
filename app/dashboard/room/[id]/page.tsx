@@ -1978,9 +1978,31 @@ export default function RoomPage() {
 
                             {/* Đơn giá */}
                             <td className="py-3 text-right pr-2">
-                              <span className="text-xs font-bold text-slate-600">
-                                {item.price.toLocaleString('vi-VN')}đ
-                              </span>
+                              <div className="relative inline-flex items-center justify-end">
+                                <input
+                                  type="text"
+                                  title="Nhấp để chỉnh giá (chỉ ảnh hưởng hóa đơn này, không sửa thực đơn)"
+                                  className="w-24 text-right text-xs font-bold text-slate-600 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-400 focus:bg-indigo-50/60 focus:text-indigo-700 rounded-sm outline-none px-1 py-0.5 pr-2.5 transition-all cursor-text"
+                                  value={
+                                    editingPrices[index] !== undefined
+                                      ? editingPrices[index]
+                                      : item.price.toLocaleString('vi-VN')
+                                  }
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, '');
+                                    handlePriceChange(index, raw);
+                                  }}
+                                  onFocus={(e) => {
+                                    handlePriceChange(index, String(item.price));
+                                    e.target.select();
+                                  }}
+                                  onBlur={() => handlePriceBlur(index)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                  }}
+                                />
+                                <span className="absolute right-0 text-[10px] text-slate-400 pointer-events-none">đ</span>
+                              </div>
                             </td>
 
                             {/* Thành tiền */}

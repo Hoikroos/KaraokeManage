@@ -83,6 +83,21 @@ model OrderItem {
   @@map("OrderItems")
 }
 
+model InvoiceItem {
+  Id            String      @id @default(cuid()) @db.VarChar(50)
+  InvoiceId     String      @db.VarChar(50)
+  RoomSessionId String      @db.VarChar(50)
+  ProductId     String      @db.VarChar(50)
+  ProductName   String      @db.Text
+  Price         Decimal     @db.Decimal(10, 2)
+  Quantity      Int
+  OrderedAt     DateTime    @default(now())
+  CreatedAt     DateTime    @default(now())
+  Invoice       Invoice     @relation(fields: [InvoiceId], references: [Id], onDelete: Cascade)
+
+  @@map("InvoiceItems")
+}
+
 model InventoryLog {
   Id        String   @id @default(cuid()) @db.VarChar(50)
   ProductId String   @db.VarChar(50)
@@ -126,6 +141,7 @@ model Invoice {
   CustomerName  String?     @default("Khách lẻ") @db.Text
   DeletedAt     DateTime?
   RoomSession   RoomSession @relation(fields: [RoomSessionId], references: [Id], onDelete: Cascade)
+  InvoiceItems  InvoiceItem[]
 
   @@map("Invoices")
 }
