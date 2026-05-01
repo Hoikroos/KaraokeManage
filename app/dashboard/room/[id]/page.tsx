@@ -876,10 +876,15 @@ export default function RoomPage() {
       setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
       return;
     }
-    const price = parseInt(val.replace(/\D/g, ''));
+    const newPrice = parseInt(val.replace(/\D/g, ''));
     const item = orderItems[index];
-    if (!isNaN(price) && price >= 0 && item && item.price !== price) {
-      handleUpdateOrderItem(index, { price });
+    if (!isNaN(newPrice) && newPrice > 0 && item && item.price !== newPrice) {
+      // Tính toán lại số lượng để giữ nguyên thành tiền cũ
+      // Thành tiền cũ = item.price * item.quantity
+      // Số lượng mới = Thành tiền cũ / Đơn giá mới
+      const currentTotal = item.price * item.quantity;
+      const newQuantity = currentTotal / newPrice;
+      handleUpdateOrderItem(index, { price: newPrice, quantity: newQuantity });
     } else {
       setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
     }
