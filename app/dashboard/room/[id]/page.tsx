@@ -238,7 +238,7 @@ export default function RoomPage() {
 
   const formatDateTimeLocal = (date: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   };
 
 
@@ -1084,7 +1084,7 @@ export default function RoomPage() {
       return { roomCharge: 0, durationMinutes: 0, durationText: 'Chọn giờ bắt đầu và kết thúc', timeError: 'Vui lòng chọn cả giờ bắt đầu và giờ kết thúc' };
     if (end <= start || isPending)
       return { roomCharge: 0, durationMinutes: 0, durationText: isPending ? 'Chờ khách vào' : 'Giờ kết thúc phải lớn hơn giờ bắt đầu', timeError: isPending ? '' : 'Giờ kết thúc phải lớn hơn giờ bắt đầu' };
-    const minutes = Math.floor((end.getTime() - start.getTime()) / 60_000);
+    const minutes = Math.ceil((end.getTime() - start.getTime()) / 60_000);
     const cost = room ? Math.ceil((minutes * customPricePerHour) / 60) : 0;
     const h = Math.floor(minutes / 60), m = minutes % 60;
     return { roomCharge: cost, durationMinutes: minutes, durationText: h > 0 ? `${h} giờ ${m > 0 ? `${m} phút` : ''}`.trim() : `${m} phút`, timeError: '' };
@@ -1407,6 +1407,7 @@ export default function RoomPage() {
                             <div className="flex gap-2">
                               <input
                                 type="datetime-local"
+                                step="1"
                                 value={selectedStartTime}
                                 onChange={(e) => handleStartTimeChange(e.target.value)}
                                 className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
@@ -1436,6 +1437,7 @@ export default function RoomPage() {
                             <div className="relative">
                               <input
                                 type="datetime-local"
+                                step="1"
                                 value={selectedEndTime}
                                 onChange={(e) => handleEndTimeChange(e.target.value)}
                                 className={`w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200 ${isManualEndTime ? 'border-2 border-indigo-400' : ''}`}
@@ -1922,6 +1924,7 @@ export default function RoomPage() {
                           <div className="flex gap-1.5">
                             <Input
                               type="datetime-local"
+                              step="1"
                               value={selectedStartTime}
                               onChange={(e) => handleStartTimeChange(e.target.value)}
                               className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold flex-1 focus:bg-white transition"
@@ -1951,6 +1954,7 @@ export default function RoomPage() {
                           <div className="relative">
                             <Input
                               type="datetime-local"
+                              step="1"
                               value={selectedEndTime}
                               onChange={(e) => handleEndTimeChange(e.target.value)}
                               className={`h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition ${isManualEndTime ? 'ring-2 ring-indigo-400' : ''}`}

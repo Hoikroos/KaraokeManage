@@ -98,14 +98,14 @@ export async function PUT(request: Request) {
 
     const updateData: any = {};
 
-    // Cập nhật thời gian bắt đầu nếu có
-    if (startTime || StartTime) {
-      updateData.StartTime = new Date(startTime || StartTime);
-    }
+    // Cập nhật thời gian bắt đầu
+    const startVal = startTime ?? StartTime;
+    if (startVal) updateData.StartTime = new Date(startVal);
 
-    // Cập nhật giờ kết thúc (dự kiến) nếu có
-    if (endTime || EndTime) {
-      updateData.EndTime = new Date(endTime || EndTime);
+    // Cập nhật giờ kết thúc (dự kiến) - Cho phép null để xóa giờ thủ công
+    const endVal = endTime ?? EndTime;
+    if (endVal !== undefined) {
+      updateData.EndTime = endVal ? new Date(endVal) : null;
     }
 
     // Cập nhật trạng thái nếu có
