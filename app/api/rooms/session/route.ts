@@ -98,14 +98,16 @@ export async function PUT(request: Request) {
 
     const updateData: any = {};
 
-    // Cập nhật thời gian bắt đầu
-    const startVal = startTime ?? StartTime;
-    if (startVal) updateData.StartTime = new Date(startVal);
+    // Cập nhật thời gian bắt đầu (startTime / StartTime)
+    const startVal = startTime !== undefined ? startTime : StartTime;
+    if (startVal !== undefined && startVal !== null) {
+      updateData.StartTime = new Date(startVal);
+    }
 
     // Cập nhật giờ kết thúc (dự kiến) - Cho phép null để xóa giờ thủ công
-    const endVal = endTime ?? EndTime;
-    if (endVal !== undefined) {
-      updateData.EndTime = endVal ? new Date(endVal) : null;
+    if (endTime !== undefined || EndTime !== undefined) {
+      const val = endTime !== undefined ? endTime : EndTime;
+      updateData.EndTime = val ? new Date(val) : null;
     }
 
     // Cập nhật trạng thái nếu có
@@ -114,8 +116,8 @@ export async function PUT(request: Request) {
     }
 
     // ✅ THÊM: Cập nhật tên khách hàng nếu có
-    const nameValue = customerName ?? CustomerName;
-    if (nameValue !== undefined) {
+    if (customerName !== undefined || CustomerName !== undefined) {
+      const nameValue = customerName !== undefined ? customerName : CustomerName;
       updateData.CustomerName = nameValue || 'Khách lẻ';
     }
 

@@ -552,26 +552,24 @@ export default function RoomPage() {
 
   const handleResetManualEndTime = async () => {
     if (!session) return;
-
     const sessionId = session.id ?? (session as any).Id;
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: sessionId,
-          endTime: null // Xóa giờ kết thúc thủ công trong DB
-        }),
+        body: JSON.stringify({ id: sessionId, endTime: null }),
       });
+
       if (res.ok) {
         const updated = await res.json();
-        setSession(updated);
-        setIsManualEndTime(false);
-        // Cập nhật lại giờ hiện tại ngay lập tức
-        setSelectedEndTime(formatDateTimeLocal(new Date()));
-        // Force a re-fetch after a small delay to ensure data consistency from server.
-        // This helps if there's a slight delay in DB update propagation.
-        setTimeout(() => loadRoomData(roomId), 200); 
+        // Cập nhật session ngay lập tức với endTime = null
+        setSession(prev => prev ? { ...prev, endTime: null } : updated);
+        setIsManualEndTime(false); // Tắt chế độ thủ công để timer bắt đầu chạy
+        setSelectedEndTime(formatDateTimeLocal(new Date())); // Reset hiển thị ngay lập tức
+
+        toast.success('Đã đặt lại giờ ra theo thời gian thực');
+        // Tải lại dữ liệu sau một khoảng ngắn để đảm bảo đồng bộ hoàn toàn với DB
+        setTimeout(() => loadRoomData(roomId), 100);
       }
     } catch (err) { console.error('Lỗi khi đặt lại giờ:', err); }
   };
