@@ -939,14 +939,6 @@ export default function RoomPage() {
   const handleRemoveItem = async (index: number) => {
     const item = orderItems[index];
     if (!item) return;
-    const result = await Swal.fire({
-      title: 'Xóa sản phẩm?', text: 'Bạn chắc chắn muốn xóa sản phẩm này khỏi đơn hàng?',
-      target: document.getElementById('cart-modal-content') || document.body,
-      icon: 'warning', showCancelButton: true,
-      confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Xóa', cancelButtonText: 'Hủy',
-    });
-    if (!result.isConfirmed) return;
     try {
       await fetch('/api/orders', {
         method: 'DELETE',
@@ -1154,7 +1146,7 @@ export default function RoomPage() {
                           placeholder="Tìm món..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full bg-slate-100 rounded-xl pl-10 pr-9 py-2.5 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition"
+                          className="w-full bg-slate-100 rounded-xl pl-10 pr-9 py-2.5 text-base font-medium text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200 transition"
                         />
                         {searchTerm && (
                           <button
