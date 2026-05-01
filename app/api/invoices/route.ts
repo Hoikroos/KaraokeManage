@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const { roomSessionId, startTime: requestStartTime, endTime: requestEndTime, customerName } = await request.json();
+    const { roomSessionId, startTime: requestStartTime, endTime: requestEndTime, customerName, roomCost: requestRoomCost, totalPrice: requestTotalPrice } = await request.json();
 
     // Get room session with room and store details
     const session = await prisma.roomSession.findUnique({
@@ -37,12 +37,15 @@ export async function POST(request: NextRequest) {
     }
 
     const durationMinutes = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60));
-    const roomCost = Math.ceil((durationMinutes * Number(room.PricePerHour)) / 60);
+    const fallbackRoomCost = Math.ceil((durationMinutes * Number(room.PricePerHour)) / 60);
+    const requestedRoomCost = Number(requestRoomCost);
+    const roomCost = !isNaN(requestedRoomCost) ? requestedRoomCost : fallbackRoomCost;
 
     // Calculate items cost
     const itemsCost = items.reduce((total, item) => total + Number(item.Price) * item.Quantity, 0);
     const subtotal = roomCost + itemsCost;
-    const totalPrice = Math.ceil(subtotal / 1000) * 1000;
+    const requestedTotalPrice = Number(requestTotalPrice);
+    const totalPrice = !isNaN(requestedTotalPrice) ? requestedTotalPrice : Math.ceil(subtotal / 1000) * 1000;
 
     // Thực hiện trong transaction để đảm bảo tính nhất quán dữ liệu
     const [invoice] = await prisma.$transaction([

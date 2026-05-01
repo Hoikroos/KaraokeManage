@@ -68,15 +68,20 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { id, quantity } = await request.json();
-    const parsedQuantity = Number(quantity);
+    const { id, quantity, price, productName } = await request.json();
+    const parsedQuantity = quantity !== undefined ? Number(quantity) : undefined;
+    const parsedPrice = price !== undefined ? Number(price) : undefined;
 
     if (!id) {
       return Response.json({ error: 'Order item ID is required' }, { status: 400 });
     }
 
-    if (isNaN(parsedQuantity) || parsedQuantity < 0) {
+    if (parsedQuantity !== undefined && (isNaN(parsedQuantity) || parsedQuantity < 0)) {
       return Response.json({ error: 'Invalid quantity' }, { status: 400 });
+    }
+
+    if (parsedPrice !== undefined && (isNaN(parsedPrice) || parsedPrice < 0)) {
+      return Response.json({ error: 'Invalid price' }, { status: 400 });
     }
 
     const existingItem = await prisma.orderItem.findUnique({
@@ -87,20 +92,26 @@ export async function PUT(request: Request) {
       return Response.json({ error: 'Order item not found' }, { status: 404 });
     }
 
-    const delta = parsedQuantity - existingItem.Quantity;
-    if (delta > 0) {
-      const product = await getProductWithStock(existingItem.ProductId);
-      if (!product) {
-        return Response.json({ error: 'Product not found' }, { status: 404 });
-      }
-      if (product.quantity < delta) {
-        return Response.json({ error: 'Số lượng trong kho không đủ' }, { status: 400 });
+    if (parsedQuantity !== undefined) {
+      const delta = parsedQuantity - existingItem.Quantity;
+      if (delta > 0) {
+        const product = await getProductWithStock(existingItem.ProductId);
+        if (!product) {
+          return Response.json({ error: 'Product not found' }, { status: 404 });
+        }
+        if (product.quantity < delta) {
+          return Response.json({ error: 'Số lượng trong kho không đủ' }, { status: 400 });
+        }
       }
     }
 
     const updatedItem = await prisma.orderItem.update({
       where: { Id: id },
-      data: { Quantity: parsedQuantity },
+      data: {
+        ...(parsedQuantity !== undefined ? { Quantity: parsedQuantity } : {}),
+        ...(parsedPrice !== undefined ? { Price: parsedPrice } : {}),
+        ...(productName !== undefined ? { ProductName: productName } : {}),
+      },
     });
 
     return Response.json({

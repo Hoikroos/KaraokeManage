@@ -336,21 +336,7 @@ export default function RoomPage() {
               )
               : [];
 
-            // Tự động đồng bộ giá từ thực đơn vào giỏ hàng nếu có sự thay đổi
-            const syncedOrders = await Promise.all(sortedOrders.map(async (item: OrderItem) => {
-              const p = productsData.find((prod: Product) => prod.id === item.productId);
-              if (p && Number(item.price) !== Number(p.price)) {
-                const upRes = await fetch('/api/orders', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: item.id, price: p.price }),
-                });
-                if (upRes.ok) return await upRes.json();
-              }
-              return item;
-            }));
-
-            setOrderItems(syncedOrders);
+            setOrderItems(sortedOrders);
             return;
           }
         }
@@ -1978,9 +1964,26 @@ export default function RoomPage() {
 
                             {/* Đơn giá */}
                             <td className="py-3 text-right pr-2">
-                              <span className="text-xs font-bold text-slate-600">
-                                {item.price.toLocaleString('vi-VN')}đ
-                              </span>
+                              <div className="flex items-center justify-end gap-0.5">
+                                <input
+                                  type="text"
+                                  className="w-20 text-right text-xs font-bold text-slate-600 bg-transparent outline-none focus:bg-slate-100 rounded transition-colors border border-transparent focus:border-indigo-100 p-0.5"
+                                  value={
+                                    editingPrices[index] !== undefined
+                                      ? editingPrices[index]
+                                      : item.price.toLocaleString('vi-VN')
+                                  }
+                                  onChange={(e) => handlePriceChange(index, e.target.value)}
+                                  onBlur={() => handlePriceBlur(index)}
+                                  onFocus={(e) => {
+                                    if (editingPrices[index] === undefined) {
+                                      handlePriceChange(index, item.price.toString());
+                                    }
+                                    (e.target as HTMLInputElement).select();
+                                  }}
+                                />
+                                <span className="text-[10px] font-bold text-slate-400">đ</span>
+                              </div>
                             </td>
 
                             {/* Thành tiền */}

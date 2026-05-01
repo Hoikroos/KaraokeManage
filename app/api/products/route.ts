@@ -166,6 +166,7 @@ export async function PUT(request: Request) {
       await prisma.orderItem.updateMany({
         where: {
           ProductId: id,
+          Price: Number(currentProduct.Price),
           RoomSession: {
             Status: {
               not: 'completed'
