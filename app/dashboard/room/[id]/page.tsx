@@ -63,6 +63,16 @@ function useIsMobile(breakpoint = 1024) {
   return isMobile;
 }
 
+// ─── Accent removal helper ───────────────────────────────────────────────────
+
+const removeAccents = (str: string) => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RoomPage() {
@@ -148,12 +158,13 @@ export default function RoomPage() {
   // Logic lọc gợi ý
   const customerSuggestions = useMemo(() => {
     if (!customerName || customerName.trim().length === 0) return [];
-    const search = customerName.toLowerCase();
+    const search = removeAccents(customerName.toLowerCase());
     return allCustomerNames
-      .filter(name =>
-        name.toLowerCase().includes(search) &&
-        name.toLowerCase() !== search
-      )
+      .filter(name => {
+        const nameNorm = removeAccents(name.toLowerCase());
+        return nameNorm.includes(search) &&
+          name.toLowerCase() !== customerName.toLowerCase();
+      })
       .slice(0, 5);
   }, [customerName, allCustomerNames]);
 
@@ -169,12 +180,13 @@ export default function RoomPage() {
   // Logic lọc gợi ý sản phẩm (Desktop)
   const productSuggestions = useMemo(() => {
     if (!searchTerm || searchTerm.trim().length === 0) return [];
-    const search = searchTerm.toLowerCase();
+    const search = removeAccents(searchTerm.toLowerCase());
     return stableSortedProducts
-      .filter(p =>
-        p.name.toLowerCase().includes(search) &&
-        p.name.toLowerCase() !== search
-      )
+      .filter(p => {
+        const nameNorm = removeAccents(p.name.toLowerCase());
+        return nameNorm.includes(search) &&
+          p.name.toLowerCase() !== searchTerm.toLowerCase();
+      })
       .slice(0, 8);
   }, [searchTerm, stableSortedProducts]);
 
@@ -779,9 +791,15 @@ export default function RoomPage() {
     }
 
     const trimmed = searchTerm.trim().toLowerCase();
+    const searchNorm = removeAccents(trimmed);
 
     // Tìm khớp chính xác trước
     let product = products.find(p => p.name.toLowerCase() === trimmed);
+
+    // Nếu không khớp chính xác, tìm khớp không dấu
+    if (!product) {
+      product = products.find(p => removeAccents(p.name.toLowerCase()) === searchNorm);
+    }
 
     // Nếu không có khớp chính xác, tìm sản phẩm chứa text từ gợi ý
     if (!product && productSuggestions.length > 0) {
@@ -986,17 +1004,21 @@ export default function RoomPage() {
     return { roomCharge: cost, durationMinutes: minutes, durationText: h > 0 ? `${h} giờ ${m > 0 ? `${m} phút` : ''}`.trim() : `${m} phút`, timeError: '' };
   }, [selectedStartTime, selectedEndTime, room, customPricePerHour, session]);
 
-  const desktopFiltered = useMemo(() =>
-    stableSortedProducts.filter((p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+  const desktopFiltered = useMemo(() => {
+    const search = removeAccents(searchTerm.toLowerCase());
+    return stableSortedProducts.filter((p) =>
+      removeAccents(p.name.toLowerCase()).includes(search) &&
       (activeCategory === 'all' || p.category === activeCategory)
-    ), [stableSortedProducts, searchTerm, activeCategory]);
+    );
+  }, [stableSortedProducts, searchTerm, activeCategory]);
 
-  const mobileFiltered = useMemo(() =>
-    [...stableSortedProducts].reverse().filter((p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+  const mobileFiltered = useMemo(() => {
+    const search = removeAccents(searchTerm.toLowerCase());
+    return [...stableSortedProducts].reverse().filter((p) =>
+      removeAccents(p.name.toLowerCase()).includes(search) &&
       (mobileCat === 'all' || p.category === mobileCat)
-    ), [stableSortedProducts, searchTerm, mobileCat]);
+    );
+  }, [stableSortedProducts, searchTerm, mobileCat]);
 
   const totalProductCost = orderItems.reduce((s, i) => s + (Number(i.price || 0) * Number(i.quantity || 0)), 0);
   const roomChargeTotal = roomCharge;
