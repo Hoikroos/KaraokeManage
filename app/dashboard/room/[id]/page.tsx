@@ -88,6 +88,7 @@ export default function RoomPage() {
   const [session, setSession] = useState<RoomSession | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [isManualEndTime, setIsManualEndTime] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customPricePerHour, setCustomPricePerHour] = useState<number>(0);
   const [selectedStartTime, setSelectedStartTime] = useState('');
@@ -286,8 +287,8 @@ export default function RoomPage() {
 
     const sessionStatus = session.status ?? (session as any).Status;
 
-    // Only start timer if status is 'active', clear it otherwise
-    if (sessionStatus !== 'active') {
+    // Chỉ chạy timer nếu trạng thái là 'active' và KHÔNG đang sửa thủ công
+    if (sessionStatus !== 'active' || isManualEndTime) {
       return;
     }
 
@@ -296,7 +297,7 @@ export default function RoomPage() {
     }, 100); // Update every 100ms to match order polling interval
 
     return () => clearInterval(timerInterval);
-  }, [session?.id ?? (session as any)?.Id, session?.status ?? (session as any)?.Status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.id ?? (session as any)?.Id, session?.status ?? (session as any)?.Status, isManualEndTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -338,7 +339,9 @@ export default function RoomPage() {
             const start = new Date(sessionData.startTime || (sessionData as any).StartTime || new Date());
             const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
             setSelectedStartTime(formatDateTimeLocal(start));
-            setSelectedEndTime(formatDateTimeLocal(end));
+            if (!isManualEndTime) {
+              setSelectedEndTime(formatDateTimeLocal(end));
+            }
             const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
             const ordersData = await ordersRes.json();
             const sortedOrders = Array.isArray(ordersData)
@@ -446,6 +449,7 @@ export default function RoomPage() {
         const start = new Date(newSession.startTime || newSession.StartTime || new Date());
         setSelectedStartTime(formatDateTimeLocal(start));
         setSelectedEndTime(formatDateTimeLocal(start));
+        setIsManualEndTime(false);
         await fetch('/api/admin/rooms', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -456,6 +460,37 @@ export default function RoomPage() {
         toast.error('Không thể mở phòng. Vui lòng thử lại.');
       }
     } catch (err) { console.error('Error starting session:', err); }
+  };
+
+  const handleStartTimeChange = async (newVal: string) => {
+    setSelectedStartTime(newVal);
+    if (!session || !room || !newVal) return;
+
+    const s = session as any;
+    const sessionId = String(s.id ?? s.Id);
+    const startTimeToSet = new Date(newVal);
+
+    if (isNaN(startTimeToSet.getTime())) return;
+
+    try {
+      const res = await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sessionId,
+          roomId: String(room.id ?? (room as any).Id),
+          startTime: startTimeToSet.toISOString(),
+          status: 'active',
+          customerName: customerName || 'Khách lẻ'
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
+        toast.success('Đã cập nhật giờ vào');
+      }
+    } catch (err) { console.error('Error auto-updating start time:', err); }
   };
 
   const handleUpdateStartTime = async () => {
@@ -493,7 +528,7 @@ export default function RoomPage() {
     const startTimeToSet = isPending ? new Date() : (selectedStartTime ? new Date(selectedStartTime) : new Date());
 
     try {
-      setSelectedEndTime(formatDateTimeLocal(new Date()));
+      if (!isManualEndTime) setSelectedEndTime(formatDateTimeLocal(new Date()));
 
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
@@ -535,9 +570,8 @@ export default function RoomPage() {
     const sessionId = session.id ?? (session as any).Id;
     const now = new Date();
 
-    // Immediately update local state to stop timer
     setSession({ ...session, status: 'paused' } as any);
-    setSelectedEndTime(formatDateTimeLocal(now));
+    if (!isManualEndTime) setSelectedEndTime(formatDateTimeLocal(now));
 
     try {
       const res = await fetch('/api/rooms/session', {
@@ -557,9 +591,21 @@ export default function RoomPage() {
     if (!session || !room) return;
     const sessionId = session.id ?? (session as any).Id;
 
-    // Immediately update local state to start timer
+    const result = await Swal.fire({
+      title: 'Tiếp tục chơi?',
+      text: 'Bạn có muốn tiếp tục tính tiền giờ cho phòng này không?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#059669',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Tiếp tục',
+      cancelButtonText: 'Hủy',
+    });
+
+    if (!result.isConfirmed) return;
+
     setSession({ ...session, status: 'active' } as any);
-    setSelectedEndTime(formatDateTimeLocal(new Date()));
+    if (!isManualEndTime) setSelectedEndTime(formatDateTimeLocal(new Date()));
 
     try {
       const res = await fetch('/api/rooms/session', {
@@ -571,6 +617,7 @@ export default function RoomPage() {
         const updated = await res.json();
         // Update with server response to sync state
         setSession({ ...updated, status: 'active' } as any);
+        toast.success('Đã tiếp tục tính tiền giờ');
       }
     } catch (err) { console.error(err); }
   };
@@ -1314,27 +1361,42 @@ export default function RoomPage() {
                               <input
                                 type="datetime-local"
                                 value={selectedStartTime}
-                                onChange={(e) => setSelectedStartTime(e.target.value)}
+                                onChange={(e) => handleStartTimeChange(e.target.value)}
                                 className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
                               />
                               <button
                                 onClick={handleUpdateStartTime}
                                 className="bg-indigo-100 text-indigo-600 px-3 rounded-xl text-xs font-bold active:scale-95 transition whitespace-nowrap"
                               >
-                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'SỬA GIỜ' : 'BẮT ĐẦU'}
+                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'XÓA GIỜ' : 'BẮT ĐẦU'}
                               </button>
                             </div>
                           </div>
 
                           {/* Giờ ra */}
                           <div>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Giờ ra (dự kiến)</label>
-                            <input
-                              type="datetime-local"
-                              value={selectedEndTime}
-                              onChange={(e) => setSelectedEndTime(e.target.value)}
-                              className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
-                            />
+                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">
+                              <span>Giờ ra (dự kiến)</span>
+                              {isManualEndTime && (
+                                <button
+                                  onClick={() => setIsManualEndTime(false)}
+                                  className="text-indigo-600 lowercase font-normal"
+                                >
+                                  (Đặt lại theo máy)
+                                </button>
+                              )}
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="datetime-local"
+                                value={selectedEndTime}
+                                onChange={(e) => {
+                                  setSelectedEndTime(e.target.value);
+                                  setIsManualEndTime(true);
+                                }}
+                                className={`w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200 ${isManualEndTime ? 'border-2 border-indigo-400' : ''}`}
+                              />
+                            </div>
                           </div>
 
                           {/* Giá giờ & Khách */}
@@ -1817,7 +1879,7 @@ export default function RoomPage() {
                             <Input
                               type="datetime-local"
                               value={selectedStartTime}
-                              onChange={(e) => setSelectedStartTime(e.target.value)}
+                              onChange={(e) => handleStartTimeChange(e.target.value)}
                               className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold flex-1 focus:bg-white transition"
                             />
                             <Button
@@ -1825,21 +1887,34 @@ export default function RoomPage() {
                               onClick={handleUpdateStartTime}
                               className="h-9 px-2.5 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 rounded-xl shrink-0 transition"
                             >
-                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Sửa' : 'Bắt đầu'}
+                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Xóa giờ' : 'Bắt đầu'}
                             </Button>
                           </div>
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5">
-                            Giờ ra
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block ml-0.5 flex justify-between">
+                            <span>Giờ ra</span>
+                            {isManualEndTime && (
+                              <button
+                                onClick={() => setIsManualEndTime(false)}
+                                className="text-indigo-600 lowercase font-bold hover:underline"
+                              >
+                                (Đặt lại theo máy)
+                              </button>
+                            )}
                           </label>
-                          <Input
-                            type="datetime-local"
-                            value={selectedEndTime}
-                            onChange={(e) => setSelectedEndTime(e.target.value)}
-                            className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition"
-                          />
+                          <div className="relative">
+                            <Input
+                              type="datetime-local"
+                              value={selectedEndTime}
+                              onChange={(e) => {
+                                setSelectedEndTime(e.target.value);
+                                setIsManualEndTime(true);
+                              }}
+                              className={`h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition ${isManualEndTime ? 'ring-2 ring-indigo-400' : ''}`}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -2121,7 +2196,15 @@ export default function RoomPage() {
                         {productSuggestions.map((product) => (
                           <li
                             key={product.id}
-                            onClick={() => { setSearchTerm(product.name); setShowProductSuggestions(false); }}
+                            onClick={() => {
+                              if (!session) {
+                                toast.error('Vui lòng mở phòng để bắt đầu order');
+                                return;
+                              }
+                              handleAddProduct(product.id, 1);
+                              setSearchTerm('');
+                              setShowProductSuggestions(false);
+                            }}
                             className="px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
                           >
                             <div className="flex items-center gap-3">
