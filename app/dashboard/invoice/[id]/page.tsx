@@ -53,7 +53,9 @@ export default function InvoicePage() {
         createdAt: data.createdAt || data.CreatedAt,
         customerName: data.customerName || data.CustomerName || '',
       };
-      setInvoice(normalizedInvoice);
+      const invoiceItems = Array.isArray(data.items) ? data.items : null;
+      const baseInvoice = { ...normalizedInvoice, items: invoiceItems || [] };
+      setInvoice(baseInvoice);
 
       const roomsResponse = await fetch(`/api/admin/rooms?storeId=${normalizedInvoice.storeId}`);
       const rooms = await roomsResponse.json();
@@ -65,9 +67,11 @@ export default function InvoicePage() {
       const foundStore = stores.find((s: Store) => String(s.id ?? (s as any).Id) === String(normalizedInvoice.storeId));
       setStore(foundStore || null);
 
-      const ordersResponse = await fetch(`/api/orders?sessionId=${normalizedInvoice.roomSessionId}`);
-      const items = await ordersResponse.json();
-      setInvoice({ ...normalizedInvoice, items: items || [] });
+      if (!invoiceItems) {
+        const ordersResponse = await fetch(`/api/orders?sessionId=${normalizedInvoice.roomSessionId}`);
+        const orderItems = await ordersResponse.json();
+        setInvoice({ ...baseInvoice, items: orderItems || [] });
+      }
     } catch (error) {
       console.error('Error fetching invoice:', error);
     } finally {

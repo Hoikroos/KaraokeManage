@@ -14,6 +14,7 @@ export async function GET(
             OrderItems: true,
           },
         },
+        InvoiceItems: true,
       },
     });
 
@@ -35,15 +36,17 @@ export async function GET(
       createdAt: invoice.CreatedAt,
       updatedAt: invoice.UpdatedAt,
       customerName: invoice.CustomerName ?? '',
-      items: invoice.RoomSession.OrderItems.map(item => ({
-        id: item.Id,
-        roomSessionId: item.RoomSessionId,
-        productId: item.ProductId,
-        productName: item.ProductName,
-        price: Number(item.Price),
-        quantity: item.Quantity,
-        orderedAt: item.OrderedAt,
-      })),
+      items: ((invoice.InvoiceItems && invoice.InvoiceItems.length > 0)
+        ? invoice.InvoiceItems
+        : invoice.RoomSession.OrderItems).map(item => ({
+          id: item.Id,
+          roomSessionId: item.RoomSessionId,
+          productId: item.ProductId,
+          productName: item.ProductName,
+          price: Number(item.Price),
+          quantity: item.Quantity,
+          orderedAt: item.OrderedAt,
+        })),
     };
 
     return Response.json(transformedInvoice);
@@ -78,6 +81,7 @@ export async function PATCH(
             OrderItems: true,
           },
         },
+        InvoiceItems: true,
       },
     });
 
@@ -95,15 +99,17 @@ export async function PATCH(
       createdAt: updatedInvoice.CreatedAt,
       updatedAt: updatedInvoice.UpdatedAt,
       customerName: updatedInvoice.CustomerName ?? '',
-      items: updatedInvoice.RoomSession.OrderItems.map(item => ({
-        id: item.Id,
-        roomSessionId: item.RoomSessionId,
-        productId: item.ProductId,
-        productName: item.ProductName,
-        price: Number(item.Price),
-        quantity: item.Quantity,
-        orderedAt: item.OrderedAt,
-      })),
+      items: ((updatedInvoice.InvoiceItems && updatedInvoice.InvoiceItems.length > 0)
+        ? updatedInvoice.InvoiceItems
+        : updatedInvoice.RoomSession.OrderItems).map(item => ({
+          id: item.Id,
+          roomSessionId: item.RoomSessionId,
+          productId: item.ProductId,
+          productName: item.ProductName,
+          price: Number(item.Price),
+          quantity: item.Quantity,
+          orderedAt: item.OrderedAt,
+        })),
     };
 
     return Response.json(transformedInvoice);

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const { roomSessionId, startTime: requestStartTime, endTime: requestEndTime, customerName } = await request.json();
+    const { roomSessionId, startTime: requestStartTime, endTime: requestEndTime, customerName, items: requestedItems } = await request.json();
 
     // Get room session with room and store details
     const session = await prisma.roomSession.findUnique({
@@ -20,11 +20,6 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Room not found' }, { status: 404 });
     }
 
-    // Get order items
-    const items = await prisma.orderItem.findMany({
-      where: { RoomSessionId: roomSessionId },
-    });
-
     const startTime = requestStartTime ? new Date(requestStartTime) : session.StartTime;
     const endTime = requestEndTime ? new Date(requestEndTime) : new Date();
 
@@ -39,16 +34,35 @@ export async function POST(request: NextRequest) {
     const durationMinutes = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60));
     const roomCost = Math.ceil((durationMinutes * Number(room.PricePerHour)) / 60);
 
-    // Calculate items cost
-    const itemsCost = items.reduce((total, item) => total + Number(item.Price) * item.Quantity, 0);
+    const items = Array.isArray(requestedItems) && requestedItems.length > 0
+      ? requestedItems.map((item: any) => ({
+        orderItemId: item.orderItemId,
+        roomSessionId: item.roomSessionId,
+        productId: item.productId,
+        productName: item.productName,
+        price: Number(item.price || 0),
+        quantity: Number(item.quantity || 0),
+        orderedAt: item.orderedAt ? new Date(item.orderedAt) : new Date(),
+      }))
+      : await prisma.orderItem.findMany({ where: { RoomSessionId: roomSessionId } }).then((results) => results.map((item) => ({
+        orderItemId: item.Id,
+        roomSessionId: item.RoomSessionId,
+        productId: item.ProductId,
+        productName: item.ProductName,
+        price: Number(item.Price),
+        quantity: item.Quantity,
+        orderedAt: item.OrderedAt,
+      })));
+
+    const itemsCost = items.reduce((total, item) => total + item.price * item.quantity, 0);
     const subtotal = roomCost + itemsCost;
     const totalPrice = Math.ceil(subtotal / 1000) * 1000;
+    const invoiceId = Date.now().toString();
 
-    // Thực hiện trong transaction để đảm bảo tính nhất quán dữ liệu
     const [invoice] = await prisma.$transaction([
       prisma.invoice.create({
         data: {
-          Id: Date.now().toString(),
+          Id: invoiceId,
           RoomSessionId: roomSessionId,
           CustomerName: customerName || 'Khách lẻ',
           StoreId: session.StoreId,
@@ -59,6 +73,17 @@ export async function POST(request: NextRequest) {
           TotalPrice: totalPrice,
           Status: 'paid',
         },
+      }),
+      prisma.invoiceItem.createMany({
+        data: items.map((item) => ({
+          InvoiceId: invoiceId,
+          RoomSessionId: item.roomSessionId,
+          ProductId: item.productId,
+          ProductName: item.productName,
+          Price: item.price,
+          Quantity: item.quantity,
+          OrderedAt: item.orderedAt,
+        })),
       }),
       // Cập nhật trạng thái session
       prisma.roomSession.update({
@@ -72,17 +97,16 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    // Return invoice with items for display
     return Response.json({
       ...invoice,
-      items: items.map(item => ({
-        id: item.Id,
-        roomSessionId: item.RoomSessionId,
-        productId: item.ProductId,
-        productName: item.ProductName,
-        price: Number(item.Price),
-        quantity: item.Quantity,
-        orderedAt: item.OrderedAt,
+      items: items.map((item) => ({
+        id: item.orderItemId,
+        roomSessionId: item.roomSessionId,
+        productId: item.productId,
+        productName: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+        orderedAt: item.orderedAt,
       })),
     });
   } catch (error) {
@@ -114,6 +138,16 @@ export async function GET(request: NextRequest) {
       orderBy: { CreatedAt: 'desc' },
     });
 
+    const invoiceItems = await prisma.invoiceItem.findMany({
+      where: { InvoiceId: { in: invoices.map((invoice) => invoice.Id) } },
+    });
+
+    const invoiceItemsMap = invoiceItems.reduce((acc: Record<string, any[]>, item) => {
+      if (!acc[item.InvoiceId]) acc[item.InvoiceId] = [];
+      acc[item.InvoiceId].push(item);
+      return acc;
+    }, {} as Record<string, any[]>);
+
     // Transform to match the expected format
     const transformedInvoices = invoices.map(invoice => ({
       id: invoice.Id,
@@ -130,15 +164,17 @@ export async function GET(request: NextRequest) {
       createdAt: invoice.CreatedAt,
       updatedAt: invoice.UpdatedAt,
       // Thêm kiểm tra an toàn ở đây để tránh crash API
-      items: (invoice.RoomSession?.OrderItems || []).map(item => ({
-        id: item.Id,
-        roomSessionId: item.RoomSessionId,
-        productId: item.ProductId,
-        productName: item.ProductName,
-        price: Number(item.Price),
-        quantity: item.Quantity,
-        orderedAt: item.OrderedAt,
-      })),
+      items: ((invoiceItemsMap[invoice.Id] && invoiceItemsMap[invoice.Id].length > 0)
+        ? invoiceItemsMap[invoice.Id]
+        : invoice.RoomSession?.OrderItems || []).map(item => ({
+          id: item.Id,
+          roomSessionId: item.RoomSessionId,
+          productId: item.ProductId,
+          productName: item.ProductName,
+          price: Number(item.Price),
+          quantity: item.Quantity,
+          orderedAt: item.OrderedAt,
+        })),
     }));
 
     // Nếu yêu cầu theo ID đơn lẻ, trả về object thay vì mảng
