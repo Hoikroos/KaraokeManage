@@ -569,6 +569,9 @@ export default function RoomPage() {
         setIsManualEndTime(false);
         // Cập nhật lại giờ hiện tại ngay lập tức
         setSelectedEndTime(formatDateTimeLocal(new Date()));
+        // Force a re-fetch after a small delay to ensure data consistency from server.
+        // This helps if there's a slight delay in DB update propagation.
+        setTimeout(() => loadRoomData(roomId), 200); 
       }
     } catch (err) { console.error('Lỗi khi đặt lại giờ:', err); }
   };
