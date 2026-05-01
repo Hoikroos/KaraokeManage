@@ -99,11 +99,13 @@ export default function RoomPage() {
   const [customPricePerHour, setCustomPricePerHour] = useState<number>(0);
   const [selectedStartTime, setSelectedStartTime] = useState('');
   const [selectedEndTime, setSelectedEndTime] = useState('');
+  const [localItemNotes, setLocalItemNotes] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [editingQuantities, setEditingQuantities] = useState<{ [key: number]: string }>({});
   const [editingPrices, setEditingPrices] = useState<{ [key: number]: string }>({});
   const [editingNames, setEditingNames] = useState<{ [key: number]: string }>({});
+  const [editingNotes, setEditingNotes] = useState<{ [key: number]: string }>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
@@ -161,6 +163,23 @@ export default function RoomPage() {
   useEffect(() => {
     itemRefs.current = itemRefs.current.slice(0, orderItems.length);
   }, [orderItems.length]);
+
+  // Tải/Lưu ghi chú từ localStorage để không bị mất khi reload
+  useEffect(() => {
+    const sessionId = session?.id ?? (session as any)?.Id;
+    if (!sessionId) return;
+
+    const savedNotes = localStorage.getItem(`notes_${sessionId}`);
+    if (savedNotes) {
+      try { setLocalItemNotes(JSON.parse(savedNotes)); } catch (e) { console.error(e); }
+    }
+  }, [session?.id ?? (session as any)?.Id]);
+
+  useEffect(() => {
+    const sessionId = session?.id ?? (session as any)?.Id;
+    if (!sessionId || Object.keys(localItemNotes).length === 0) return;
+    localStorage.setItem(`notes_${sessionId}`, JSON.stringify(localItemNotes));
+  }, [localItemNotes, session?.id ?? (session as any)?.Id]);
 
   // Logic lọc gợi ý
   const customerSuggestions = useMemo(() => {
@@ -244,7 +263,7 @@ export default function RoomPage() {
 
   const formatDateTimeLocal = (date: Date) => {
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
 
@@ -609,9 +628,7 @@ export default function RoomPage() {
         icon: 'question',
         showCancelButton: true,
         showDenyButton: true,
-        confirmButtonColor: '#4f46e5',
         denyButtonColor: '#f59e0b',
-        confirmButtonText: 'Cập nhật giờ đã chọn',
         denyButtonText: 'Xóa giờ (về Chờ)',
         cancelButtonText: 'Đóng',
       });
@@ -1071,6 +1088,15 @@ export default function RoomPage() {
     }
   };
 
+  const handleNoteChange = (productId: string, value: string) => {
+    setLocalItemNotes(prev => ({ ...prev, [productId]: value }));
+    if (!value) {
+      const newNotes = { ...localItemNotes };
+      delete newNotes[productId];
+      setLocalItemNotes(newNotes);
+    }
+  };
+
   const handleQuantityBlur = (index: number) => {
     const value = editingQuantities[index];
     if (value === undefined || value === '') {
@@ -1128,9 +1154,13 @@ export default function RoomPage() {
           roomCost: Math.round(roomChargeTotal),
           totalPrice: finalTotal,
           customerName: customerName.trim() || 'Khách lẻ',
+          // Gửi kèm ghi chú local lên để API hóa đơn tự gán vào InvoiceItem
+          itemNotes: localItemNotes
         }),
       });
       if (res.ok) {
+        const sessionId = session.id ?? (session as any).Id;
+        localStorage.removeItem(`notes_${sessionId}`); // Xóa nháp sau khi đã thanh toán
         const result = await res.json();
         const invoiceData = result.data || result;
         toast.success('Tạo hóa đơn thành công');
@@ -1478,7 +1508,6 @@ export default function RoomPage() {
                             <div className="flex gap-2">
                               <input
                                 type="datetime-local"
-                                step="1"
                                 value={selectedStartTime}
                                 onChange={(e) => handleStartTimeChange(e.target.value)}
                                 className="flex-1 bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200"
@@ -1487,7 +1516,7 @@ export default function RoomPage() {
                                 onClick={handleUpdateStartTime}
                                 className="bg-indigo-100 text-indigo-600 px-3 rounded-xl text-xs font-bold active:scale-95 transition whitespace-nowrap"
                               >
-                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'XÓA GIỜ' : 'BẮT ĐẦU'}
+                                {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'XÓA' : 'BẮT ĐẦU'}
                               </button>
                             </div>
                           </div>
@@ -1508,7 +1537,6 @@ export default function RoomPage() {
                             <div className="relative">
                               <input
                                 type="datetime-local"
-                                step="1"
                                 value={selectedEndTime}
                                 onChange={(e) => handleEndTimeChange(e.target.value)}
                                 className={`w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200 ${isManualEndTime ? 'border-2 border-indigo-400' : ''}`}
@@ -1622,6 +1650,13 @@ export default function RoomPage() {
                                     <div className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">
                                       {item.productName}
                                     </div>
+                                    <input
+                                      type="text"
+                                      placeholder="Thêm ghi chú..."
+                                      className="text-[10px] text-slate-400 bg-transparent border-none outline-none focus:text-indigo-600 w-full p-0 mt-0.5 italic"
+                                      value={localItemNotes[item.productId] || ''}
+                                      onChange={(e) => handleNoteChange(item.productId, e.target.value)}
+                                    />
                                     <div className="text-indigo-500 text-sm mt-0.5 font-medium">
                                       {item.price.toLocaleString('vi-VN')}đ
                                     </div>
@@ -2029,7 +2064,6 @@ export default function RoomPage() {
                           <div className="flex gap-1.5">
                             <Input
                               type="datetime-local"
-                              step="1"
                               value={selectedStartTime}
                               onChange={(e) => handleStartTimeChange(e.target.value)}
                               className="h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold flex-1 focus:bg-white transition"
@@ -2039,7 +2073,7 @@ export default function RoomPage() {
                               onClick={handleUpdateStartTime}
                               className="h-9 px-2.5 text-[10px] font-black uppercase border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 rounded-xl shrink-0 transition"
                             >
-                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Xóa giờ' : 'Bắt đầu'}
+                              {((session as any)?.status === 'active' || (session as any)?.Status === 'active') ? 'Xóa' : 'Bắt đầu'}
                             </Button>
                           </div>
                         </div>
@@ -2059,7 +2093,6 @@ export default function RoomPage() {
                           <div className="relative">
                             <Input
                               type="datetime-local"
-                              step="1"
                               value={selectedEndTime}
                               onChange={(e) => handleEndTimeChange(e.target.value)}
                               className={`h-9 text-[11px] bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold w-full focus:bg-white transition ${isManualEndTime ? 'ring-2 ring-indigo-400' : ''}`}
@@ -2174,9 +2207,18 @@ export default function RoomPage() {
 
                             {/* Tên */}
                             <td className="py-3 pl-2 pr-2">
-                              <span className="font-semibold text-slate-800 text-xs leading-snug line-clamp-2">
-                                {item.productName}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-slate-800 text-xs leading-snug line-clamp-2">
+                                  {item.productName}
+                                </span>
+                                <input
+                                  type="text"
+                                  placeholder="Ghi chú món..."
+                                  className="text-[10px] text-slate-400 bg-transparent border-none outline-none focus:text-indigo-600 focus:placeholder-indigo-300 w-full p-0 italic"
+                                  value={localItemNotes[item.productId] || ''}
+                                  onChange={(e) => handleNoteChange(item.productId, e.target.value)}
+                                />
+                              </div>
                             </td>
 
                             {/* Số lượng */}
@@ -2597,6 +2639,7 @@ export default function RoomPage() {
                 <tr key={item.id ?? index} style={{ borderTop: '1px dashed #000' }}>
                   <td className="py-1.5 text-wrap break-word max-w-[40mm]">
                     <div className="font-bold leading-tight">{item.productName}</div>
+                    {localItemNotes[item.productId] && <div className="text-[10px] font-normal italic text-black">Ghi chú: {localItemNotes[item.productId]}</div>}
                     <div className="text-[11px] font-normal text-black">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
                   <td className="text-center py-1.5">{item.quantity}</td>

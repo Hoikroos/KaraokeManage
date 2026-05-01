@@ -225,6 +225,7 @@ export default function InvoicePage() {
                 {(invoice.items || []).map((item: any, index: number) => (
                   <tr key={index} className="border-b border-slate-200">
                     <td className="py-2 text-slate-900">{item.productName}</td>
+                    {item.note && <div className="text-[10px] italic text-slate-500">- {item.note}</div>}
                     <td className="text-right text-slate-700">{item.quantity}</td>
                     <td className="text-right text-slate-700">{item.price.toLocaleString('vi-VN')} đ</td>
                     <td className="text-right font-semibold text-slate-900">{(item.price * item.quantity).toLocaleString('vi-VN')} đ</td>
@@ -299,6 +300,7 @@ export default function InvoicePage() {
               <tr key={index} style={{ borderTop: '1px dashed #000' }}>
                 <td className="py-1.5 break-words max-w-[40mm]">
                   <div className="font-bold leading-tight">{item.productName}</div>
+                  {item.note && <div className="text-[10px] font-normal italic text-black">Ghi chú: {item.note}</div>}
                   <div className="text-[11px] font-normal text-black">
                     Giá: {item.price.toLocaleString('vi-VN')}
                   </div>
