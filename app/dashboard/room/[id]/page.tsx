@@ -87,7 +87,6 @@ export default function RoomPage() {
   const [editingQuantities, setEditingQuantities] = useState<{ [key: number]: string }>({});
   const [editingPrices, setEditingPrices] = useState<{ [key: number]: string }>({});
   const [editingNames, setEditingNames] = useState<{ [key: number]: string }>({});
-  const [priceOverrides, setPriceOverrides] = useState<{ [orderItemId: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
@@ -747,7 +746,8 @@ export default function RoomPage() {
     const existingIndex = orderItems.findIndex(item => item.productId === selectedProductForOrder.id);
     if (existingIndex !== -1) {
       // Nếu đã có trong giỏ, cập nhật về số lượng mới (ghi đè)
-      handleUpdateOrderItem(existingIndex, { quantity: qty });
+      const currentProduct = products.find(p => p.id === selectedProductForOrder.id);
+      handleUpdateOrderItem(existingIndex, { quantity: qty, price: currentProduct?.price ?? 0 });
     } else if (qty > 0) {
       // Nếu chưa có, thêm mới vào giỏ
       handleAddProduct(selectedProductForOrder.id, qty);
@@ -883,34 +883,19 @@ export default function RoomPage() {
   const handlePriceChange = (index: number, value: string) =>
     setEditingPrices((prev) => ({ ...prev, [index]: value }));
 
-  const setOrderItemPriceOverride = (orderItemId: string, price: number | null) => {
-    setPriceOverrides((prev) => {
-      const next = { ...prev };
-      if (price === null) {
-        delete next[orderItemId];
-      } else {
-        next[orderItemId] = price;
-      }
-      return next;
-    });
-  };
-
   const handlePriceBlur = (index: number) => {
     const val = editingPrices[index];
     if (val === undefined || val === '') {
       setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
       return;
     }
-    const price = parseInt(val.replace(/\D/g, ''), 10);
+    const price = parseInt(val.replace(/\D/g, ''));
     const item = orderItems[index];
-    if (!isNaN(price) && price >= 0 && item) {
-      if (price === item.price) {
-        setOrderItemPriceOverride(item.id, null);
-      } else {
-        setOrderItemPriceOverride(item.id, price);
-      }
+    if (!isNaN(price) && price >= 0 && item && item.price !== price) {
+      handleUpdateOrderItem(index, { price });
+    } else {
+      setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
     }
-    setEditingPrices((prev) => { const n = { ...prev }; delete n[index]; return n; });
   };
 
   const handleNameChange = (index: number, value: string) =>
@@ -935,10 +920,11 @@ export default function RoomPage() {
     if (value === undefined || value === '') {
       setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; }); return;
     }
-    const qty = parseInt(value, 10);
+    const qty = parseInt(value);
     const item = orderItems[index];
     if (!isNaN(qty) && qty >= 0 && item && item.quantity !== qty) {
-      handleUpdateOrderItem(index, { quantity: qty });
+      const p = products.find(prod => prod.id === item.productId);
+      handleUpdateOrderItem(index, { quantity: qty, price: p?.price ?? item.price });
     }
     else setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
   };
@@ -968,16 +954,6 @@ export default function RoomPage() {
   const handleGenerateInvoice = async () => {
     if (!session || !room || timeError || (durationMinutes === 0 && orderItems.length === 0)) return;
     try {
-      const invoiceItems = displayedOrderItems.map((item) => ({
-        orderItemId: item.id,
-        roomSessionId: String(session.id ?? (session as any).Id),
-        productId: item.productId,
-        productName: item.productName,
-        price: item.displayPrice,
-        quantity: item.quantity,
-        orderedAt: item.orderedAt instanceof Date ? item.orderedAt.toISOString() : String(item.orderedAt),
-      }));
-
       const res = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -990,7 +966,6 @@ export default function RoomPage() {
           roomCost: Math.round(roomChargeTotal),
           totalPrice: Math.ceil(total / 1000) * 1000,
           customerName: customerName.trim() || 'Khách lẻ',
-          items: invoiceItems,
         }),
       });
       if (res.ok) {
@@ -1034,15 +1009,7 @@ export default function RoomPage() {
       (mobileCat === 'all' || p.category === mobileCat)
     ), [stableSortedProducts, searchTerm, mobileCat]);
 
-  const displayedOrderItems = useMemo(
-    () => orderItems.map((item) => ({
-      ...item,
-      displayPrice: priceOverrides[item.id] ?? Number(item.price),
-    })),
-    [orderItems, priceOverrides]
-  );
-
-  const totalProductCost = displayedOrderItems.reduce((s, i) => s + (Number(i.displayPrice || 0) * Number(i.quantity || 0)), 0);
+  const totalProductCost = orderItems.reduce((s, i) => s + (Number(i.price || 0) * Number(i.quantity || 0)), 0);
   const roomChargeTotal = roomCharge;
   const total = roomChargeTotal + totalProductCost;
   const totalItems = orderItems.reduce((s, i) => s + i.quantity, 0);
@@ -1449,7 +1416,7 @@ export default function RoomPage() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            {[...displayedOrderItems].reverse().map((item, i) => {
+                            {[...orderItems].reverse().map((item, i) => {
                               const index = orderItems.length - 1 - i;
                               return (
                                 <div
@@ -1468,21 +1435,17 @@ export default function RoomPage() {
                                       {item.productName}
                                     </div>
                                     <div className="text-indigo-500 text-sm mt-0.5 font-medium">
-                                      <Input
-                                        value={editingPrices[index] ?? item.displayPrice.toString()}
-                                        onChange={(e) => handlePriceChange(index, e.target.value)}
-                                        onBlur={() => handlePriceBlur(index)}
-                                        className="w-full bg-slate-100 rounded-xl px-2 py-2 text-sm text-slate-900"
-                                      />
+                                      {item.price.toLocaleString('vi-VN')}đ
                                     </div>
                                     <div className="text-[10px] font-bold text-slate-400">
-                                      Tổng: {(item.displayPrice * item.quantity).toLocaleString('vi-VN')}đ
+                                      Tổng: {(item.price * item.quantity).toLocaleString('vi-VN')}đ
                                     </div>
                                   </div>
                                   <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
                                     <button
                                       onClick={() => {
-                                        handleUpdateOrderItem(index, { quantity: item.quantity - 1 });
+                                        const p = products.find(prod => prod.id === item.productId);
+                                        handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
                                       }}
                                       className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
                                     >
@@ -1499,7 +1462,8 @@ export default function RoomPage() {
                                     </div>
                                     <button
                                       onClick={() => {
-                                        handleUpdateOrderItem(index, { quantity: item.quantity + 1 });
+                                        const p = products.find(prod => prod.id === item.productId);
+                                        handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
                                       }}
                                       className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
                                     >
@@ -1590,7 +1554,7 @@ export default function RoomPage() {
               </div>
             </>
           )}
-        </div >
+        </div>
 
         {/* ── Transfer Room Modal (Mobile) ── */}
         <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
@@ -1961,7 +1925,7 @@ export default function RoomPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayedOrderItems.map((item, index) => (
+                        {orderItems.map((item, index) => (
                           <tr
                             key={item.id ?? index}
                             ref={(el: HTMLTableRowElement | null) => void (itemRefs.current[index] = el)}
@@ -1986,7 +1950,8 @@ export default function RoomPage() {
                               <div className="flex items-center justify-center bg-slate-100 rounded-lg p-0.5 gap-0.5 mx-auto w-fit">
                                 <button
                                   onClick={() => {
-                                    handleUpdateOrderItem(index, { quantity: item.quantity - 1 });
+                                    const p = products.find(prod => prod.id === item.productId);
+                                    handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
                                   }}
                                   className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
                                 >
@@ -2001,7 +1966,8 @@ export default function RoomPage() {
                                 />
                                 <button
                                   onClick={() => {
-                                    handleUpdateOrderItem(index, { quantity: item.quantity + 1 });
+                                    const p = products.find(prod => prod.id === item.productId);
+                                    handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
                                   }}
                                   className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
                                 >
@@ -2013,14 +1979,14 @@ export default function RoomPage() {
                             {/* Đơn giá */}
                             <td className="py-3 text-right pr-2">
                               <span className="text-xs font-bold text-slate-600">
-                                {item.displayPrice.toLocaleString('vi-VN')}đ
+                                {item.price.toLocaleString('vi-VN')}đ
                               </span>
                             </td>
 
                             {/* Thành tiền */}
                             <td className="py-3 text-right pr-2">
                               <span className="text-xs font-black text-indigo-600">
-                                {(item.displayPrice * item.quantity).toLocaleString('vi-VN')}đ
+                                {(item.price * item.quantity).toLocaleString('vi-VN')}đ
                               </span>
                             </td>
 
@@ -2327,14 +2293,14 @@ export default function RoomPage() {
                 <td className="text-right py-1.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
               </tr>
               {/* Các món */}
-              {displayedOrderItems.map((item, index) => (
+              {orderItems.map((item, index) => (
                 <tr key={item.id ?? index} style={{ borderTop: '1px dashed #000' }}>
                   <td className="py-1.5 text-wrap break-word max-w-[40mm]">
                     <div className="font-bold leading-tight">{item.productName}</div>
-                    <div className="text-[11px] font-normal text-black">Giá: {item.displayPrice.toLocaleString('vi-VN')}</div>
+                    <div className="text-[11px] font-normal text-black">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
                   <td className="text-center py-1.5">{item.quantity}</td>
-                  <td className="text-right py-1.5 font-black">{(item.displayPrice * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+                  <td className="text-right py-1.5 font-black">{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
                 </tr>
               ))}
             </tbody>
@@ -2385,7 +2351,7 @@ export default function RoomPage() {
               <div className="py-20 text-center text-slate-400">Giỏ hàng hiện đang trống</div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {displayedOrderItems.map((item, index) => (
+                {orderItems.map((item, index) => (
                   <div
                     key={item.id ?? index}
                     ref={(el: HTMLDivElement | null) => void (itemRefs.current[index] = el)}
@@ -2396,13 +2362,14 @@ export default function RoomPage() {
                       </div>
                       <div className="flex-1 w-full sm:min-w-0">
                         <div className="font-bold text-slate-900 text-sm sm:text-base text-wrap break-word leading-snug">{item.productName}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{item.displayPrice.toLocaleString('vi-VN')}đ</div>
+                        <div className="text-xs text-slate-400 mt-0.5">{item.price.toLocaleString('vi-VN')}đ</div>
                       </div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
                         <button onClick={() => {
-                          handleUpdateOrderItem(index, { quantity: item.quantity - 1 });
+                          const p = products.find(prod => prod.id === item.productId);
+                          handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
                         }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
                         <div
                           onClick={() => {
@@ -2414,11 +2381,12 @@ export default function RoomPage() {
                           {item.quantity}
                         </div>
                         <button onClick={() => {
-                          handleUpdateOrderItem(index, { quantity: item.quantity + 1 });
+                          const p = products.find(prod => prod.id === item.productId);
+                          handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
                         }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
                       </div>
                       <div className="min-w-20 text-right font-black text-indigo-600 text-sm sm:text-base">
-                        {(item.displayPrice * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
+                        {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
                       </div>
                       <button onClick={() => handleRemoveItem(index)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
                         <Trash2 className="w-5 h-5" />
