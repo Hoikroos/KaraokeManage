@@ -2275,9 +2275,9 @@ export default function RoomPage() {
           {/* Tiêu đề */}
           <div className="text-center mb-2" style={{ paddingBottom: 6 }}>
             <h2 className="text-[22px] font-black tracking-wider mt-1 uppercase">Phiếu Tạm Tính</h2>
-            <p className="text-[11px] font-black">Mã: {String(session.id || (session as any).Id).substring(0, 6).toUpperCase()}</p>
+            <p className="text-[11px] font-black">Mã: HD{String(session.id || (session as any).Id).substring(0, 6).toUpperCase()}</p>
             <p className="text-[13px] font-black">Phòng: {room.roomNumber}</p>
-            {customerName && <p className="text-[12px] tracking-wide">Khách: {customerName}</p>}
+            {customerName && <p className="text-[12px] tracking-wide">Khách hàng: {customerName}</p>}
           </div>
           {/* Bảng chi tiết */}
           <table className="w-full text-[13px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
