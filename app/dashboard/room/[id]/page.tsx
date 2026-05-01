@@ -94,6 +94,8 @@ export default function RoomPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [isManualEndTime, setIsManualEndTime] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [rawStartTime, setRawStartTime] = useState<Date | null>(null);
+  const [rawEndTime, setRawEndTime] = useState<Date | null>(null);
   const [customPricePerHour, setCustomPricePerHour] = useState<number>(0);
   const [selectedStartTime, setSelectedStartTime] = useState('');
   const [selectedEndTime, setSelectedEndTime] = useState('');
@@ -297,7 +299,9 @@ export default function RoomPage() {
     }
 
     const timerInterval = setInterval(() => {
-      setSelectedEndTime(formatDateTimeLocal(new Date()));
+      const now = new Date();
+      setSelectedEndTime(formatDateTimeLocal(now));
+      setRawEndTime(now);
     }, 100); // Update every 100ms to match order polling interval
 
     return () => clearInterval(timerInterval);
@@ -342,16 +346,20 @@ export default function RoomPage() {
             setCustomerName(sessionData.customerName ?? (sessionData as any).CustomerName ?? '');
             const start = new Date(sessionData.startTime || (sessionData as any).StartTime || new Date());
             setSelectedStartTime(formatDateTimeLocal(start));
+            setRawStartTime(start);
 
             // Kiểm tra nếu trên server đã có giờ ra dự kiến được lưu
             const savedEnd = sessionData.endTime || (sessionData as any).EndTime;
             if (savedEnd) {
-              setSelectedEndTime(formatDateTimeLocal(new Date(savedEnd)));
+              const end = new Date(savedEnd);
+              setSelectedEndTime(formatDateTimeLocal(end));
+              setRawEndTime(end);
               setIsManualEndTime(true); // Khóa timer lại vì đã có giờ thủ công
             } else {
               // Nếu chưa có, tính toán theo trạng thái (paused thì lấy lúc dừng, active lấy hiện tại)
               const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
               setSelectedEndTime(formatDateTimeLocal(end));
+              setRawEndTime(end);
               setIsManualEndTime(false);
             }
             const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
@@ -460,7 +468,9 @@ export default function RoomPage() {
         setSession(newSession); setOrderItems([]);
         const start = new Date(newSession.startTime || newSession.StartTime || new Date());
         setSelectedStartTime(formatDateTimeLocal(start));
+        setRawStartTime(start);
         setSelectedEndTime(formatDateTimeLocal(start));
+        setRawEndTime(start);
         setIsManualEndTime(false);
         await fetch('/api/admin/rooms', {
           method: 'PUT',
@@ -476,6 +486,7 @@ export default function RoomPage() {
 
   const handleStartTimeChange = async (newVal: string) => {
     setSelectedStartTime(newVal);
+    setRawStartTime(new Date(newVal));
     if (!session || !room || !newVal) return;
 
     const s = session as any;
@@ -569,7 +580,9 @@ export default function RoomPage() {
         // Cập nhật session ngay lập tức với endTime = null
         setSession(prev => prev ? { ...prev, endTime: null } : updated);
         setIsManualEndTime(false); // Tắt chế độ thủ công để timer bắt đầu chạy
-        setSelectedEndTime(formatDateTimeLocal(new Date())); // Reset hiển thị ngay lập tức
+        const now = new Date();
+        setSelectedEndTime(formatDateTimeLocal(now)); // Reset hiển thị ngay lập tức
+        setRawEndTime(now);
 
         toast.success('Đã đặt lại giờ ra theo thời gian thực');
         // Tải lại dữ liệu sau một khoảng ngắn để đảm bảo đồng bộ hoàn toàn với DB
@@ -656,7 +669,10 @@ export default function RoomPage() {
     const now = new Date();
 
     setSession({ ...session, status: 'paused' } as any);
-    if (!isManualEndTime) setSelectedEndTime(formatDateTimeLocal(now));
+    if (!isManualEndTime) {
+      setSelectedEndTime(formatDateTimeLocal(now));
+      setRawEndTime(now);
+    }
 
     try {
       const res = await fetch('/api/rooms/session', {
@@ -1124,22 +1140,22 @@ export default function RoomPage() {
   // ── Computed ───────────────────────────────────────────────────────────────
 
   const { roomCharge, durationMinutes, durationText, timeError } = useMemo(() => {
-    const start = new Date(selectedStartTime);
-    const end = new Date(selectedEndTime);
+    const start = rawStartTime;
+    const end = rawEndTime;
     const s = session as any;
     const isPending = !s || s.status === 'pending' || s.Status === 'pending';
 
-    const validStart = selectedStartTime && !isNaN(start.getTime());
-    const validEnd = selectedEndTime && !isNaN(end.getTime());
+    const validStart = start && !isNaN(start.getTime());
+    const validEnd = end && !isNaN(end.getTime());
     if (!validStart || !validEnd)
       return { roomCharge: 0, durationMinutes: 0, durationText: 'Chọn giờ bắt đầu và kết thúc', timeError: 'Vui lòng chọn cả giờ bắt đầu và giờ kết thúc' };
     if (end <= start || isPending)
       return { roomCharge: 0, durationMinutes: 0, durationText: isPending ? 'Chờ khách vào' : 'Giờ kết thúc phải lớn hơn giờ bắt đầu', timeError: isPending ? '' : 'Giờ kết thúc phải lớn hơn giờ bắt đầu' };
-    const minutes = Math.ceil((end.getTime() - start.getTime()) / 60_000);
+    const minutes = Math.ceil((end.getTime() - start.getTime()) / 60000);
     const cost = room ? Math.ceil((minutes * customPricePerHour) / 60) : 0;
     const h = Math.floor(minutes / 60), m = minutes % 60;
     return { roomCharge: cost, durationMinutes: minutes, durationText: h > 0 ? `${h} giờ ${m > 0 ? `${m} phút` : ''}`.trim() : `${m} phút`, timeError: '' };
-  }, [selectedStartTime, selectedEndTime, room, customPricePerHour, session]);
+  }, [rawStartTime, rawEndTime, room, customPricePerHour, session]);
 
   const desktopFiltered = useMemo(() => {
     const search = removeAccents(searchTerm.toLowerCase());
