@@ -857,8 +857,7 @@ export default function RoomPage() {
     const existingIndex = orderItems.findIndex(item => item.productId === selectedProductForOrder.id);
     if (existingIndex !== -1) {
       // Nếu đã có trong giỏ, cập nhật về số lượng mới (ghi đè)
-      const currentProduct = products.find(p => p.id === selectedProductForOrder.id);
-      handleUpdateOrderItem(existingIndex, { quantity: qty, price: currentProduct?.price ?? 0 });
+      handleUpdateOrderItem(existingIndex, { quantity: qty, price: orderItems[existingIndex].price });
     } else if (qty > 0) {
       // Nếu chưa có, thêm mới vào giỏ
       handleAddProduct(selectedProductForOrder.id, qty);
@@ -1043,8 +1042,7 @@ export default function RoomPage() {
     const qty = parseInt(value);
     const item = orderItems[index];
     if (!isNaN(qty) && qty >= 0 && item && item.quantity !== qty) {
-      const p = products.find(prod => prod.id === item.productId);
-      handleUpdateOrderItem(index, { quantity: qty, price: p?.price ?? item.price });
+      handleUpdateOrderItem(index, { quantity: qty, price: item.price });
     }
     else setEditingQuantities((prev) => { const n = { ...prev }; delete n[index]; return n; });
   };
@@ -1580,8 +1578,7 @@ export default function RoomPage() {
                                   <div className="flex items-center bg-slate-100 rounded-xl px-1 py-1 gap-1">
                                     <button
                                       onClick={() => {
-                                        const p = products.find(prod => prod.id === item.productId);
-                                        handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
+                                        handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: item.price });
                                       }}
                                       className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shadow text-slate-500 active:scale-90"
                                     >
@@ -1598,8 +1595,7 @@ export default function RoomPage() {
                                     </div>
                                     <button
                                       onClick={() => {
-                                        const p = products.find(prod => prod.id === item.productId);
-                                        handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
+                                        handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: item.price });
                                       }}
                                       className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white active:scale-90"
                                     >
@@ -2098,8 +2094,7 @@ export default function RoomPage() {
                               <div className="flex items-center justify-center bg-slate-100 rounded-lg p-0.5 gap-0.5 mx-auto w-fit">
                                 <button
                                   onClick={() => {
-                                    const p = products.find(prod => prod.id === item.productId);
-                                    handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
+                                    handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: item.price });
                                   }}
                                   className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
                                 >
@@ -2114,8 +2109,7 @@ export default function RoomPage() {
                                 />
                                 <button
                                   onClick={() => {
-                                    const p = products.find(prod => prod.id === item.productId);
-                                    handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
+                                    handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: item.price });
                                   }}
                                   className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-500 hover:text-indigo-600 transition-colors"
                                 >
@@ -2540,10 +2534,7 @@ export default function RoomPage() {
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto">
                       <div className="flex items-center bg-slate-100 rounded-xl p-1">
-                        <button onClick={() => {
-                          const p = products.find(prod => prod.id === item.productId);
-                          handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: p?.price ?? item.price });
-                        }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
+                        <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity - 1, price: item.price })} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Minus className="w-4 h-4" /></button>
                         <div
                           onClick={() => {
                             const p = products.find(prod => prod.id === item.productId);
@@ -2553,10 +2544,7 @@ export default function RoomPage() {
                         >
                           {item.quantity}
                         </div>
-                        <button onClick={() => {
-                          const p = products.find(prod => prod.id === item.productId);
-                          handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: p?.price ?? item.price });
-                        }} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
+                        <button onClick={() => handleUpdateOrderItem(index, { quantity: item.quantity + 1, price: item.price })} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-slate-600 hover:text-indigo-600 transition-colors"><Plus className="w-4 h-4" /></button>
                       </div>
                       <div className="min-w-20 text-right font-black text-indigo-600 text-sm sm:text-base">
                         {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}đ
