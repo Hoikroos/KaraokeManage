@@ -519,6 +519,8 @@ export default function RoomPage() {
           body: JSON.stringify({ id: sessionId, endTime: null }),
         });
         if (res.ok) {
+          const updated = await res.json();
+          setSession(updated);
           setIsManualEndTime(false);
           setSelectedEndTime(formatDateTimeLocal(new Date()));
         }
@@ -531,7 +533,7 @@ export default function RoomPage() {
     // Giờ được chọn > hiện tại => lưu thủ công
     setIsManualEndTime(true);
     try {
-      await fetch('/api/rooms/session', {
+      const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -539,6 +541,10 @@ export default function RoomPage() {
           endTime: selectedTime.toISOString()
         }),
       });
+      if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
+      }
     } catch (err) {
       console.error('Lỗi khi lưu giờ ra dự kiến:', err);
     }
@@ -558,6 +564,8 @@ export default function RoomPage() {
         }),
       });
       if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
         setIsManualEndTime(false);
         // Cập nhật lại giờ hiện tại ngay lập tức
         setSelectedEndTime(formatDateTimeLocal(new Date()));
