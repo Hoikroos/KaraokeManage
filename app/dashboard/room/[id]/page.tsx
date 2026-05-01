@@ -164,6 +164,10 @@ export default function RoomPage() {
     itemRefs.current = itemRefs.current.slice(0, orderItems.length);
   }, [orderItems.length]);
 
+  // Ref để theo dõi giá trị rawEndTime mới nhất cho logic so sánh
+  const rawEndTimeRef = useRef<Date | null>(null);
+  useEffect(() => { rawEndTimeRef.current = rawEndTime; }, [rawEndTime]);
+
   // Tải/Lưu ghi chú từ localStorage để không bị mất khi reload
   useEffect(() => {
     const sessionId = session?.id ?? (session as any)?.Id;
@@ -173,6 +177,15 @@ export default function RoomPage() {
     if (savedNotes) {
       try { setLocalItemNotes(JSON.parse(savedNotes)); } catch (e) { console.error(e); }
     }
+
+    const savedVoucher = localStorage.getItem(`voucher_${sessionId}`);
+    if (savedVoucher) {
+      try {
+        const parsed = JSON.parse(savedVoucher);
+        setVoucherCode(parsed.code || '');
+        setVoucherApplied(parsed.applied || false);
+      } catch (e) { console.error(e); }
+    }
   }, [session?.id ?? (session as any)?.Id]);
 
   useEffect(() => {
@@ -180,6 +193,12 @@ export default function RoomPage() {
     if (!sessionId || Object.keys(localItemNotes).length === 0) return;
     localStorage.setItem(`notes_${sessionId}`, JSON.stringify(localItemNotes));
   }, [localItemNotes, session?.id ?? (session as any)?.Id]);
+
+  useEffect(() => {
+    const sessionId = session?.id ?? (session as any)?.Id;
+    if (!sessionId) return;
+    localStorage.setItem(`voucher_${sessionId}`, JSON.stringify({ code: voucherCode, applied: voucherApplied }));
+  }, [voucherCode, voucherApplied, session?.id ?? (session as any)?.Id]);
 
   // Logic lọc gợi ý
   const customerSuggestions = useMemo(() => {
@@ -371,8 +390,11 @@ export default function RoomPage() {
             const savedEnd = sessionData.endTime || (sessionData as any).EndTime;
             if (savedEnd) {
               const end = new Date(savedEnd);
-              setSelectedEndTime(formatDateTimeLocal(end));
-              setRawEndTime(end);
+              // Chỉ ghi đè nếu giá trị trên server khác giá trị local (tránh mất tiêu điểm khi đang gõ)
+              if (!rawEndTimeRef.current || Math.abs(end.getTime() - rawEndTimeRef.current.getTime()) > 5000) {
+                setSelectedEndTime(formatDateTimeLocal(end));
+                setRawEndTime(end);
+              }
               setIsManualEndTime(true); // Khóa timer lại vì đã có giờ thủ công
             } else {
               // Nếu chưa có, tính toán theo trạng thái (paused thì lấy lúc dừng, active lấy hiện tại)
@@ -687,22 +709,25 @@ export default function RoomPage() {
     const sessionId = session.id ?? (session as any).Id;
     const now = new Date();
 
-    setSession({ ...session, status: 'paused' } as any);
-    if (!isManualEndTime) {
-      setSelectedEndTime(formatDateTimeLocal(now));
-      setRawEndTime(now);
-    }
+    // Cập nhật trạng thái local ngay lập tức để giao diện phản hồi nhanh
+    setIsManualEndTime(true);
+    setSelectedEndTime(formatDateTimeLocal(now));
+    setRawEndTime(now);
+    setSession({ ...session, status: 'paused', endTime: now } as any);
 
     try {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: sessionId, status: 'paused' }),
+        body: JSON.stringify({ 
+          id: sessionId, 
+          status: 'paused', 
+          endTime: now.toISOString() 
+        }),
       });
       if (res.ok) {
         const updated = await res.json();
-        // Update with server response to sync state
-        setSession({ ...updated, status: 'paused' } as any);
+        setSession(updated);
       }
     } catch (err) { console.error(err); }
   };
@@ -1161,6 +1186,7 @@ export default function RoomPage() {
       if (res.ok) {
         const sessionId = session.id ?? (session as any).Id;
         localStorage.removeItem(`notes_${sessionId}`); // Xóa nháp sau khi đã thanh toán
+        localStorage.removeItem(`voucher_${sessionId}`); // Xóa voucher sau khi đã thanh toán
         const result = await res.json();
         const invoiceData = result.data || result;
         toast.success('Tạo hóa đơn thành công');
