@@ -523,6 +523,8 @@ export default function RoomPage() {
     const sessionId = session.id ?? (session as any).Id;
 
     const selectedTime = new Date(newVal);
+    setRawEndTime(selectedTime); // Cập nhật ngay lập tức để logic tính tiền nhận giá trị mới
+
     const now = new Date();
     // Nếu giờ được chọn <= giờ hiện tại + 60 giây, tự động về chế độ real-time
     const diffSeconds = (selectedTime.getTime() - now.getTime()) / 1000;
