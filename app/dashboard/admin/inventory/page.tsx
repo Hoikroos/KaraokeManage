@@ -34,6 +34,7 @@ interface ProductStat {
     totalQuantity: number;
     totalRevenue: number;
     currentStock: number;
+    closingStock: number;
 }
 
 interface InventoryLog {
@@ -546,7 +547,7 @@ export default function InventoryStatsPage() {
                             <table className="w-full">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        {['Sản phẩm', 'Loại', 'Tồn đầu', `Nhập (${reportType})`, `Đã bán (${reportType})`, 'Doanh thu', 'Tồn hiện tại'].map((h, i) => (
+                                        {['Sản phẩm', 'Loại', 'Tồn đầu', `Nhập (${reportType})`, `Đã bán (${reportType})`, 'Doanh thu', 'Tồn cuối kỳ'].map((h, i) => (
                                             <th
                                                 key={h}
                                                 className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider
@@ -583,7 +584,7 @@ export default function InventoryStatsPage() {
                                                 {item.totalRevenue.toLocaleString('vi-VN')}đ
                                             </td>
                                             <td className="px-5 py-3 text-center">
-                                                <StockBadge stock={item.currentStock} />
+                                                <StockBadge stock={item.closingStock} />
                                             </td>
                                         </tr>
                                     ))}

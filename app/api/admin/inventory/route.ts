@@ -202,6 +202,9 @@ export async function GET(req: NextRequest) {
                 + totalExportedSinceStart
                 + totalSoldSinceStart;
 
+            // Tồn cuối kỳ = Tồn đầu + Nhập trong kỳ - (Bán + Xuất lẻ trong kỳ)
+            const closingStock = openingStock + totalRestocked - totalQuantity;
+
             return {
                 productId: p.Id,
                 productName: p.Name,
@@ -210,7 +213,8 @@ export async function GET(req: NextRequest) {
                 totalRestocked,
                 totalQuantity,
                 totalRevenue: totalQuantity * Number(p.Price || 0),
-                currentStock: p.Quantity,
+                currentStock: p.Quantity, // Đây là số 330 thực tế trong DB
+                closingStock: closingStock, // Đây sẽ là số 378 cho ngày 1/5
             };
         });
 
