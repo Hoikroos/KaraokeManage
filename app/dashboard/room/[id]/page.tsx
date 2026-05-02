@@ -1550,24 +1550,27 @@ export default function RoomPage() {
 
                           {/* Giờ ra */}
                           <div>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">
-                              <span>Giờ ra (dự kiến)</span>
-                              {isManualEndTime && (
-                                <button
-                                  onClick={handleResetManualEndTime}
-                                  className="text-indigo-600 lowercase font-normal"
-                                >
-                                  (Đặt lại theo máy)
-                                </button>
-                              )}
-                            </label>
-                            <div className="relative">
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase">Giờ ra (dự kiến)</label>
+                              <div className={`text-[9px] font-black px-2 py-0.5 rounded-lg transition-colors ${isManualEndTime ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                {isManualEndTime ? 'CHỈNH TAY' : 'THEO MÁY'}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
                               <input
                                 type="datetime-local"
                                 value={selectedEndTime}
                                 onChange={(e) => handleEndTimeChange(e.target.value)}
-                                className={`w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200 ${isManualEndTime ? 'border-2 border-indigo-400' : ''}`}
+                                className={`flex-1 min-w-0 bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold outline-none focus:ring-2 focus:ring-indigo-200 transition-all ${isManualEndTime ? 'border-2 border-indigo-400 bg-white' : ''}`}
                               />
+                              {isManualEndTime && (
+                                <button
+                                  onClick={handleResetManualEndTime}
+                                  className="bg-indigo-600 text-white px-3 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all shadow-sm shadow-indigo-100"
+                                >
+                                  Đặt lại
+                                </button>
+                              )}
                             </div>
                           </div>
 

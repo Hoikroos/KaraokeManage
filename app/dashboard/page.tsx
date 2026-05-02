@@ -7,7 +7,9 @@ import { Card } from '@/components/ui/card';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Room, Store, RoomSession, Product } from '@/lib/db';
-import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3,ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3, ShoppingBag } from 'lucide-react';
+import Swal from 'sweetalert2';
+import { toast } from 'sonner';
 
 // Ép trang này và các fetch bên trong chạy tại region Singapore để gần Database
 export const preferredRegion = 'sin1';
@@ -23,6 +25,40 @@ export default function Dashboard() {
   const [sessionTotals, setSessionTotals] = useState<Record<string, number>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
+
+  // Mật khẩu quản lý (tự định nghĩa tại đây)
+  const ADMIN_PIN = "1234";
+
+  const handleProtectedNavigation = async (path: string) => {
+    // Nếu đã mở khóa trong phiên này rồi thì đi luôn
+    if (sessionStorage.getItem('dashboard_unlocked') === 'true') {
+      router.push(path);
+      return;
+    }
+
+    const { value: password } = await Swal.fire({
+      title: 'Xác thực quản lý',
+      input: 'password',
+      inputLabel: 'Vui lòng nhập mã PIN để truy cập',
+      inputPlaceholder: 'Nhập mã số...',
+      inputAttributes: {
+        autocapitalize: 'off',
+        autocorrect: 'off',
+        inputmode: 'numeric',
+        pattern: '[0-9]*'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Xác nhận',
+      cancelButtonText: 'Hủy'
+    });
+
+    if (password === ADMIN_PIN) {
+      sessionStorage.setItem('dashboard_unlocked', 'true');
+      router.push(path);
+    } else if (password !== undefined) {
+      toast.error('Mã PIN không chính xác!');
+    }
+  };
 
   const fetchRooms = useCallback(async (storeId: string) => {
     try {
@@ -180,30 +216,22 @@ export default function Dashboard() {
             </div>
 
             {/* Ẩn 3 nút này trên mobile, chỉ hiện từ md trở lên */}
-            <Link href="/dashboard/invoice" className="hidden md:block">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-2">
-                <History className="w-4 h-4" />
-                <span className="hidden md:inline">Lịch sử</span>
-              </Button>
-            </Link>
-            <Link href="/dashboard/customers" className="hidden md:block">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2">
-                <Users className="w-4 h-4" />
-                <span className="hidden md:inline">Khách hàng</span>
-              </Button>
-            </Link>
-            <Link href="/dashboard/products" className="hidden md:block">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-2">
-                <Package className="w-4 h-4" />
-                <span className="hidden md:inline">Thực đơn</span>
-              </Button>
-            </Link>
-            <Link href="/dashboard/export" className="hidden md:block">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2 border border-slate-100 bg-white shadow-sm">
-                <ShoppingBag className="w-4 h-4" />
-                <span className="hidden md:inline">Bán mang về</span>
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/invoice')} className="hidden md:flex text-slate-600 hover:text-blue-600 gap-2">
+              <History className="w-4 h-4" />
+              <span className="hidden md:inline">Lịch sử</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/customers')} className="hidden md:flex text-slate-600 hover:text-indigo-600 gap-2">
+              <Users className="w-4 h-4" />
+              <span className="hidden md:inline">Khách hàng</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/products')} className="hidden md:flex text-slate-600 hover:text-blue-600 gap-2">
+              <Package className="w-4 h-4" />
+              <span className="hidden md:inline">Thực đơn</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/export')} className="hidden md:flex text-slate-600 hover:text-indigo-600 gap-2 border border-slate-100 bg-white shadow-sm">
+              <ShoppingBag className="w-4 h-4" />
+              <span className="hidden md:inline">Bán mang về</span>
+            </Button>
 
             <Button
               onClick={handleLogout}

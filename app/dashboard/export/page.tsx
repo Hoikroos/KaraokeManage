@@ -28,11 +28,11 @@ export default function ExportPage() {
     // 1. Tải dữ liệu từ LocalStorage khi vào trang
     useEffect(() => {
         if (user?.storeId) fetchProducts();
-        
+
         const savedCustomer = localStorage.getItem('export_customer');
         const savedNote = localStorage.getItem('export_note');
         const savedCart = localStorage.getItem('export_cart');
-        
+
         if (savedCustomer) setCustomerName(savedCustomer);
         if (savedNote) setNote(savedNote);
         if (savedCart) {
