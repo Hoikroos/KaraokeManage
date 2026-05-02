@@ -62,7 +62,16 @@ export async function POST(request: Request) {
                     StartTime: new Date(),
                     EndTime: new Date(),
                     RoomCost: 0,
-                    RoomSession: undefined as any, // Ép kiểu vì không có phiên phòng tương ứng
+                    // Tạo một RoomSession ảo để thỏa mãn ràng buộc Database
+                    RoomSession: {
+                        create: {
+                            Id: 'SES_EX' + Date.now().toString(),
+                            StoreId: storeId,
+                            RoomId: 'EXTERNAL',
+                            StartTime: new Date(),
+                            Status: 'completed'
+                        }
+                    },
                 } as any,
             });
 
