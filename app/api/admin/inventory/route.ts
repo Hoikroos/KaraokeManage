@@ -52,35 +52,33 @@ export async function GET(req: NextRequest) {
             where: { StoreId: storeId },
         });
 
-        // ── 3. Lấy dữ liệu bán hàng tại phòng (OrderItem) ────────────────────
-        // Lấy tất cả hóa đơn từ StartDate đến Tận bây giờ để phục vụ tính Tồn đầu
-        const allInvoicesSinceStart = await prisma.invoice.findMany({
-            where: { StoreId: storeId, CreatedAt: { gte: startDate } },
-            select: { CreatedAt: true, RoomSessionId: true },
+        // ── 3. Lấy dữ liệu bán hàng thực tế (Dựa trên thời điểm gọi món) ──────
+        // Lấy danh sách ID các phiên phòng thuộc chi nhánh này
+        const storeSessions = await prisma.roomSession.findMany({
+            where: { StoreId: storeId },
+            select: { Id: true }
+        });
+        const sessionIds = storeSessions.map(s => s.Id);
+
+        // Sản lượng bán TẠI PHÒNG TRONG KỲ (Dựa trên CreatedAt của OrderItem)
+        const salesInPeriod = await prisma.orderItem.groupBy({
+            by: ['ProductId'],
+            where: {
+                RoomSessionId: { in: sessionIds },
+                CreatedAt: { gte: startDate, lte: endDate }
+            },
+            _sum: { Quantity: true },
         });
 
-        const sessionIdsInPeriod = allInvoicesSinceStart
-            .filter(inv => inv.CreatedAt <= endDate)
-            .map(inv => inv.RoomSessionId).filter((id): id is string => !!id);
-
-        const sessionIdsSinceStart = allInvoicesSinceStart
-            .map(inv => inv.RoomSessionId).filter((id): id is string => !!id);
-
-        // Bán trong kỳ [Start, End]
-        const salesInPeriod = sessionIdsInPeriod.length > 0
-            ? await prisma.orderItem.groupBy({
-                by: ['ProductId'],
-                where: { RoomSessionId: { in: sessionIdsInPeriod } },
-                _sum: { Quantity: true },
-            }) : [];
-
-        // Bán từ lúc Start đến Tận bây giờ (để tính tồn đầu)
-        const salesSinceStart = sessionIdsSinceStart.length > 0
-            ? await prisma.orderItem.groupBy({
-                by: ['ProductId'],
-                where: { RoomSessionId: { in: sessionIdsSinceStart } },
-                _sum: { Quantity: true },
-            }) : [];
+        // Sản lượng bán TẠI PHÒNG TỪ START ĐẾN NAY (Phục vụ tính tồn đầu)
+        const salesSinceStart = await prisma.orderItem.groupBy({
+            by: ['ProductId'],
+            where: {
+                RoomSessionId: { in: sessionIds },
+                CreatedAt: { gte: startDate }
+            },
+            _sum: { Quantity: true },
+        });
 
         // ── 4. Lấy dữ liệu kho (InventoryLog) ────────────────────────────────
         const excludeInit = {
