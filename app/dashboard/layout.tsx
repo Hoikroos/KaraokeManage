@@ -13,6 +13,12 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
+    // Xóa trạng thái mở khóa khi tải lại trang toàn bộ (F5)
+    // Điều này buộc nhân viên phải nhập lại PIN sau khi Refresh web
+    sessionStorage.removeItem('dashboard_unlocked');
+  }, []);
+
+  useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
     }
@@ -35,4 +41,3 @@ export default function DashboardLayout({
 
   return <>{children}</>;
 }
-
