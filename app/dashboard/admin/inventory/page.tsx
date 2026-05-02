@@ -31,6 +31,8 @@ interface ProductStat {
     category: string;
     openingStock: number;
     totalRestocked: number;
+    totalSold: number;
+    totalExported: number;
     totalQuantity: number;
     totalRevenue: number;
     currentStock: number;
@@ -547,11 +549,11 @@ export default function InventoryStatsPage() {
                             <table className="w-full">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        {['Sản phẩm', 'Loại', 'Tồn đầu', `Nhập (${reportType})`, `Đã bán (${reportType})`, 'Doanh thu', 'Tồn cuối kỳ'].map((h, i) => (
+                                        {['Sản phẩm', 'Loại', 'Tồn đầu', `Nhập (${reportType})`, `Bán (${reportType})`, `Xuất (${reportType})`, 'Doanh thu', 'Tồn cuối kỳ'].map((h, i) => (
                                             <th
                                                 key={h}
                                                 className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider
-                                                    ${i >= 2 && i <= 4 ? 'text-center' : i === 5 ? 'text-right' : i === 6 ? 'text-center' : 'text-left'}`}
+                                                    ${i >= 2 && i <= 5 ? 'text-center' : i === 6 ? 'text-right' : i === 7 ? 'text-center' : 'text-left'}`}
                                             >
                                                 {h}
                                             </th>
@@ -561,13 +563,13 @@ export default function InventoryStatsPage() {
                                 <tbody className="divide-y divide-slate-50">
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
+                                            <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm italic">
                                                 Đang tải dữ liệu...
                                             </td>
                                         </tr>
                                     ) : filteredStats.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
+                                            <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm italic">
                                                 Không có dữ liệu thống kê cho giai đoạn này
                                             </td>
                                         </tr>
@@ -579,7 +581,8 @@ export default function InventoryStatsPage() {
                                             </td>
                                             <td className="px-5 py-3 text-[13px] text-center font-semibold text-slate-600">{item.openingStock}</td>
                                             <td className="px-5 py-3 text-[13px] text-center font-bold text-blue-600">+{item.totalRestocked}</td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{item.totalQuantity}</td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{item.totalSold}</td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">{item.totalExported}</td>
                                             <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700">
                                                 {item.totalRevenue.toLocaleString('vi-VN')}đ
                                             </td>

@@ -211,6 +211,8 @@ export async function GET(req: NextRequest) {
                 category: p.Category,
                 openingStock: Math.max(0, openingStock),
                 totalRestocked,
+                totalSold: roomSales,
+                totalExported: exported,
                 totalQuantity,
                 totalRevenue: totalQuantity * Number(p.Price || 0),
                 currentStock: p.Quantity, // Đây là số 330 thực tế trong DB
