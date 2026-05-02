@@ -7,9 +7,12 @@ import { Card } from '@/components/ui/card';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Room, Store, RoomSession, Product } from '@/lib/db';
-import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3, ShoppingBag, Delete, X, Lock } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 
 // Ép trang này và các fetch bên trong chạy tại region Singapore để gần Database
 export const preferredRegion = 'sin1';
@@ -26,37 +29,45 @@ export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
 
+  // State cho khóa bảo vệ mới
+  const [isLockModalOpen, setIsLockModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [targetPath, setTargetPath] = useState('');
+  const [isPinError, setIsPinError] = useState(false);
+
   // Mật khẩu quản lý (tự định nghĩa tại đây)
   const ADMIN_PIN = "2531";
 
-  const handleProtectedNavigation = async (path: string) => {
-    // Nếu đã mở khóa trong phiên này rồi thì đi luôn
+  const handleProtectedNavigation = (path: string) => {
     if (sessionStorage.getItem('dashboard_unlocked') === 'true') {
       router.push(path);
       return;
     }
+    setTargetPath(path);
+    setPinInput('');
+    setIsLockModalOpen(true);
+  };
 
-    const { value: password } = await Swal.fire({
-      title: 'Xác thực quản lý',
-      input: 'password',
-      inputLabel: 'Vui lòng nhập mã PIN để truy cập',
-      inputPlaceholder: 'Nhập mã số...',
-      inputAttributes: {
-        autocapitalize: 'off',
-        autocorrect: 'off',
-        inputmode: 'numeric',
-        pattern: '[0-9]*'
-      },
-      showCancelButton: true,
-      confirmButtonText: 'Xác nhận',
-      cancelButtonText: 'Hủy'
-    });
+  const handlePinClick = (num: string) => {
+    if (pinInput.length < 4) {
+      const newPin = pinInput + num;
+      setPinInput(newPin);
+      if (newPin.length === 4) verifyPin(newPin);
+    }
+  };
 
-    if (password === ADMIN_PIN) {
+  const verifyPin = (pin: string) => {
+    if (pin === ADMIN_PIN) {
       sessionStorage.setItem('dashboard_unlocked', 'true');
-      router.push(path);
-    } else if (password !== undefined) {
+      setIsLockModalOpen(false);
+      router.push(targetPath);
+    } else {
+      setIsPinError(true);
       toast.error('Mã PIN không chính xác!');
+      setTimeout(() => {
+        setIsPinError(false);
+        setPinInput('');
+      }, 500);
     }
   };
 
@@ -419,6 +430,65 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Custom PIN Pad Modal ── */}
+      <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
+        <DialogContent className="max-w-[340px] rounded-[32px] p-8 border-none shadow-2xl overflow-hidden">
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6">
+              <Lock className="w-8 h-8 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-1">Xác thực mã PIN</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-8">Dành cho quản lý</p>
+            
+            {/* PIN Dots Display */}
+            <div className={`flex gap-4 mb-10 ${isPinError ? 'animate-bounce' : ''}`}>
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className={`w-4 h-4 rounded-full border-2 transition-all duration-200 
+                    ${pinInput.length >= i 
+                      ? 'bg-indigo-600 border-indigo-600 scale-125' 
+                      : 'bg-transparent border-slate-200'}`}
+                />
+              ))}
+            </div>
+
+            {/* Keypad */}
+            <div className="grid grid-cols-3 gap-4 w-full">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => handlePinClick(num)}
+                  className="w-full aspect-square rounded-2xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-xl font-black text-slate-700 hover:text-indigo-600 transition-all"
+                >
+                  {num}
+                </button>
+              ))}
+              <div />
+              <button
+                onClick={() => handlePinClick('0')}
+                className="w-full aspect-square rounded-2xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-xl font-black text-slate-700 hover:text-indigo-600 transition-all"
+              >
+                0
+              </button>
+              <button
+                onClick={() => setPinInput(prev => prev.slice(0, -1))}
+                className="w-full aspect-square rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all"
+              >
+                <Delete className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => setIsLockModalOpen(false)}
+              className="mt-8 text-slate-400 text-xs font-bold uppercase hover:text-slate-600 transition"
+            >
+              Hủy bỏ
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
