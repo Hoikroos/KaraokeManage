@@ -740,20 +740,30 @@ export default function RoomPage() {
 
     if (!result.isConfirmed) return;
 
-    setSession({ ...session, status: 'active' } as any);
-    if (!isManualEndTime) setSelectedEndTime(formatDateTimeLocal(new Date()));
-
+    const now = new Date();
     try {
+      // Khi nhấn tiếp tục, ta xóa luôn giờ kết thúc cố định (endTime: null) 
+      // để hệ thống tự động quay lại chế độ chạy theo thời gian thực
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: sessionId, status: 'active' }),
+        body: JSON.stringify({ 
+          id: sessionId, 
+          status: 'active',
+          endTime: null 
+        }),
       });
+
       if (res.ok) {
         const updated = await res.json();
-        // Update with server response to sync state
-        setSession({ ...updated, status: 'active' } as any);
-        toast.success('Đã tiếp tục tính tiền giờ');
+        setSession({ ...updated, status: 'active', endTime: null } as any);
+        
+        // Tắt chế độ thủ công và cập nhật giờ hiện tại ngay lập tức
+        setIsManualEndTime(false);
+        setSelectedEndTime(formatDateTimeLocal(now));
+        setRawEndTime(now);
+        
+        toast.success('Đã tiếp tục tính tiền giờ theo máy');
       }
     } catch (err) { console.error(err); }
   };
