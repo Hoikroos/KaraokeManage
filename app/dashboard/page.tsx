@@ -27,7 +27,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Mật khẩu quản lý (tự định nghĩa tại đây)
-  const ADMIN_PIN = "1234";
+  const ADMIN_PIN = "2531";
 
   const handleProtectedNavigation = async (path: string) => {
     // Nếu đã mở khóa trong phiên này rồi thì đi luôn
@@ -228,10 +228,12 @@ export default function Dashboard() {
               <Package className="w-4 h-4" />
               <span className="hidden md:inline">Thực đơn</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/export')} className="hidden md:flex text-slate-600 hover:text-indigo-600 gap-2 border border-slate-100 bg-white shadow-sm">
-              <ShoppingBag className="w-4 h-4" />
-              <span className="hidden md:inline">Bán mang về</span>
-            </Button>
+            <Link href="/dashboard/export" className="hidden md:flex">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2 border border-slate-100 bg-white shadow-sm">
+                <ShoppingBag className="w-4 h-4" />
+                <span className="hidden md:inline">Bán mang về</span>
+              </Button>
+            </Link>
 
             <Button
               onClick={handleLogout}
