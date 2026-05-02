@@ -162,27 +162,27 @@ export async function GET(req: NextRequest) {
 
         const stats = products.map(p => {
             // Bán trong kỳ
-            const salePeriod = salesInPeriod.find(s => s.ProductId === p.Id);
+            const salePeriod = salesInPeriod.find((s: any) => s.ProductId === p.Id);
             const roomSales = safe(salePeriod?._sum?.Quantity);
 
             // Xuất lẻ trong kỳ
-            const exportPeriod = exportsInPeriod.find(e => e.ProductId === p.Id);
+            const exportPeriod = exportsInPeriod.find((e: any) => e.ProductId === p.Id);
             const exported = Math.abs(safe(exportPeriod?._sum?.Quantity));
 
             const totalQuantity = roomSales + exported;
 
             // Nhập trong kỳ
-            const restockPeriod = restocksInPeriod.find(r => r.ProductId === p.Id);
+            const restockPeriod = restocksInPeriod.find((r: any) => r.ProductId === p.Id);
             const totalRestocked = safe(restockPeriod?._sum?.Quantity);
 
             // 🔥 TÍNH TỒN ĐẦU (CHUẨN)
-            const importRec = importSinceStart.find(i => i.ProductId === p.Id);
+            const importRec = importSinceStart.find((i: any) => i.ProductId === p.Id);
             const totalImportedSinceStart = safe(importRec?._sum?.Quantity);
 
-            const exportRec = exportSinceStart.find(e => e.ProductId === p.Id);
+            const exportRec = exportSinceStart.find((e: any) => e.ProductId === p.Id);
             const totalExportedSinceStart = Math.abs(safe(exportRec?._sum?.Quantity));
 
-            const soldRec = salesSinceStart.find(s => s.ProductId === p.Id);
+            const soldRec = salesSinceStart.find((s: any) => s.ProductId === p.Id);
             const totalSoldSinceStart = safe(soldRec?._sum?.Quantity);
 
             const openingStock =
