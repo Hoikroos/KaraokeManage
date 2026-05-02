@@ -53,15 +53,18 @@ export async function GET(req: NextRequest) {
         });
 
         // ── 3. Số lượng ĐÃ BÁN trong kỳ (qua OrderItem) ──────────────────────
-        const sessions = await prisma.roomSession.findMany({
+        // Thay đổi: Chỉ tìm theo hóa đơn được tạo trong kỳ để khớp chính xác với thời điểm in Bill
+        const invoicesInPeriod = await prisma.invoice.findMany({
             where: {
                 StoreId: storeId,
-                StartTime: { gte: startDate, lte: endDate },
-                Status: { not: 'cancelled' },
+                CreatedAt: { gte: startDate, lte: endDate },
             },
-            select: { Id: true },
+            select: { RoomSessionId: true },
         });
-        const sessionIds = sessions.map(s => s.Id);
+
+        const sessionIds = invoicesInPeriod
+            .map(inv => inv.RoomSessionId)
+            .filter((id): id is string => !!id);
 
         const salesInPeriod = sessionIds.length > 0
             ? await prisma.orderItem.groupBy({
@@ -74,6 +77,7 @@ export async function GET(req: NextRequest) {
         // ── 4. Inventory logs ──────────────────────────────────────────────────
         let logs: any[] = [];
         let restocksInPeriod: any[] = [];   // nhập THỰC SỰ trong kỳ (loại log khởi tạo)
+        let exportsInPeriod: any[] = [];    // xuất lẻ (Mang về / Tặng) trong kỳ
         let allRestocksEver: any[] = [];     // tất cả nhập thực sự TỪ TRƯỚC ĐẾN TRƯỚC KỲ (để tính tồn đầu)
 
         if ((prisma as any).inventoryLog) {
@@ -110,6 +114,18 @@ export async function GET(req: NextRequest) {
                 _sum: { Quantity: true },
             });
 
+            // 4d. Sản lượng Xuất lẻ (Mang về / Tặng) trong kỳ
+            exportsInPeriod = await (prisma as any).inventoryLog.groupBy({
+                by: ['ProductId'],
+                where: {
+                    StoreId: storeId,
+                    CreatedAt: { gte: startDate, lte: endDate },
+                    Quantity: { lt: 0 },
+                    OR: [{ Type: 'export' }, { Type: 'gift' }],
+                },
+                _sum: { Quantity: true },
+            });
+
             // 4c. Nhập THỰC SỰ TRƯỚC kỳ này (để tính tồn đầu kỳ)
             allRestocksEver = await (prisma as any).inventoryLog.groupBy({
                 by: ['ProductId'],
@@ -124,15 +140,17 @@ export async function GET(req: NextRequest) {
         }
 
         // ── 5. Số lượng đã bán TRƯỚC kỳ (để tính tồn đầu kỳ) ─────────────────
-        const sessionsBefore = await prisma.roomSession.findMany({
+        const invoicesBefore = await prisma.invoice.findMany({
             where: {
                 StoreId: storeId,
-                StartTime: { lt: startDate },
-                Status: { not: 'cancelled' },
+                CreatedAt: { lt: startDate },
             },
-            select: { Id: true },
+            select: { RoomSessionId: true },
         });
-        const sessionIdsBefore = sessionsBefore.map(s => s.Id);
+
+        const sessionIdsBefore = invoicesBefore
+            .map(inv => inv.RoomSessionId)
+            .filter((id): id is string => !!id);
 
         const salesBefore = sessionIdsBefore.length > 0
             ? await prisma.orderItem.groupBy({
@@ -146,7 +164,13 @@ export async function GET(req: NextRequest) {
         const stats = products.map(p => {
             // Đã bán trong kỳ
             const saleInPeriodRec = salesInPeriod.find(s => (s as any).ProductId === p.Id);
-            const totalQuantity = Number((saleInPeriodRec as any)?._sum?.Quantity ?? 0);
+            const roomSales = Number((saleInPeriodRec as any)?._sum?.Quantity ?? 0);
+
+            // Sản lượng xuất lẻ (Mang về / Tặng)
+            const exportInPeriodRec = exportsInPeriod.find(e => (e as any).ProductId === p.Id);
+            const totalExported = Math.abs(Number((exportInPeriodRec as any)?._sum?.Quantity ?? 0));
+
+            const totalQuantity = roomSales + totalExported; // Tổng sản lượng bán = Tại phòng + Mang về
 
             // Nhập thực sự trong kỳ
             const restockInPeriodRec = restocksInPeriod.find(r => (r as any).ProductId === p.Id);
