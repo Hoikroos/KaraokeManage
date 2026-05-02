@@ -575,28 +575,6 @@ export default function RoomPage() {
     const selectedTime = new Date(newVal);
     setRawEndTime(selectedTime); // Cập nhật ngay lập tức để logic tính tiền nhận giá trị mới
 
-    const now = new Date();
-    // Nếu giờ được chọn <= giờ hiện tại + 60 giây, tự động về chế độ real-time
-    const diffSeconds = (selectedTime.getTime() - now.getTime()) / 1000;
-    if (diffSeconds <= 60) {
-      try {
-        const res = await fetch('/api/rooms/session', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: sessionId, endTime: null }),
-        });
-        if (res.ok) {
-          const updated = await res.json();
-          setSession(updated);
-          setIsManualEndTime(false);
-          setSelectedEndTime(formatDateTimeLocal(new Date()));
-        }
-      } catch (err) {
-        console.error('Lỗi khi xóa giờ ra thủ công:', err);
-      }
-      return;
-    }
-
     // Giờ được chọn > hiện tại => lưu thủ công
     setIsManualEndTime(true);
     try {
@@ -718,11 +696,13 @@ export default function RoomPage() {
     const sessionId = session.id ?? (session as any).Id;
     const now = new Date();
 
-    // Cập nhật trạng thái local ngay lập tức để giao diện phản hồi nhanh
-    setIsManualEndTime(true);
-    setSelectedEndTime(formatDateTimeLocal(now));
-    setRawEndTime(now);
-    setSession({ ...session, status: 'paused', endTime: now } as any);
+    // Cập nhật trạng thái local ngay lập tức
+    // Đặt isManualEndTime = true để dừng timer
+    // Đặt endTime = now để cố định giờ tạm tính
+    setSession(prev => prev ? { ...prev, status: 'paused', endTime: now } : null);
+    setIsManualEndTime(true); // Ensure timer stops
+    setSelectedEndTime(formatDateTimeLocal(now)); // Update display
+    setRawEndTime(now); // Update raw value for calculations
 
     try {
       const res = await fetch('/api/rooms/session', {
@@ -736,7 +716,8 @@ export default function RoomPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setSession(updated);
+        // Ensure local state is fully consistent with server, including endTime
+        setSession(prev => prev ? { ...prev, ...updated, status: 'paused', endTime: new Date(updated.endTime || updated.EndTime || now) } : updated);
       }
     } catch (err) { console.error(err); }
   };
