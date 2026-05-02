@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Room, Store, RoomSession, Product } from '@/lib/db';
-import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3,ShoppingBag } from 'lucide-react';
 
 // Ép trang này và các fetch bên trong chạy tại region Singapore để gần Database
 export const preferredRegion = 'sin1';
@@ -196,6 +196,12 @@ export default function Dashboard() {
               <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-2">
                 <Package className="w-4 h-4" />
                 <span className="hidden md:inline">Thực đơn</span>
+              </Button>
+            </Link>
+            <Link href="/dashboard/export">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2 border border-slate-100 bg-white shadow-sm">
+                <ShoppingBag className="w-4 h-4" />
+                <span className="hidden md:inline">Bán mang về</span>
               </Button>
             </Link>
 
