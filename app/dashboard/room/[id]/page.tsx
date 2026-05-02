@@ -397,7 +397,7 @@ export default function RoomPage() {
 
             if (savedEnd || isPausedServer) {
               const endValue = savedEnd ? new Date(savedEnd) : new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date());
-              
+
               setIsManualEndTime(true); // Khóa timer vì đang tạm tính hoặc có giờ thủ công
 
               // Chỉ ghi đè vào ô nhập liệu nếu người dùng không đang gõ
@@ -633,8 +633,9 @@ export default function RoomPage() {
     if (s.status === 'active' || s.Status === 'active') {
       const result = await Swal.fire({
         title: 'Xử lý giờ chơi',
-        html: `Bạn muốn <b>cập nhật</b> giờ vào là <b>${selectedStartTime ? new Date(selectedStartTime).toLocaleTimeString('vi-VN') : ''}</b> <br/> hay <b>xóa giờ</b> để quay về trạng thái chờ?`,
+        html: `Bạn muốn xóa giờ để quay về trạng thái chờ?`,
         icon: 'question',
+        showConfirmButton: false,
         showCancelButton: true,
         showDenyButton: true,
         denyButtonColor: '#f59e0b',
@@ -708,10 +709,10 @@ export default function RoomPage() {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: sessionId, 
-          status: 'paused', 
-          endTime: now.toISOString() 
+        body: JSON.stringify({
+          id: sessionId,
+          status: 'paused',
+          endTime: now.toISOString()
         }),
       });
       if (res.ok) {

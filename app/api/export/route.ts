@@ -49,6 +49,21 @@ export async function POST(request: Request) {
             const baseName = customerName || (type === 'gift' ? 'Khách tặng' : 'Khách mang về');
             const finalName = `${baseName} [${itemsSummary}]`.substring(0, 255);
 
+            // 0. Đảm bảo phòng ảo "EXTERNAL" tồn tại để không bị lỗi Foreign Key
+            // Chúng ta dùng upsert để nếu phòng đã có rồi thì không báo lỗi
+            await tx.room.upsert({
+                where: { Id: 'EXTERNAL' },
+                update: {},
+                create: {
+                    Id: 'EXTERNAL',
+                    StoreId: storeId,
+                    RoomNumber: 'MANG VỀ',
+                    Capacity: 0,
+                    PricePerHour: 0,
+                    Status: 'empty'
+                }
+            });
+
             // 3. Tạo hóa đơn để hiển thị trong lịch sử
             const invoice = await tx.invoice.create({
                 data: {
