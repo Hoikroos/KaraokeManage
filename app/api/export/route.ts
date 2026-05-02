@@ -49,6 +49,8 @@ export async function POST(request: Request) {
             const baseName = customerName || (type === 'gift' ? 'Khách tặng' : 'Khách mang về');
             const finalName = `${baseName} [${itemsSummary}]`.substring(0, 255);
 
+            const sessionId = 'SES_EX' + Date.now().toString();
+
             // 0. Đảm bảo phòng ảo "EXTERNAL" tồn tại để không bị lỗi Foreign Key
             // Chúng ta dùng upsert để nếu phòng đã có rồi thì không báo lỗi
             await tx.room.upsert({
@@ -64,6 +66,32 @@ export async function POST(request: Request) {
                 }
             });
 
+            // 0.1 Tạo RoomSession trước để các OrderItem có thể liên kết (Tránh lỗi Foreign Key)
+            await (tx as any).roomSession.create({
+                data: {
+                    Id: sessionId,
+                    StoreId: storeId,
+                    RoomId: 'EXTERNAL',
+                    StartTime: new Date(),
+                    Status: 'completed'
+                }
+            });
+
+            // 1. Tạo bản ghi OrderItem cho từng món để có thể truy vấn in lại sau này
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                await tx.orderItem.create({
+                    data: {
+                        Id: 'ORD_EX' + Date.now().toString() + i,
+                        RoomSessionId: sessionId,
+                        ProductId: item.productId,
+                        ProductName: item.name,
+                        Quantity: item.quantity,
+                        Price: item.price,
+                    } as any
+                });
+            }
+
             // 3. Tạo hóa đơn để hiển thị trong lịch sử
             const invoice = await tx.invoice.create({
                 data: {
@@ -78,16 +106,8 @@ export async function POST(request: Request) {
                     StartTime: new Date(),
                     EndTime: new Date(),
                     RoomCost: 0,
-                    // Tạo một RoomSession ảo để thỏa mãn ràng buộc Database
-                    RoomSession: {
-                        create: {
-                            Id: 'SES_EX' + Date.now().toString(),
-                            StoreId: storeId,
-                            RoomId: 'EXTERNAL',
-                            StartTime: new Date(),
-                            Status: 'completed'
-                        }
-                    },
+                    // Liên kết tới phiên làm việc ảo đã tạo ở bước 0.1
+                    RoomSessionId: sessionId,
                 } as any,
             });
 

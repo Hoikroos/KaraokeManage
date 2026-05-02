@@ -23,6 +23,9 @@ export default function ExportPage() {
     const [customerName, setCustomerName] = useState('');
     const [exportType, setExportType] = useState<'takeaway' | 'gift'>('takeaway');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [activeView, setActiveView] = useState<'create' | 'history'>('create');
+    const [history, setHistory] = useState<any[]>([]);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
     const [lastExport, setLastExport] = useState<any>(null);
 
     // 1. Tải dữ liệu từ LocalStorage khi vào trang
@@ -52,6 +55,23 @@ export default function ExportPage() {
     useEffect(() => {
         localStorage.setItem('export_cart', JSON.stringify(cart));
     }, [cart]);
+
+    useEffect(() => {
+        if (activeView === 'history' && user?.storeId) fetchHistory();
+    }, [activeView, user]);
+
+    const fetchHistory = async () => {
+        setIsHistoryLoading(true);
+        try {
+            const res = await fetch(`/api/invoices?storeId=${user?.storeId}`);
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : (data.data || []);
+            // Lọc các hóa đơn có mã TKW hoặc GFT
+            const exportOnly = list.filter((inv: any) => inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
+            setHistory(exportOnly.slice(0, 20)); // Lấy 20 cái gần nhất
+        } catch (e) { console.error(e); }
+        finally { setIsHistoryLoading(false); }
+    };
 
     const fetchProducts = async () => {
         try {
@@ -131,6 +151,7 @@ export default function ExportPage() {
                     localStorage.removeItem('export_customer');
                     localStorage.removeItem('export_note');
                     localStorage.removeItem('export_cart');
+                    if (activeView === 'history') fetchHistory();
                     fetchProducts();
                 }, 500);
             } else {
@@ -142,6 +163,24 @@ export default function ExportPage() {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handlePrintHistoryItem = async (inv: any) => {
+        try {
+            // Lấy chi tiết món từ session linked với invoice
+            const res = await fetch(`/api/orders?sessionId=${inv.roomSessionId || inv.RoomSessionId}`);
+            const items = await res.json();
+            
+            setLastExport({
+                ...inv,
+                items: items.map((i: any) => ({ name: i.productName, quantity: i.quantity, price: i.price })),
+                exportTime: new Date(inv.createdAt || inv.CreatedAt).toLocaleString('vi-VN')
+            });
+            
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        } catch (e) { toast.error('Lỗi khi tải chi tiết để in'); }
     };
 
     return (
@@ -172,9 +211,27 @@ export default function ExportPage() {
                 </div>
             </div>
 
+            {/* Tab Switcher */}
+            <div className="max-w-7xl mx-auto px-4 mt-4 print:hidden">
+                <div className="flex gap-2 p-1 bg-slate-200/50 w-fit rounded-xl">
+                    <button 
+                        onClick={() => setActiveView('create')}
+                        className={`px-6 py-2 rounded-lg text-xs font-black transition-all ${activeView === 'create' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                    >
+                        XUẤT MỚI
+                    </button>
+                    <button 
+                        onClick={() => setActiveView('history')}
+                        className={`px-6 py-2 rounded-lg text-xs font-black transition-all ${activeView === 'history' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                    >
+                        LỊCH SỬ GẦN ĐÂY
+                    </button>
+                </div>
+            </div>
+
             <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
-                {/* Cột trái: Danh sách sản phẩm */}
-                <div className="lg:col-span-2 space-y-4">
+                {activeView === 'create' ? (
+                    <div className="lg:col-span-2 space-y-4">
                     <div className="relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                         <Input
@@ -201,8 +258,39 @@ export default function ExportPage() {
                         ))}
                     </div>
                 </div>
+                ) : (
+                    <div className="lg:col-span-2 space-y-3">
+                        {isHistoryLoading ? (
+                            <div className="py-20 text-center text-slate-400 animate-pulse font-bold">Đang tải lịch sử...</div>
+                        ) : history.length === 0 ? (
+                            <div className="py-20 text-center text-slate-400 font-bold bg-white rounded-3xl border-2 border-dashed">Chưa có dữ liệu xuất</div>
+                        ) : (
+                            history.map((inv) => (
+                                <Card key={inv.id} className="p-4 flex items-center justify-between border-none shadow-sm hover:shadow-md transition-all">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded ${inv.id.startsWith('GFT') ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                {inv.id.startsWith('GFT') ? 'TẶNG' : 'MANG VỀ'}
+                                            </span>
+                                            <span className="text-[11px] font-bold text-slate-400">{new Date(inv.createdAt || inv.CreatedAt).toLocaleString('vi-VN')}</span>
+                                        </div>
+                                        <div className="font-bold text-slate-800 truncate">{inv.customerName || inv.CustomerName}</div>
+                                        <div className="text-xs text-indigo-600 font-black">{(inv.totalPrice || 0).toLocaleString('vi-VN')}đ</div>
+                                    </div>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => handlePrintHistoryItem(inv)}
+                                        className="rounded-xl border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 gap-2 font-bold text-xs"
+                                    >
+                                        <Printer className="w-4 h-4" /> In lại
+                                    </Button>
+                                </Card>
+                            ))
+                        )}
+                    </div>
+                )}
 
-                {/* Cột phải: Giỏ hàng & Thông tin */}
                 <div className="space-y-4">
                     <Card className="p-5 border-none shadow-lg rounded-3xl sticky top-24">
                         <div className="flex items-center gap-2 mb-4 text-slate-800">
@@ -241,12 +329,12 @@ export default function ExportPage() {
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1.5 block">Ghi chú</label>
+                                <label className="text-[10px] font-black text-indigo-500 uppercase mb-1.5 block">Ghi chú quan trọng (In ra phiếu)</label>
                                 <textarea
                                     value={note}
                                     onChange={e => setNote(e.target.value)}
-                                    placeholder="Lý do xuất kho..."
-                                    className="w-full bg-slate-50 rounded-xl p-3 text-sm outline-none h-20 resize-none"
+                                    placeholder="Ví dụ: Tặng khách quen, hàng hư hỏng, mang về..."
+                                    className="w-full bg-indigo-50/30 border-2 border-indigo-100 rounded-xl p-3 text-sm font-medium outline-none h-24 resize-none focus:border-indigo-300 focus:bg-white transition-all text-slate-700"
                                 />
                             </div>
 
@@ -324,8 +412,9 @@ export default function ExportPage() {
                         <span>{exportType === 'gift' ? '0đ' : `${totalAmount.toLocaleString('vi-VN')}đ`}</span>
                     </div>
                     {note && (
-                        <div className="mt-4 pt-2 border-t border-dashed border-black">
-                            <p className="text-xs font-normal italic">Ghi chú: {note}</p>
+                        <div className="mt-4 pt-2 border-t-2 border-black">
+                            <p className="text-[12px] font-black uppercase mb-1">Ghi chú:</p>
+                            <p className="text-[18px] leading-tight font-black break-words" style={{ textTransform: 'none' }}>{note}</p>
                         </div>
                     )}
                 </div>
