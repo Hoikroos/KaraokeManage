@@ -57,39 +57,50 @@ export async function GET(req: NextRequest) {
         });
 
         /* ───────────────────────────────────────────── */
-        /* 3. ROOM SESSIONS                             */
+        /* 3. PAID INVOICES & SESSIONS                  */
         /* ───────────────────────────────────────────── */
 
-        const sessions = await prisma.roomSession.findMany({
-            where: { StoreId: storeId },
-            select: { Id: true },
-        });
-
-        const sessionIds = sessions.map(s => s.Id);
-
-        /* ───────────────────────────────────────────── */
-        /* 4. SALES                                     */
-        /* ───────────────────────────────────────────── */
-
-        // Bán trong kỳ
-        const salesInPeriod = await prisma.orderItem.groupBy({
-            by: ['ProductId'],
+        // Lấy danh sách ID các phiên phòng đã thanh toán thành công trong kỳ
+        const invoicesInPeriod = await prisma.invoice.findMany({
             where: {
-                RoomSessionId: { in: sessionIds },
+                StoreId: storeId,
+                Status: 'paid', // Chỉ tính các hóa đơn đã thanh toán
                 CreatedAt: { gte: startDate, lte: endDate },
             },
-            _sum: { Quantity: true },
+            select: { RoomSessionId: true },
         });
+        const sessionIdsInPeriod = invoicesInPeriod.map(i => i.RoomSessionId).filter((id): id is string => !!id);
 
-        // Bán từ start → hiện tại
-        const salesSinceStart = await prisma.orderItem.groupBy({
-            by: ['ProductId'],
+        // Lấy danh sách ID các phiên phòng đã thanh toán thành công từ lúc start đến nay (để tính tồn đầu)
+        const invoicesSinceStart = await prisma.invoice.findMany({
             where: {
-                RoomSessionId: { in: sessionIds },
+                StoreId: storeId,
+                Status: 'paid',
                 CreatedAt: { gte: startDate },
             },
-            _sum: { Quantity: true },
+            select: { RoomSessionId: true },
         });
+        const sessionIdsSinceStart = invoicesSinceStart.map(i => i.RoomSessionId).filter((id): id is string => !!id);
+
+        /* ───────────────────────────────────────────── */
+        /* 4. SALES (ONLY FROM PAID BILLS)              */
+        /* ───────────────────────────────────────────── */
+
+        // Bán trong kỳ: Toàn bộ món trong các bill đã thanh toán thành công trong kỳ này
+        const salesInPeriod = sessionIdsInPeriod.length > 0
+            ? await prisma.orderItem.groupBy({
+                by: ['ProductId'],
+                where: { RoomSessionId: { in: sessionIdsInPeriod } },
+                _sum: { Quantity: true },
+            }) : [];
+
+        // Bán từ lúc bắt đầu xem báo cáo đến nay (để phục vụ tính tồn đầu chính xác)
+        const salesSinceStart = sessionIdsSinceStart.length > 0
+            ? await prisma.orderItem.groupBy({
+                by: ['ProductId'],
+                where: { RoomSessionId: { in: sessionIdsSinceStart } },
+                _sum: { Quantity: true },
+            }) : [];
 
         /* ───────────────────────────────────────────── */
         /* 5. INVENTORY LOG                             */

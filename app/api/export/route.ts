@@ -72,6 +72,7 @@ export async function POST(request: Request) {
                     TotalPrice: type === 'gift' ? 0 : totalValue,
                     CustomerName: finalName,
                     CreatedAt: new Date(),
+                    Status: 'paid', // Đánh dấu đã thanh toán để được tính vào báo cáo kho
                     // Bổ sung các trường bắt buộc để sửa lỗi TypeScript
                     RoomId: 'EXTERNAL', // Gán giá trị mặc định cho hóa đơn ngoài phòng
                     StartTime: new Date(),
