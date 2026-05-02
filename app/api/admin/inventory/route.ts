@@ -13,164 +13,215 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // ── 1. Xác định khoảng thời gian ──────────────────────────────────────
+        /* ───────────────────────────────────────────── */
+        /* 1. TIME RANGE (FIX TIMEZONE)                  */
+        /* ───────────────────────────────────────────── */
+
         const now = new Date();
         let startDate: Date;
         let endDate: Date;
 
         if (startParam) {
-            // Người dùng tự chọn ngày
-            startDate = new Date(startParam);
-            startDate.setHours(0, 0, 0, 0);
-            endDate = endParam ? new Date(endParam) : new Date();
-            endDate.setHours(23, 59, 59, 999);
+            startDate = new Date(startParam + 'T00:00:00.000Z');
+            endDate = endParam
+                ? new Date(endParam + 'T23:59:59.999Z')
+                : new Date();
         } else {
-            // Bộ lọc nhanh theo type
-            endDate = new Date(now);
+            endDate = new Date();
             endDate.setHours(23, 59, 59, 999);
 
-            startDate = new Date(now);
+            startDate = new Date();
+
             if (type === 'daily') {
                 startDate.setHours(0, 0, 0, 0);
             } else if (type === 'weekly') {
-                // Thứ 2 đầu tuần hiện tại
-                const day = now.getDay(); // 0=CN
+                const day = now.getDay();
                 const diff = day === 0 ? -6 : 1 - day;
                 startDate.setDate(now.getDate() + diff);
                 startDate.setHours(0, 0, 0, 0);
             } else if (type === 'monthly') {
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
             } else if (type === 'yearly') {
-                startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+                startDate = new Date(now.getFullYear(), 0, 1);
             } else {
                 startDate.setHours(0, 0, 0, 0);
             }
         }
 
-        // ── 2. Sản phẩm của cửa hàng ──────────────────────────────────────────
+        /* ───────────────────────────────────────────── */
+        /* 2. PRODUCTS                                  */
+        /* ───────────────────────────────────────────── */
+
         const products = await prisma.product.findMany({
             where: { StoreId: storeId },
         });
 
-        // ── 3. Lấy dữ liệu bán hàng thực tế (Dựa trên thời điểm gọi món) ──────
-        // Lấy danh sách ID các phiên phòng thuộc chi nhánh này
-        const storeSessions = await prisma.roomSession.findMany({
-            where: { StoreId: storeId },
-            select: { Id: true }
-        });
-        const sessionIds = storeSessions.map(s => s.Id);
+        /* ───────────────────────────────────────────── */
+        /* 3. ROOM SESSIONS                             */
+        /* ───────────────────────────────────────────── */
 
-        // Sản lượng bán TẠI PHÒNG TRONG KỲ (Dựa trên CreatedAt của OrderItem)
+        const sessions = await prisma.roomSession.findMany({
+            where: { StoreId: storeId },
+            select: { Id: true },
+        });
+
+        const sessionIds = sessions.map(s => s.Id);
+
+        /* ───────────────────────────────────────────── */
+        /* 4. SALES                                     */
+        /* ───────────────────────────────────────────── */
+
+        // Bán trong kỳ
         const salesInPeriod = await prisma.orderItem.groupBy({
             by: ['ProductId'],
             where: {
                 RoomSessionId: { in: sessionIds },
-                CreatedAt: { gte: startDate, lte: endDate }
+                CreatedAt: { gte: startDate, lte: endDate },
             },
             _sum: { Quantity: true },
         });
 
-        // Sản lượng bán TẠI PHÒNG TỪ START ĐẾN NAY (Phục vụ tính tồn đầu)
+        // Bán từ start → hiện tại
         const salesSinceStart = await prisma.orderItem.groupBy({
             by: ['ProductId'],
             where: {
                 RoomSessionId: { in: sessionIds },
-                CreatedAt: { gte: startDate }
+                CreatedAt: { gte: startDate },
             },
             _sum: { Quantity: true },
         });
 
-        // ── 4. Lấy dữ liệu kho (InventoryLog) ────────────────────────────────
-        const excludeInit = {
-            NOT: {
-                OR: [
-                    { Type: 'init' }, { Type: 'import' }, { Type: 'create' },
-                    { Note: { contains: 'Khởi tạo' } }, { Note: { contains: 'Excel' } }
-                ]
+        /* ───────────────────────────────────────────── */
+        /* 5. INVENTORY LOG                             */
+        /* ───────────────────────────────────────────── */
+
+        // Nhập trong kỳ
+        const restocksInPeriod = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: {
+                StoreId: storeId,
+                CreatedAt: { gte: startDate, lte: endDate },
+                Quantity: { gt: 0 },
             },
-        };
+            _sum: { Quantity: true },
+        });
 
-        let logs: any[] = [];
-        let restocksInPeriod: any[] = [];
-        let exportsInPeriod: any[] = [];
+        // Xuất lẻ trong kỳ
+        const exportsInPeriod = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: {
+                StoreId: storeId,
+                CreatedAt: { gte: startDate, lte: endDate },
+                Quantity: { lt: 0 },
+            },
+            _sum: { Quantity: true },
+        });
 
-        // Logs để hiển thị danh sách
-        logs = await (prisma as any).inventoryLog.findMany({
-            where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate } },
+        // 🔥 QUAN TRỌNG: KHÔNG excludeInit ở đây
+
+        // Nhập từ start → hiện tại
+        const importSinceStart = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: {
+                StoreId: storeId,
+                CreatedAt: { gte: startDate },
+                Quantity: { gt: 0 },
+            },
+            _sum: { Quantity: true },
+        });
+
+        // Xuất lẻ từ start → hiện tại
+        const exportSinceStart = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: {
+                StoreId: storeId,
+                CreatedAt: { gte: startDate },
+                Quantity: { lt: 0 },
+            },
+            _sum: { Quantity: true },
+        });
+
+        /* ───────────────────────────────────────────── */
+        /* 6. LOG LIST                                  */
+        /* ───────────────────────────────────────────── */
+
+        const logs = await (prisma as any).inventoryLog.findMany({
+            where: {
+                StoreId: storeId,
+                CreatedAt: { gte: startDate, lte: endDate },
+            },
             include: { product: true },
             orderBy: { CreatedAt: 'desc' },
         });
 
-        // Nhập thực sự trong kỳ
-        restocksInPeriod = await (prisma as any).inventoryLog.groupBy({
-            by: ['ProductId'],
-            where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate }, Quantity: { gt: 0 }, ...excludeInit },
-            _sum: { Quantity: true },
-        });
+        /* ───────────────────────────────────────────── */
+        /* 7. CALCULATE                                 */
+        /* ───────────────────────────────────────────── */
 
-        // Xuất lẻ (Mang về/Tặng) trong kỳ
-        exportsInPeriod = await (prisma as any).inventoryLog.groupBy({
-            by: ['ProductId'],
-            where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate }, Quantity: { lt: 0 }, OR: [{ Type: 'export' }, { Type: { contains: 'gift' } as any }] },
-            _sum: { Quantity: true },
-        });
-
-        // TẤT CẢ biến động log từ lúc Start đến Tận bây giờ (để tính tồn đầu)
-        const logsSinceStart = await (prisma as any).inventoryLog.groupBy({
-            by: ['ProductId'],
-            where: { StoreId: storeId, CreatedAt: { gte: startDate }, ...excludeInit },
-            _sum: { Quantity: true },
-        });
+        const safe = (n: any) => Number(n || 0);
 
         const stats = products.map(p => {
-            const saleInPeriodRec = salesInPeriod.find((s: any) => s.ProductId === p.Id);
-            const roomSales = Number((saleInPeriodRec as any)?._sum?.Quantity ?? 0);
-            const exportInPeriodRec = exportsInPeriod.find((e: any) => e.ProductId === p.Id);
-            const totalExported = Math.abs(Number((exportInPeriodRec as any)?._sum?.Quantity ?? 0));
-            const totalQuantity = roomSales + totalExported;
+            // Bán trong kỳ
+            const salePeriod = salesInPeriod.find(s => s.ProductId === p.Id);
+            const roomSales = safe(salePeriod?._sum?.Quantity);
 
-            const restockInPeriodRec = restocksInPeriod.find((r: any) => r.ProductId === p.Id);
-            const totalRestocked = Number((restockInPeriodRec as any)?._sum?.Quantity ?? 0);
+            // Xuất lẻ trong kỳ
+            const exportPeriod = exportsInPeriod.find(e => e.ProductId === p.Id);
+            const exported = Math.abs(safe(exportPeriod?._sum?.Quantity));
 
-            // TÍNH TOÁN TỒN ĐẦU KỲ CHÍNH XÁC:
-            // Lấy tất cả những gì đã bán/xuất/nhập từStartDate đến Tận Bây Giờ
-            const soldSinceStartRec = salesSinceStart.find((s: any) => s.ProductId === p.Id);
-            const totalSoldSinceStart = Number((soldSinceStartRec as any)?._sum?.Quantity ?? 0);
+            const totalQuantity = roomSales + exported;
 
-            const logsSinceStartRec = logsSinceStart.find((l: any) => l.ProductId === p.Id);
-            const netLogChangeSinceStart = Number((logsSinceStartRec as any)?._sum?.Quantity ?? 0);
+            // Nhập trong kỳ
+            const restockPeriod = restocksInPeriod.find(r => r.ProductId === p.Id);
+            const totalRestocked = safe(restockPeriod?._sum?.Quantity);
 
-            // Công thức: Tồn đầu = Tồn hiện tại - (Tổng nhập từ đó đến nay) + (Tổng bán từ đó đến nay)
-            // Lưu ý: netLogChange đã bao gồm Nhập (+) và Xuất lẻ (-)
-            const openingStock = p.Quantity - netLogChangeSinceStart + totalSoldSinceStart;
+            // 🔥 TÍNH TỒN ĐẦU (CHUẨN)
+            const importRec = importSinceStart.find(i => i.ProductId === p.Id);
+            const totalImportedSinceStart = safe(importRec?._sum?.Quantity);
+
+            const exportRec = exportSinceStart.find(e => e.ProductId === p.Id);
+            const totalExportedSinceStart = Math.abs(safe(exportRec?._sum?.Quantity));
+
+            const soldRec = salesSinceStart.find(s => s.ProductId === p.Id);
+            const totalSoldSinceStart = safe(soldRec?._sum?.Quantity);
+
+            const openingStock =
+                p.Quantity
+                - totalImportedSinceStart
+                + totalExportedSinceStart
+                + totalSoldSinceStart;
 
             return {
                 productId: p.Id,
                 productName: p.Name,
                 category: p.Category,
                 openingStock: Math.max(0, openingStock),
-                totalRestocked,      // Nhập trong kỳ
-                totalQuantity,       // Bán trong kỳ
+                totalRestocked,
+                totalQuantity,
                 totalRevenue: totalQuantity * Number(p.Price || 0),
-                currentStock: p.Quantity,  // Tồn hiện tại (cuối kỳ)
+                currentStock: p.Quantity,
             };
         });
 
+        /* ───────────────────────────────────────────── */
+        /* 8. RESPONSE                                  */
+        /* ───────────────────────────────────────────── */
+
         return NextResponse.json({
             stats,
-            period: {
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
-                type,
-            },
             logs: logs.map((l: any) => ({
                 id: l.Id,
-                productName: l.product?.Name || l.ProductName || 'Sản phẩm đã xóa',
+                productName: l.product?.Name || 'Sản phẩm đã xóa',
                 quantity: l.Quantity,
                 createdAt: l.CreatedAt,
                 type: l.Type,
                 note: l.Note,
             })),
+            period: {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                type,
+            },
         });
 
     } catch (error) {
