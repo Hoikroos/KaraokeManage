@@ -72,7 +72,10 @@ export default function Dashboard() {
           'Pragma': 'no-cache'
         }
       });
-      const data: Room[] = await response.json();
+      const rawData: Room[] = await response.json();
+
+      // Lọc bỏ phòng ảo "MANG VỀ" (Id: EXTERNAL) để không hiển thị trên sơ đồ phòng chính
+      const data = rawData.filter(r => (r.id ?? (r as any).Id) !== 'EXTERNAL');
 
       const sortedData = [...data].sort((a, b) => {
         const numA = parseInt(a.roomNumber?.toString().replace(/\D/g, '') || '0');

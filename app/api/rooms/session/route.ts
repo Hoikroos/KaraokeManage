@@ -98,6 +98,30 @@ export async function PUT(request: Request) {
 
     const updateData: any = {};
 
+    // ✅ XỬ LÝ HỦY PHÒNG: Hoàn kho và xóa danh sách món (orderItems)
+    const newStatus = status || Status;
+    if (newStatus === 'cancelled') {
+      await prisma.$transaction(async (tx) => {
+        // 1. Tìm tất cả các món đã gọi của phiên này
+        const items = await tx.orderItem.findMany({
+          where: { RoomSessionId: id }
+        });
+
+        // 2. Hoàn trả số lượng vào kho cho từng sản phẩm
+        for (const item of items) {
+          await tx.product.update({
+            where: { Id: item.ProductId },
+            data: { Quantity: { increment: item.Quantity } }
+          });
+        }
+
+        // 3. Xóa vĩnh viễn các orderItems của phiên này
+        await tx.orderItem.deleteMany({
+          where: { RoomSessionId: id }
+        });
+      });
+    }
+
     // Cập nhật thời gian bắt đầu (startTime / StartTime)
     const startVal = startTime !== undefined ? startTime : StartTime;
     if (startVal !== undefined && startVal !== null) {

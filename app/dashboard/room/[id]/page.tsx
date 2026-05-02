@@ -779,6 +779,7 @@ export default function RoomPage() {
     });
     if (!result.isConfirmed) return;
     try {
+      // API này cần phải xử lý việc cộng trả lại số lượng sản phẩm vào kho
       await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
