@@ -52,143 +52,99 @@ export async function GET(req: NextRequest) {
             where: { StoreId: storeId },
         });
 
-        // ── 3. Số lượng ĐÃ BÁN trong kỳ (qua OrderItem) ──────────────────────
-        // Thay đổi: Chỉ tìm theo hóa đơn được tạo trong kỳ để khớp chính xác với thời điểm in Bill
-        const invoicesInPeriod = await prisma.invoice.findMany({
-            where: {
-                StoreId: storeId,
-                CreatedAt: { gte: startDate, lte: endDate },
-            },
-            select: { RoomSessionId: true },
+        // ── 3. Lấy dữ liệu bán hàng tại phòng (OrderItem) ────────────────────
+        // Lấy tất cả hóa đơn từ StartDate đến Tận bây giờ để phục vụ tính Tồn đầu
+        const allInvoicesSinceStart = await prisma.invoice.findMany({
+            where: { StoreId: storeId, CreatedAt: { gte: startDate } },
+            select: { CreatedAt: true, RoomSessionId: true },
         });
 
-        const sessionIds = invoicesInPeriod
-            .map(inv => inv.RoomSessionId)
-            .filter((id): id is string => !!id);
+        const sessionIdsInPeriod = allInvoicesSinceStart
+            .filter(inv => inv.CreatedAt <= endDate)
+            .map(inv => inv.RoomSessionId).filter((id): id is string => !!id);
 
-        const salesInPeriod = sessionIds.length > 0
+        const sessionIdsSinceStart = allInvoicesSinceStart
+            .map(inv => inv.RoomSessionId).filter((id): id is string => !!id);
+
+        // Bán trong kỳ [Start, End]
+        const salesInPeriod = sessionIdsInPeriod.length > 0
             ? await prisma.orderItem.groupBy({
                 by: ['ProductId'],
-                where: { RoomSessionId: { in: sessionIds } },
+                where: { RoomSessionId: { in: sessionIdsInPeriod } },
                 _sum: { Quantity: true },
-            })
-            : [];
+            }) : [];
 
-        // ── 4. Inventory logs ──────────────────────────────────────────────────
+        // Bán từ lúc Start đến Tận bây giờ (để tính tồn đầu)
+        const salesSinceStart = sessionIdsSinceStart.length > 0
+            ? await prisma.orderItem.groupBy({
+                by: ['ProductId'],
+                where: { RoomSessionId: { in: sessionIdsSinceStart } },
+                _sum: { Quantity: true },
+            }) : [];
+
+        // ── 4. Lấy dữ liệu kho (InventoryLog) ────────────────────────────────
+        const excludeInit = {
+            NOT: {
+                OR: [
+                    { Type: 'init' }, { Type: 'import' }, { Type: 'create' },
+                    { Note: { contains: 'Khởi tạo' } }, { Note: { contains: 'Excel' } }
+                ]
+            },
+        };
+
         let logs: any[] = [];
-        let restocksInPeriod: any[] = [];   // nhập THỰC SỰ trong kỳ (loại log khởi tạo)
-        let exportsInPeriod: any[] = [];    // xuất lẻ (Mang về / Tặng) trong kỳ
-        let allRestocksEver: any[] = [];     // tất cả nhập thực sự TỪ TRƯỚC ĐẾN TRƯỚC KỲ (để tính tồn đầu)
+        let restocksInPeriod: any[] = [];
+        let exportsInPeriod: any[] = [];
 
-        if ((prisma as any).inventoryLog) {
-            // Điều kiện loại trừ log khởi tạo / import hàng loạt
-            const excludeInit = {
-                NOT: {
-                    OR: [
-                        { Type: 'init' },
-                        { Type: 'import' },
-                        { Type: 'create' },
-                        { Note: { contains: 'Khởi tạo sản phẩm' } },
-                        { Note: { contains: 'Nhập mới từ file Excel' } },
-                        { Note: { contains: 'Nhập mới từ file' } },
-                    ],
-                },
-            };
-
-            // 4a. Tất cả logs trong kỳ để hiển thị lịch sử
-            logs = await (prisma as any).inventoryLog.findMany({
-                where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate } },
-                include: { product: true },
-                orderBy: { CreatedAt: 'desc' },
-            });
-
-            // 4b. Nhập THỰC SỰ trong kỳ (bỏ log khởi tạo)
-            restocksInPeriod = await (prisma as any).inventoryLog.groupBy({
-                by: ['ProductId'],
-                where: {
-                    StoreId: storeId,
-                    CreatedAt: { gte: startDate, lte: endDate },
-                    Quantity: { gt: 0 },  // chỉ lấy nhập vào, không lấy xuất/hư
-                    ...excludeInit,
-                },
-                _sum: { Quantity: true },
-            });
-
-            // 4d. Sản lượng Xuất lẻ (Mang về / Tặng) trong kỳ
-            exportsInPeriod = await (prisma as any).inventoryLog.groupBy({
-                by: ['ProductId'],
-                where: {
-                    StoreId: storeId,
-                    CreatedAt: { gte: startDate, lte: endDate },
-                    Quantity: { lt: 0 },
-                    OR: [{ Type: 'export' }, { Type: 'gift' }],
-                },
-                _sum: { Quantity: true },
-            });
-
-            // 4c. Nhập THỰC SỰ TRƯỚC kỳ này (để tính tồn đầu kỳ)
-            allRestocksEver = await (prisma as any).inventoryLog.groupBy({
-                by: ['ProductId'],
-                where: {
-                    StoreId: storeId,
-                    CreatedAt: { lt: startDate },  // trước kỳ
-                    Quantity: { gt: 0 },
-                    ...excludeInit,
-                },
-                _sum: { Quantity: true },
-            });
-        }
-
-        // ── 5. Số lượng đã bán TRƯỚC kỳ (để tính tồn đầu kỳ) ─────────────────
-        const invoicesBefore = await prisma.invoice.findMany({
-            where: {
-                StoreId: storeId,
-                CreatedAt: { lt: startDate },
-            },
-            select: { RoomSessionId: true },
+        // Logs để hiển thị danh sách
+        logs = await (prisma as any).inventoryLog.findMany({
+            where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate } },
+            include: { product: true },
+            orderBy: { CreatedAt: 'desc' },
         });
 
-        const sessionIdsBefore = invoicesBefore
-            .map(inv => inv.RoomSessionId)
-            .filter((id): id is string => !!id);
+        // Nhập thực sự trong kỳ
+        restocksInPeriod = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate }, Quantity: { gt: 0 }, ...excludeInit },
+            _sum: { Quantity: true },
+        });
 
-        const salesBefore = sessionIdsBefore.length > 0
-            ? await prisma.orderItem.groupBy({
-                by: ['ProductId'],
-                where: { RoomSessionId: { in: sessionIdsBefore } },
-                _sum: { Quantity: true },
-            })
-            : [];
+        // Xuất lẻ (Mang về/Tặng) trong kỳ
+        exportsInPeriod = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: { StoreId: storeId, CreatedAt: { gte: startDate, lte: endDate }, Quantity: { lt: 0 }, OR: [{ Type: 'export' }, { Type: { contains: 'gift' } as any }] },
+            _sum: { Quantity: true },
+        });
 
-        // ── 6. Tính stats ──────────────────────────────────────────────────────
+        // TẤT CẢ biến động log từ lúc Start đến Tận bây giờ (để tính tồn đầu)
+        const logsSinceStart = await (prisma as any).inventoryLog.groupBy({
+            by: ['ProductId'],
+            where: { StoreId: storeId, CreatedAt: { gte: startDate }, ...excludeInit },
+            _sum: { Quantity: true },
+        });
+
         const stats = products.map(p => {
-            // Đã bán trong kỳ
-            const saleInPeriodRec = salesInPeriod.find(s => (s as any).ProductId === p.Id);
+            const saleInPeriodRec = salesInPeriod.find((s: any) => s.ProductId === p.Id);
             const roomSales = Number((saleInPeriodRec as any)?._sum?.Quantity ?? 0);
-
-            // Sản lượng xuất lẻ (Mang về / Tặng)
-            const exportInPeriodRec = exportsInPeriod.find(e => (e as any).ProductId === p.Id);
+            const exportInPeriodRec = exportsInPeriod.find((e: any) => e.ProductId === p.Id);
             const totalExported = Math.abs(Number((exportInPeriodRec as any)?._sum?.Quantity ?? 0));
+            const totalQuantity = roomSales + totalExported;
 
-            const totalQuantity = roomSales + totalExported; // Tổng sản lượng bán = Tại phòng + Mang về
-
-            // Nhập thực sự trong kỳ
-            const restockInPeriodRec = restocksInPeriod.find(r => (r as any).ProductId === p.Id);
+            const restockInPeriodRec = restocksInPeriod.find((r: any) => r.ProductId === p.Id);
             const totalRestocked = Number((restockInPeriodRec as any)?._sum?.Quantity ?? 0);
 
-            // Nhập thực sự trước kỳ
-            const restockBeforeRec = allRestocksEver.find(r => (r as any).ProductId === p.Id);
-            const restockedBefore = Number((restockBeforeRec as any)?._sum?.Quantity ?? 0);
+            // TÍNH TOÁN TỒN ĐẦU KỲ CHÍNH XÁC:
+            // Lấy tất cả những gì đã bán/xuất/nhập từStartDate đến Tận Bây Giờ
+            const soldSinceStartRec = salesSinceStart.find((s: any) => s.ProductId === p.Id);
+            const totalSoldSinceStart = Number((soldSinceStartRec as any)?._sum?.Quantity ?? 0);
 
-            // Đã bán trước kỳ
-            const saleBeforeRec = salesBefore.find(s => (s as any).ProductId === p.Id);
-            const soldBefore = Number((saleBeforeRec as any)?._sum?.Quantity ?? 0);
+            const logsSinceStartRec = logsSinceStart.find((l: any) => l.ProductId === p.Id);
+            const netLogChangeSinceStart = Number((logsSinceStartRec as any)?._sum?.Quantity ?? 0);
 
-            // Tồn đầu kỳ = tồn hiện tại + đã bán trong kỳ - nhập trong kỳ
-            // Hoặc tính từ gốc: khởi tạo + tất cả nhập trước - tất cả bán trước
-            // Cách 2 chính xác hơn:
-            const openingStock = p.Quantity - totalRestocked + totalQuantity;
-            // openingStock = tồn cuối kỳ - nhập kỳ + bán kỳ = tồn đầu kỳ ✓
+            // Công thức: Tồn đầu = Tồn hiện tại - (Tổng nhập từ đó đến nay) + (Tổng bán từ đó đến nay)
+            // Lưu ý: netLogChange đã bao gồm Nhập (+) và Xuất lẻ (-)
+            const openingStock = p.Quantity - netLogChangeSinceStart + totalSoldSinceStart;
 
             return {
                 productId: p.Id,
