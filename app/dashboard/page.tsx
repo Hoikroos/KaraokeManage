@@ -433,34 +433,34 @@ export default function Dashboard() {
 
       {/* ── Custom PIN Pad Modal ── */}
       <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
-        <DialogContent className="w-[calc(100%-2.5rem)] max-w-[340px] rounded-[32px] p-6 sm:p-8 border-none shadow-2xl overflow-hidden">
+        <DialogContent className="w-[240px] rounded-[2.5rem] p-5 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-xl">
           <div className="flex flex-col items-center">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
-              <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600" />
+            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center mb-3">
+              <Lock className="w-5 h-5 text-indigo-600" />
             </div>
-            <h2 className="text-lg sm:text-xl font-black text-slate-800 uppercase tracking-tight mb-1 text-center">Xác thực mã PIN</h2>
-            <p className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-6 sm:mb-8 text-center">Dành cho quản lý</p>
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-0.5 text-center">Xác thực PIN</h2>
+            <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-5 text-center">Quản lý hệ thống</p>
             
             {/* PIN Dots Display */}
-            <div className={`flex gap-3 sm:gap-4 mb-8 sm:mb-10 ${isPinError ? 'animate-bounce' : ''}`}>
+            <div className={`flex gap-2.5 mb-6 ${isPinError ? 'animate-bounce' : ''}`}>
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
-                  className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 transition-all duration-200 
+                  className={`w-2.5 h-2.5 rounded-full border-2 transition-all duration-200 
                     ${pinInput.length >= i 
-                      ? 'bg-indigo-600 border-indigo-600 scale-125' 
+                      ? 'bg-indigo-600 border-indigo-600 scale-110' 
                       : 'bg-transparent border-slate-200'}`}
                 />
               ))}
             </div>
 
             {/* Keypad */}
-            <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full">
+            <div className="grid grid-cols-3 gap-2 w-full">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
                 <button
                   key={num}
                   onClick={() => handlePinClick(num)}
-                  className="w-full aspect-square rounded-2xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-lg sm:text-xl font-black text-slate-700 hover:text-indigo-600 transition-all"
+                  className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all"
                 >
                   {num}
                 </button>
@@ -468,21 +468,21 @@ export default function Dashboard() {
               <div />
               <button
                 onClick={() => handlePinClick('0')}
-                className="w-full aspect-square rounded-2xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-lg sm:text-xl font-black text-slate-700 hover:text-indigo-600 transition-all"
+                className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all"
               >
                 0
               </button>
               <button
                 onClick={() => setPinInput(prev => prev.slice(0, -1))}
-                className="w-full aspect-square rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all hover:bg-rose-50"
+                className="w-full aspect-square rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all"
               >
-                <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Delete className="w-5 h-5" />
               </button>
             </div>
             
             <button 
               onClick={() => setIsLockModalOpen(false)}
-              className="mt-8 text-slate-400 text-xs font-bold uppercase hover:text-slate-600 transition"
+              className="mt-5 text-slate-400 text-[9px] font-bold uppercase hover:text-slate-600 transition tracking-widest"
             >
               Hủy bỏ
             </button>
