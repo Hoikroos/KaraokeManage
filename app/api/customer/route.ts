@@ -7,6 +7,7 @@ export async function GET() {
         const invoices = await prisma.invoice.findMany({
             where: {
                 Status: 'paid',
+                RoomId: { not: 'EXTERNAL' },
                 NOT: [
                     { Id: { startsWith: 'GFT' } },
                     { Id: { startsWith: 'TKW' } }
