@@ -246,7 +246,10 @@ export default function ReportsPage() {
             const key = getGroupKey(new Date(inv.createdAt), reportType);
             if (!groups[key]) groups[key] = { total: 0, count: 0 };
             groups[key].total += inv.totalPrice;
-            groups[key].count += 1;
+            // Chỉ tính lượt thuê cho các phòng thực tế (không phải mang về/tặng)
+            if (!inv.id.startsWith('TKW') && !inv.id.startsWith('GFT')) {
+                groups[key].count += 1;
+            }
         });
         return Object.entries(groups).map(([name, data]) => ({ name, ...data }));
     }, [filteredInvoices, reportType]);
@@ -259,6 +262,11 @@ export default function ReportsPage() {
 
     const paidRevenue = useMemo(() =>
         paidInvoices.reduce((s, inv) => s + inv.totalPrice, 0), [paidInvoices]);
+
+    // Lọc riêng danh sách hóa đơn thuê phòng (loại bỏ mang về/tặng) để tính lượt thuê
+    const roomHireInvoices = useMemo(() =>
+        paidInvoices.filter(inv => !inv.id.startsWith('TKW') && !inv.id.startsWith('GFT')),
+        [paidInvoices]);
 
     const selectedStore = stores.find(s => s.id === selectedStoreId);
     const hasActiveFilters = !!(startDate || endDate || searchTerm);
@@ -445,7 +453,7 @@ export default function ReportsPage() {
                         iconBg="bg-orange-50"
                         icon={<MonitorPlay className="w-5 h-5 text-orange-500" />}
                         label="Lượt thuê phòng"
-                        value={String(paidInvoices.length)}
+                        value={String(roomHireInvoices.length)}
                         sub="Đã thanh toán"
                     />
                     <KpiCard

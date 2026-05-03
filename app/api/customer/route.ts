@@ -5,7 +5,13 @@ export async function GET() {
     try {
         // Lấy tất cả hóa đơn đã thanh toán
         const invoices = await prisma.invoice.findMany({
-            where: { Status: 'paid' },
+            where: {
+                Status: 'paid',
+                NOT: [
+                    { Id: { startsWith: 'GFT' } },
+                    { Id: { startsWith: 'TKW' } }
+                ]
+            },
             select: {
                 CustomerName: true,
                 TotalPrice: true,
