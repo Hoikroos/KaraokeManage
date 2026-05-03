@@ -146,7 +146,15 @@ export default function RoomPage() {
         const res = await fetch('/api/invoices');
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data?.invoices || data?.data || []);
-        const names = Array.from(new Set(list.map((inv: any) => inv.customerName || inv.CustomerName).filter(Boolean))) as string[];
+        const names = Array.from(new Set(
+          list
+            .filter((inv: any) => {
+              const id = inv.id || inv.Id || '';
+              return !id.startsWith('TKW') && !id.startsWith('GFT');
+            })
+            .map((inv: any) => inv.customerName || inv.CustomerName)
+            .filter(Boolean)
+        )) as string[];
         setAllCustomerNames(names.filter(n => n !== 'Khách lẻ'));
       } catch (e) { console.error('Lỗi lấy danh sách khách hàng:', e); }
     };
