@@ -107,6 +107,7 @@ export default function RoomPage() {
   const [editingNames, setEditingNames] = useState<{ [key: number]: string }>({});
   const [editingNotes, setEditingNotes] = useState<{ [key: number]: string }>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -747,22 +748,22 @@ export default function RoomPage() {
       const res = await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: sessionId, 
+        body: JSON.stringify({
+          id: sessionId,
           status: 'active',
-          endTime: null 
+          endTime: null
         }),
       });
 
       if (res.ok) {
         const updated = await res.json();
         setSession({ ...updated, status: 'active', endTime: null } as any);
-        
+
         // Tắt chế độ thủ công và cập nhật giờ hiện tại ngay lập tức
         setIsManualEndTime(false);
         setSelectedEndTime(formatDateTimeLocal(now));
         setRawEndTime(now);
-        
+
         toast.success('Đã tiếp tục tính tiền giờ theo máy');
       }
     } catch (err) { console.error(err); }
@@ -2439,10 +2440,36 @@ export default function RoomPage() {
                     <Input
                       placeholder="Tìm món ăn, đồ uống..."
                       value={searchTerm}
-                      onChange={(e) => { setSearchTerm(e.target.value); setShowProductSuggestions(true); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearchEnter(); } }}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setShowProductSuggestions(true);
+                        setSelectedIndex(-1);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setSelectedIndex(prev => (prev < productSuggestions.length - 1 ? prev + 1 : prev));
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectedIndex(prev => (prev > -1 ? prev - 1 : -1));
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (selectedIndex >= 0 && productSuggestions[selectedIndex]) {
+                            if (!session) {
+                              toast.error('Vui lòng mở phòng để bắt đầu order');
+                              return;
+                            }
+                            handleAddProduct(productSuggestions[selectedIndex].id, 1);
+                            setSearchTerm('');
+                            setShowProductSuggestions(false);
+                            setSelectedIndex(-1);
+                          } else {
+                            handleSearchEnter();
+                          }
+                        }
+                      }}
                       onFocus={() => setShowProductSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowProductSuggestions(false), 200)}
+                      onBlur={() => setTimeout(() => { setShowProductSuggestions(false); setSelectedIndex(-1); }, 200)}
                       className="pl-11 pr-10 h-11 rounded-xl bg-white border border-slate-200 text-sm shadow-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition placeholder:text-slate-400"
                     />
                     {searchTerm && (
@@ -2457,7 +2484,7 @@ export default function RoomPage() {
                     {/* Suggestions dropdown */}
                     {showProductSuggestions && productSuggestions.length > 0 && (
                       <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl mt-1 shadow-2xl max-h-64 overflow-auto py-1.5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
-                        {productSuggestions.map((product) => (
+                        {productSuggestions.map((product, index) => (
                           <li
                             key={product.id}
                             onClick={() => {
@@ -2469,7 +2496,7 @@ export default function RoomPage() {
                               setSearchTerm('');
                               setShowProductSuggestions(false);
                             }}
-                            className="px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors"
+                            className={`px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex justify-between items-center group transition-colors ${index === selectedIndex ? 'bg-indigo-50' : ''}`}
                           >
                             <div className="flex items-center gap-3">
                               <div className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 transition-colors shrink-0">
