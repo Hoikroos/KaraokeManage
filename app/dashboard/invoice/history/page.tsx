@@ -113,6 +113,10 @@ export default function InvoiceHistoryPage() {
         const groups: { [key: string]: { count: number; dateObj: Date } } = {};
         filteredInvoices.forEach(inv => {
             if (!inv.createdAt) return;
+
+            // Không tính lượt khách mang về và quà tặng vào biểu đồ lượt khách
+            if (inv.id.startsWith('TKW') || inv.id.startsWith('GFT')) return;
+
             const date = new Date(inv.createdAt);
             if (isNaN(date.getTime())) return;
             const key = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
@@ -129,6 +133,9 @@ export default function InvoiceHistoryPage() {
     const customerStats = useMemo(() => {
         const groups: { [key: string]: number } = {};
         filteredInvoices.forEach(inv => {
+            // Loại bỏ khách mang về/tặng khỏi thống kê tần suất khách hàng
+            if (inv.id.startsWith('TKW') || inv.id.startsWith('GFT')) return;
+
             const name = inv.customerName?.trim() || 'Khách lẻ';
             groups[name] = (groups[name] || 0) + 1;
         });
@@ -142,6 +149,8 @@ export default function InvoiceHistoryPage() {
         .filter(c => c.name !== 'Khách lẻ')
         .reduce((sum, c) => sum + c.count, 0);
     const namedCustomers = customerStats.filter(c => c.name !== 'Khách lẻ');
+    // Tổng lượt khách thực tế (đã loại bỏ mang về/tặng) để tính % chính xác
+    const totalValidVisits = totalLe + totalNamed;
 
     const handleDeleteInvoice = async (id: string) => {
         const result = await Swal.fire({
@@ -354,7 +363,7 @@ export default function InvoiceHistoryPage() {
                                 <p className="text-xs font-bold text-slate-400 uppercase mb-4">Chi tiết khách hàng</p>
                                 <div className="space-y-3">
                                     {namedCustomers.map(({ name, count }) => {
-                                        const percent = Math.round((count / filteredInvoices.length) * 100);
+                                        const percent = totalValidVisits > 0 ? Math.round((count / totalValidVisits) * 100) : 0;
                                         return (
                                             <div key={name} className="flex items-center gap-3">
                                                 <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0">
