@@ -131,6 +131,7 @@ export default function RoomPage() {
   const isFirstRender = useRef(true);
   const lastItemRef = useRef<HTMLDivElement>(null); // Ref cho món hàng cuối cùng trong giỏ
   const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
+  const suggestionRefs = useRef<(HTMLLIElement | null)[]>([]);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
 
   // Reset cờ mỗi khi session mới được load
@@ -164,6 +165,15 @@ export default function RoomPage() {
   useEffect(() => {
     itemRefs.current = itemRefs.current.slice(0, orderItems.length);
   }, [orderItems.length]);
+
+  // Tự động cuộn khi di chuyển phím mũi tên trong danh sách gợi ý
+  useEffect(() => {
+    if (selectedIndex >= 0 && suggestionRefs.current[selectedIndex]) {
+      suggestionRefs.current[selectedIndex]?.scrollIntoView({
+        block: 'nearest',
+      });
+    }
+  }, [selectedIndex]);
 
   // Ref để theo dõi giá trị rawEndTime mới nhất cho logic so sánh
   const rawEndTimeRef = useRef<Date | null>(null);
@@ -2487,6 +2497,7 @@ export default function RoomPage() {
                         {productSuggestions.map((product, index) => (
                           <li
                             key={product.id}
+                            ref={(el) => { suggestionRefs.current[index] = el; }}
                             onClick={() => {
                               if (!session) {
                                 toast.error('Vui lòng mở phòng để bắt đầu order');
