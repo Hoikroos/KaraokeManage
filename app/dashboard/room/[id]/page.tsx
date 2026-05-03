@@ -255,30 +255,30 @@ export default function RoomPage() {
       .slice(0, 8);
   }, [searchTerm, stableSortedProducts]);
 
-  // Đồng bộ tên khách hàng lên server
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+  // Hàm đồng bộ tên khách hàng lên server (gọi khi Blur)
+  const syncCustomerName = async (name: string) => {
     if (!session) return;
     const sessionId = session.id ?? (session as any).Id;
     if (!sessionId) return;
 
-    const delayDebounceFn = setTimeout(async () => {
-      try {
-        await fetch('/api/rooms/session', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: sessionId, customerName: customerName || 'Khách lẻ' }),
-        });
-      } catch (error) {
-        console.error('Lỗi khi đồng bộ tên khách hàng:', error);
-      }
-    }, 800);
+    try {
+      await fetch('/api/rooms/session', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: sessionId, customerName: name || 'Khách lẻ' }),
+      });
+    } catch (error) {
+      console.error('Lỗi khi đồng bộ tên khách hàng:', error);
+    }
+  };
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [customerName, session]);
+  // Quản lý cờ render lần đầu
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+    }
+  }, [session]);
+
   // Desktop-only state
   const [activeCategory, setActiveCategory] = useState('all');
 
@@ -313,36 +313,29 @@ export default function RoomPage() {
     isFirstRenderPrice.current = true;
   }, [session?.id ?? (session as any)?.Id]);
 
-  useEffect(() => {
-    if (isFirstRenderPrice.current) {
-      isFirstRenderPrice.current = false;
-      return;
-    }
+  // Hàm đồng bộ giá phòng (gọi khi Blur)
+  const syncRoomPrice = async (price: number) => {
     if (!room) return;
 
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch('/api/admin/rooms', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: String(room.id ?? (room as any).Id),
-            roomNumber: room.roomNumber,
-            capacity: room.capacity,
-            pricePerHour: customPricePerHour,
-            status: room.status,
-          }),
-        });
-        if (res.ok) {
-          setRoom(prev => prev ? { ...prev, pricePerHour: customPricePerHour } : prev);
-        }
-      } catch (err) {
-        console.error('Lỗi khi cập nhật giá phòng:', err);
+    try {
+      const res = await fetch('/api/admin/rooms', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: String(room.id ?? (room as any).Id),
+          roomNumber: room.roomNumber,
+          capacity: room.capacity,
+          pricePerHour: price,
+          status: room.status,
+        }),
+      });
+      if (res.ok) {
+        setRoom(prev => prev ? { ...prev, pricePerHour: price } : prev);
       }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [customPricePerHour]); // eslint-disable-line react-hooks/exhaustive-deps
+    } catch (err) {
+      console.error('Lỗi khi cập nhật giá phòng:', err);
+    }
+  };
 
   // ── Real-time timer: Auto-update end time during active sessions ────────────
   useEffect(() => {
@@ -1631,6 +1624,7 @@ export default function RoomPage() {
                                   const val = e.target.value.replace(/\D/g, '');
                                   setCustomPricePerHour(val ? parseInt(val) : 0);
                                 }}
+                                onBlur={(e) => syncRoomPrice(parseInt(e.target.value.replace(/\D/g, '')) || 0)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -1648,7 +1642,7 @@ export default function RoomPage() {
                                 value={customerName}
                                 onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
                                 onFocus={() => setShowSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                onBlur={() => { syncCustomerName(customerName); setTimeout(() => setShowSuggestions(false), 200); }}
                                 className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
                               />
                               {showSuggestions && customerSuggestions.length > 0 && (
@@ -2191,6 +2185,7 @@ export default function RoomPage() {
                                 const val = e.target.value.replace(/\D/g, '');
                                 setCustomPricePerHour(val ? parseInt(val) : 0);
                               }}
+                              onBlur={(e) => syncRoomPrice(parseInt(e.target.value.replace(/\D/g, '')) || 0)}
                               className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-black text-indigo-600 pr-6 focus:bg-white transition"
                             />
                             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">đ</span>
@@ -2209,7 +2204,7 @@ export default function RoomPage() {
                               value={customerName}
                               onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
                               onFocus={() => setShowSuggestions(true)}
-                              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                              onBlur={() => { syncCustomerName(customerName); setTimeout(() => setShowSuggestions(false), 200); }}
                               className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold pl-7 focus:bg-white transition"
                             />
                           </div>
