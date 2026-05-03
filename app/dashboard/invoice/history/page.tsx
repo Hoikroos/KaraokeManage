@@ -129,6 +129,9 @@ export default function InvoiceHistoryPage() {
     const customerStats = useMemo(() => {
         const groups: { [key: string]: number } = {};
         filteredInvoices.forEach(inv => {
+            // Loại bỏ hóa đơn Tặng/Mang về khỏi biểu đồ và danh sách thống kê khách hàng
+            if (inv.id.startsWith('GFT') || inv.id.startsWith('TKW')) return;
+
             const name = inv.customerName?.trim() || 'Khách lẻ';
             groups[name] = (groups[name] || 0) + 1;
         });

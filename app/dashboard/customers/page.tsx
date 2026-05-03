@@ -126,6 +126,11 @@ export default function CustomersPage() {
     }, [reportType]);
 
     const filteredInvoices = useMemo(() => invoices.filter(inv => {
+        // Không thống kê các hóa đơn xuất kho (Tặng/Mang về)
+        if (inv.id.startsWith('GFT') || inv.id.startsWith('TKW')) {
+            return false;
+        }
+
         const matchSearch = (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
         if (!matchSearch) return false;
         if (startDate || endDate) {
