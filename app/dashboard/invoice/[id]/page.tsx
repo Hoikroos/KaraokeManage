@@ -254,8 +254,20 @@ export default function InvoicePage() {
 
       {/* ── Template in 80mm (chỉ hiện khi in) ── */}
       <div className="hidden print:block w-[80mm] mx-auto px-4 pt-2 pb-4 bg-white text-black font-bold"
-        style={{ fontFamily: 'Arial, sans-serif' }}>
-        <style dangerouslySetInnerHTML={{ __html: `@media print { body { -webkit-print-color-adjust: exact; } }` }} />
+        style={{
+          fontFamily: 'monospace',
+          WebkitFontSmoothing: 'none',
+          MozOsxFontSmoothing: 'unset',
+          textRendering: 'optimizeSpeed'
+        }}>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+          @media print { 
+            body { -webkit-print-color-adjust: exact; } 
+            * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-shadow: none !important; }
+            @page { margin: 0; size: 80mm auto; }
+          }
+        ` }} />
         {/* Tiêu đề */}
         <div className="text-center mb-2" style={{ paddingBottom: 6 }}>
           <h2 className="text-[22px] font-black tracking-wider mt-1">HÓA ĐƠN THANH TOÁN</h2>

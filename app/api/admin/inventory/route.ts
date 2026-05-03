@@ -60,27 +60,27 @@ export async function GET(req: NextRequest) {
         /* 3. PAID INVOICES & SESSIONS                  */
         /* ───────────────────────────────────────────── */
 
-        // Lấy danh sách ID các phiên phòng đã thanh toán thành công trong kỳ
-        const invoicesInPeriod = await prisma.invoice.findMany({
+        // Lấy danh sách ID các phiên phòng trong kỳ (không tính các phòng bị hủy)
+        const sessionsInPeriod = await prisma.roomSession.findMany({
             where: {
                 StoreId: storeId,
-                Status: 'paid', // Chỉ tính các hóa đơn đã thanh toán
-                CreatedAt: { gte: startDate, lte: endDate },
+                Status: { not: 'cancelled' },
+                StartTime: { gte: startDate, lte: endDate },
             },
-            select: { RoomSessionId: true },
+            select: { Id: true },
         });
-        const sessionIdsInPeriod = invoicesInPeriod.map(i => i.RoomSessionId).filter((id): id is string => !!id);
+        const sessionIdsInPeriod = sessionsInPeriod.map(s => s.Id);
 
-        // Lấy danh sách ID các phiên phòng đã thanh toán thành công từ lúc start đến nay (để tính tồn đầu)
-        const invoicesSinceStart = await prisma.invoice.findMany({
+        // Lấy danh sách ID các phiên phòng từ lúc bắt đầu xem báo cáo đến hiện tại
+        const sessionsSinceStart = await prisma.roomSession.findMany({
             where: {
                 StoreId: storeId,
-                Status: 'paid',
-                CreatedAt: { gte: startDate },
+                Status: { not: 'cancelled' },
+                StartTime: { gte: startDate },
             },
-            select: { RoomSessionId: true },
+            select: { Id: true },
         });
-        const sessionIdsSinceStart = invoicesSinceStart.map(i => i.RoomSessionId).filter((id): id is string => !!id);
+        const sessionIdsSinceStart = sessionsSinceStart.map(s => s.Id);
 
         /* ───────────────────────────────────────────── */
         /* 4. SALES (ONLY FROM PAID BILLS)              */

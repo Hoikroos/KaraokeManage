@@ -131,6 +131,7 @@ export default function RoomPage() {
   const isFirstRender = useRef(true);
   const lastItemRef = useRef<HTMLDivElement>(null); // Ref cho món hàng cuối cùng trong giỏ
   const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
+  const processingAddRef = useRef<Set<string>>(new Set());
   const suggestionRefs = useRef<(HTMLLIElement | null)[]>([]);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
 
@@ -359,7 +360,7 @@ export default function RoomPage() {
       const now = new Date();
       setSelectedEndTime(formatDateTimeLocal(now));
       setRawEndTime(now);
-    }, 100); // Update every 100ms to match order polling interval
+    }, 1000); // Update every 100ms to match order polling interval
 
     return () => clearInterval(timerInterval);
   }, [session?.id ?? (session as any)?.Id, session?.status ?? (session as any)?.Status, isManualEndTime]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -468,8 +469,16 @@ export default function RoomPage() {
     return () => { cancelled = true; };
   }, [roomId, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const lastLoadTimeRef = useRef(0);
   useEffect(() => {
-    const handleFocus = () => loadRoomData(roomIdRef.current);
+    const handleFocus = () => {
+      // Giới hạn tần suất load dữ liệu khi focus tab (tối thiểu 60s/lần)
+      const now = Date.now();
+      if (now - lastLoadTimeRef.current > 60000) {
+        loadRoomData(roomIdRef.current);
+        lastLoadTimeRef.current = now;
+      }
+    };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -483,9 +492,16 @@ export default function RoomPage() {
   }, [orderItems]);
 
   useEffect(() => {
-    if (!session || !products.length) return;
+    // Chỉ Polling nếu session đang active. 
+    // Nếu đang Paused (tạm tính) thì không cần cập nhật liên tục.
+    const sessionStatus = session?.status ?? (session as any)?.Status;
+    // Nếu phòng đang 'pending' (chưa bắt đầu tính giờ) hoặc 'paused' (tạm tính), 
+    // không cần poll liên tục.
+    if (!session || !products.length || sessionStatus !== 'active') return;
 
     const interval = setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+
       try {
         const sessionId = session.id ?? (session as any).Id;
         if (!sessionId) return;
@@ -515,7 +531,7 @@ export default function RoomPage() {
       } catch (err) {
         console.error('Error polling order items:', err);
       }
-    }, 100); // 0.1 giây
+    }, 45000); // Tăng lên 45 giây. Nhân viên có thể nhấn nút "Thanh toán" để xem giá mới nhất thay vì đợi máy.
 
     return () => clearInterval(interval);
   }, [session, products]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -967,19 +983,25 @@ export default function RoomPage() {
 
   const handleAddProduct = async (productId: string, quantity: number) => {
     if (!session) return;
-    const existingIndex = orderItems.findIndex((item) => item.productId === productId);
-    const existing = existingIndex !== -1 ? orderItems[existingIndex] : null;
+
+    // Chống spam click hoặc click nhanh gây ra tình trạng tạo 2 dòng thay vì cộng dồn (x2)
+    if (processingAddRef.current.has(productId)) return;
+
+    const currentOrders = orderItemsRef.current;
+    const existingIndex = currentOrders.findIndex((item) => item.productId === productId);
+    const existing = existingIndex !== -1 ? currentOrders[existingIndex] : null;
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
     try {
-      if (existing) {
+      if (existing && existing.id) {
         // Cập nhật cả số lượng và giá mới nhất từ thực đơn khi cộng dồn
         await handleUpdateOrderItem(existingIndex, {
           quantity: (existing.quantity || 0) + quantity,
           price: product.price
         });
       } else {
+        processingAddRef.current.add(productId);
         const res = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -987,12 +1009,15 @@ export default function RoomPage() {
         });
         if (res.ok) {
           const newItem = await res.json();
-          const newIndex = orderItems.length;
-          setOrderItems([...orderItems, newItem]);
-          setLastAddedIndex(newIndex);
+          setOrderItems(prev => {
+            const updated = [...prev, newItem];
+            setLastAddedIndex(updated.length - 1);
+            return updated;
+          });
         }
       }
     } catch (err) { console.error('Error adding product:', err); toast.error('Lỗi khi thêm sản phẩm'); }
+    finally { processingAddRef.current.delete(productId); }
   };
 
   const handleSearchEnter = () => {
@@ -1074,7 +1099,8 @@ export default function RoomPage() {
   };
 
   const handleUpdateOrderItem = async (index: number, updates: Partial<OrderItem>) => {
-    const item = orderItems[index];
+    const currentOrders = orderItemsRef.current;
+    const item = currentOrders[index];
     if (!item) return;
     if (updates.quantity !== undefined && updates.quantity < 1) { await handleRemoveItem(index); return; }
     try {
@@ -2677,8 +2703,21 @@ export default function RoomPage() {
       {/* ── Print template ── */}
       {session && (
         <div className="hidden print:block w-[80mm] mx-auto px-4 pt-2 pb-4 bg-white text-black font-bold"
-          style={{ fontFamily: '"Times New Roman", Times, serif' }}>
-          <style dangerouslySetInnerHTML={{ __html: `@media print { body { -webkit-print-color-adjust: exact; } }` }} />
+          style={{
+            fontFamily: 'monospace',
+            WebkitFontSmoothing: 'none',
+            MozOsxFontSmoothing: 'unset',
+            textRendering: 'optimizeSpeed'
+          }}>
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            @media print { 
+              body { -webkit-print-color-adjust: exact; } 
+              * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-shadow: none !important; }
+              @page { margin: 0; size: 80mm auto; }
+            }
+          `
+          }} />
           {/* Tiêu đề */}
           <div className="text-center mb-2" style={{ paddingBottom: 6 }}>
             <h2 className="text-[22px] font-black tracking-wider mt-1 uppercase">Phiếu Tạm Tính</h2>
@@ -2716,7 +2755,7 @@ export default function RoomPage() {
                 <tr key={item.id ?? index} style={{ borderTop: '1px dashed #000' }}>
                   <td className="py-1.5 text-wrap break-word max-w-[40mm]">
                     <div className="font-bold leading-tight">{item.productName}</div>
-                    {localItemNotes[item.productId] && <div className="text-[10px] font-normal italic text-black">Ghi chú: {localItemNotes[item.productId]}</div>}
+                    {localItemNotes[item.productId] && <div className="text-[12px] font-normal italic text-black">Ghi chú: {localItemNotes[item.productId]}</div>}
                     <div className="text-[11px] font-normal text-black">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
                   <td className="text-center py-1.5">{item.quantity}</td>

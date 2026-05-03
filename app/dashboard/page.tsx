@@ -4,7 +4,7 @@ import { useAuth } from '@/app/context';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Room, Store, RoomSession, Product } from '@/lib/db';
 import { LayoutDashboard, DoorOpen, DoorClosed, Users, LogOut, Package, History, Store as StoreIcon, Clock, Banknote, ReceiptText, Home, BarChart3, ShoppingBag, Delete, X, Lock } from 'lucide-react';
@@ -182,10 +182,15 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  const lastDashboardFetchRef = useRef(0);
   useEffect(() => {
     const handleFocus = () => {
-      if (selectedStoreId) {
+      const now = Date.now();
+      // Tăng lên 5 phút (300.000ms). Dashboard chỉ cần cái nhìn tổng quan, 
+      // không cần cập nhật từng giây như trong phòng.
+      if (selectedStoreId && (now - lastDashboardFetchRef.current > 300000)) {
         fetchRooms(selectedStoreId);
+        lastDashboardFetchRef.current = now;
       }
     };
 
@@ -440,15 +445,15 @@ export default function Dashboard() {
             </div>
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-0.5 text-center">Xác thực PIN</h2>
             <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-5 text-center">Quản lý hệ thống</p>
-            
+
             {/* PIN Dots Display */}
             <div className={`flex gap-2.5 mb-6 ${isPinError ? 'animate-bounce' : ''}`}>
               {[1, 2, 3, 4].map((i) => (
                 <div
                   key={i}
                   className={`w-2.5 h-2.5 rounded-full border-2 transition-all duration-200 
-                    ${pinInput.length >= i 
-                      ? 'bg-indigo-600 border-indigo-600 scale-110' 
+                    ${pinInput.length >= i
+                      ? 'bg-indigo-600 border-indigo-600 scale-110'
                       : 'bg-transparent border-slate-200'}`}
                 />
               ))}
@@ -479,8 +484,8 @@ export default function Dashboard() {
                 <Delete className="w-5 h-5" />
               </button>
             </div>
-            
-            <button 
+
+            <button
               onClick={() => setIsLockModalOpen(false)}
               className="mt-5 text-slate-400 text-[9px] font-bold uppercase hover:text-slate-600 transition tracking-widest"
             >
