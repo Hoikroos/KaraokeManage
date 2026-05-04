@@ -397,84 +397,55 @@ export default function RoomPage() {
   const loadRoomData = async (currentRoomId: string) => {
     try {
       const ts = Date.now();
+      // Gọi API gộp duy nhất thay vì 5 request riêng lẻ
+      const res = await fetchFresh(`/api/rooms/detail/${currentRoomId}?t=${ts}`);
 
-      const roomsRes = await fetchFresh(`/api/admin/rooms?t=${ts}`);
-      const rooms = await roomsRes.json();
-      const foundRoom = rooms.find(
-        (r: Room) => String(r.id ?? (r as any).Id) === String(currentRoomId)
-      );
-
-      if (!foundRoom) {
-        setCustomPricePerHour(0); setRoom(null); setSession(null);
-        setOrderItems([]); setSelectedStartTime(''); setSelectedEndTime(''); setProducts([]);
+      if (!res.ok) {
+        if (res.status === 404) {
+          setCustomPricePerHour(0); setRoom(null); setSession(null);
+          setOrderItems([]); setSelectedStartTime(''); setSelectedEndTime(''); setProducts([]);
+        }
         return;
       }
 
+      const data = await res.json();
+      const { room: foundRoom, store: storeData, products: productsData, session: sessionData, orderItems: ordersData } = data;
+
       setRoom(foundRoom);
       setCustomPricePerHour(foundRoom.pricePerHour);
-
-      const storesRes = await fetchFresh(`/api/admin/stores?t=${ts}`);
-      const storesData = await storesRes.json();
-      setStore(storesData.find((s: Store) => String(s.id ?? (s as any).Id) === String(foundRoom.storeId)) || null);
-
-      const productsRes = await fetchFresh(`/api/products?storeId=${foundRoom.storeId}&t=${ts}`);
-      const productsData = await productsRes.json();
+      setStore(storeData);
       setProducts(Array.isArray(productsData) ? productsData : []);
 
-      if (foundRoom.status === 'occupied') {
-        const sessionRes = await fetchFresh(`/api/rooms/session?roomId=${currentRoomId}&t=${ts}`);
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json();
+      if (sessionData) {
+        const activeEl = document.activeElement;
+        const isTypingTime = activeEl instanceof HTMLInputElement && activeEl.type === 'datetime-local';
 
-          // Kiểm tra xem người dùng có đang tập trung vào ô nhập liệu giờ không
-          const activeEl = document.activeElement;
-          const isTypingTime = activeEl instanceof HTMLInputElement && activeEl.type === 'datetime-local';
+        setSession(sessionData);
+        setCustomerName(sessionData.customerName || 'Khách lẻ');
+        const start = new Date(sessionData.startTime || new Date());
+        setSelectedStartTime(formatDateTimeLocal(start));
+        setRawStartTime(start);
 
-          const sessionId = sessionData?.id ?? (sessionData as any)?.Id;
-          if (sessionId) {
-            setSession(sessionData);
-            setCustomerName(sessionData.customerName ?? (sessionData as any).CustomerName ?? '');
-            const start = new Date(sessionData.startTime || (sessionData as any).StartTime || new Date());
-            setSelectedStartTime(formatDateTimeLocal(start));
-            setRawStartTime(start);
+        const savedEnd = sessionData.endTime;
+        const isPausedServer = sessionData.status === 'paused';
 
-            // Kiểm tra nếu trên server đã có giờ ra dự kiến được lưu
-            const savedEnd = sessionData.endTime || (sessionData as any).EndTime;
-            const isPausedServer = sessionData.status === 'paused' || (sessionData as any).Status === 'paused';
-
-            if (savedEnd || isPausedServer) {
-              const endValue = savedEnd ? new Date(savedEnd) : new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date());
-
-              setIsManualEndTime(true); // Khóa timer vì đang tạm tính hoặc có giờ thủ công
-
-              // Chỉ ghi đè vào ô nhập liệu nếu người dùng không đang gõ
-              if (!isTypingTime) {
-                setSelectedEndTime(formatDateTimeLocal(endValue));
-                setRawEndTime(endValue);
-              }
-            } else {
-              // Nếu chưa có, tính toán theo trạng thái (paused thì lấy lúc dừng, active lấy hiện tại)
-              const end = sessionData.status === 'paused' || (sessionData as any).Status === 'paused' ? new Date(sessionData.updatedAt || (sessionData as any).UpdatedAt || new Date()) : new Date();
-              setSelectedEndTime(formatDateTimeLocal(end));
-              setRawEndTime(end);
-              setIsManualEndTime(false);
-            }
-            const ordersRes = await fetchFresh(`/api/orders?sessionId=${sessionId}&t=${ts}`);
-            const ordersData = await ordersRes.json();
-            const sortedOrders = Array.isArray(ordersData)
-              ? [...ordersData].sort((a, b) =>
-                new Date(a.orderedAt || a.OrderedAt || 0).getTime() -
-                new Date(b.orderedAt || b.OrderedAt || 0).getTime()
-              )
-              : [];
-
-            setOrderItems(sortedOrders);
-            return;
+        if (savedEnd || isPausedServer) {
+          const endValue = savedEnd ? new Date(savedEnd) : new Date(sessionData.updatedAt || new Date());
+          setIsManualEndTime(true);
+          if (!isTypingTime) {
+            setSelectedEndTime(formatDateTimeLocal(endValue));
+            setRawEndTime(endValue);
           }
+        } else {
+          const end = new Date();
+          setSelectedEndTime(formatDateTimeLocal(end));
+          setRawEndTime(end);
+          setIsManualEndTime(false);
         }
+        setOrderItems(Array.isArray(ordersData) ? ordersData : []);
+      } else {
+        setSession(null); setOrderItems([]); setSelectedStartTime(''); setSelectedEndTime('');
       }
-
-      setSession(null); setOrderItems([]); setSelectedStartTime(''); setSelectedEndTime('');
     } catch (err) {
       console.error('Error loading room data:', err);
       toast.error('Không thể tải dữ liệu phòng');

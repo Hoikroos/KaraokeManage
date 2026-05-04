@@ -107,7 +107,7 @@ export default function Dashboard() {
       const totalsData: Record<string, number> = {};
 
       await Promise.all(occupiedRooms.map(async (room) => {
-        try {
+        try { // Chỉ lấy session nếu thực sự cần thiết, hoặc gộp vào API rooms
           const sessionRes = await fetch(`/api/rooms/session?roomId=${room.id}&t=${Date.now()}`, {
             cache: 'no-store',
             headers: {
@@ -120,7 +120,12 @@ export default function Dashboard() {
             sessionData[room.id] = session;
 
             const sessionId = session.id || (session as any).Id;
-            const ordersRes = await fetch(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`, { cache: 'no-store' });
+            // TỐI ƯU: Nếu là nhân viên xem ngoài sảnh, có thể chưa cần load chi tiết đơn hàng ngay
+            // giúp giảm Function Invocations đáng kể
+            const ordersRes = await fetch(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`, {
+              cache: 'no-store',
+              next: { revalidate: 60 } // Cho phép cache nhẹ 60s ngoài Dashboard
+            });
             if (ordersRes.ok) {
               const orders = await ordersRes.json();
               const productSum = orders.reduce((sum: number, item: any) =>
