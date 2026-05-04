@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -135,6 +135,9 @@ export default function RoomPage() {
   const suggestionRefs = useRef<(HTMLLIElement | null)[]>([]);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
 
+  // Refs quản lý Debounce để giảm request
+  const customerNameDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const roomPriceDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
   // Reset cờ mỗi khi session mới được load
   useEffect(() => {
     isFirstRender.current = true;
@@ -256,7 +259,7 @@ export default function RoomPage() {
   }, [searchTerm, stableSortedProducts]);
 
   // Hàm đồng bộ tên khách hàng lên server (gọi khi Blur)
-  const syncCustomerName = async (name: string) => {
+  const syncCustomerName = useCallback(async (name: string) => {
     if (!session) return;
     const sessionId = session.id ?? (session as any).Id;
     if (!sessionId) return;
@@ -269,8 +272,18 @@ export default function RoomPage() {
       });
     } catch (error) {
       console.error('Lỗi khi đồng bộ tên khách hàng:', error);
+    } // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Hàm Debounce cho tên khách hàng
+  const debouncedSyncCustomerName = useCallback((name: string) => {
+    if (customerNameDebounceRef.current) {
+      clearTimeout(customerNameDebounceRef.current);
     }
-  };
+    customerNameDebounceRef.current = setTimeout(() => {
+      syncCustomerName(name);
+    }, 500); // Đợi 0.5s sau khi ngừng gõ mới gửi request
+  }, [syncCustomerName]);
 
   // Quản lý cờ render lần đầu
   useEffect(() => {
@@ -314,7 +327,7 @@ export default function RoomPage() {
   }, [session?.id ?? (session as any)?.Id]);
 
   // Hàm đồng bộ giá phòng (gọi khi Blur)
-  const syncRoomPrice = async (price: number) => {
+  const syncRoomPrice = useCallback(async (price: number) => {
     if (!room) return;
 
     try {
@@ -332,10 +345,20 @@ export default function RoomPage() {
       if (res.ok) {
         setRoom(prev => prev ? { ...prev, pricePerHour: price } : prev);
       }
-    } catch (err) {
+    } catch (err) { // eslint-disable-next-line react-hooks/exhaustive-deps
       console.error('Lỗi khi cập nhật giá phòng:', err);
     }
-  };
+  }, [room]);
+
+  // Hàm Debounce cho giá phòng
+  const debouncedSyncRoomPrice = useCallback((price: number) => {
+    if (roomPriceDebounceRef.current) {
+      clearTimeout(roomPriceDebounceRef.current);
+    }
+    roomPriceDebounceRef.current = setTimeout(() => {
+      syncRoomPrice(price);
+    }, 500);
+  }, [syncRoomPrice]);
 
   // ── Real-time timer: Auto-update end time during active sessions ────────────
   useEffect(() => {
@@ -460,7 +483,7 @@ export default function RoomPage() {
     };
     run();
     return () => { cancelled = true; };
-  }, [roomId, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomId, user?.id, user?.storeId]); // Tối ưu: Chỉ load lại khi ID người dùng hoặc chi nhánh thay đổi
 
   const lastLoadTimeRef = useRef(0);
   useEffect(() => {
@@ -1624,7 +1647,7 @@ export default function RoomPage() {
                                   const val = e.target.value.replace(/\D/g, '');
                                   setCustomPricePerHour(val ? parseInt(val) : 0);
                                 }}
-                                onBlur={(e) => syncRoomPrice(parseInt(e.target.value.replace(/\D/g, '')) || 0)}
+                                onBlur={(e) => debouncedSyncRoomPrice(parseInt(e.target.value.replace(/\D/g, '')) || 0)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -1640,9 +1663,17 @@ export default function RoomPage() {
                                 type="text"
                                 placeholder="Tên / SĐT..."
                                 value={customerName}
-                                onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
+                                onChange={(e) => {
+                                  setCustomerName(e.target.value);
+                                  setShowSuggestions(true);
+                                  debouncedSyncCustomerName(e.target.value); // Truyền giá trị vào đây
+                                }}
                                 onFocus={() => setShowSuggestions(true)}
-                                onBlur={() => { syncCustomerName(customerName); setTimeout(() => setShowSuggestions(false), 200); }}
+                                onBlur={() => {
+                                  // Đảm bảo sync lần cuối khi rời ô nhập nếu debounce chưa kịp chạy
+                                  syncCustomerName(customerName);
+                                  setTimeout(() => setShowSuggestions(false), 200);
+                                }}
                                 className="w-full bg-slate-100 rounded-xl px-3 py-2.5 text-base font-semibold placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-200"
                               />
                               {showSuggestions && customerSuggestions.length > 0 && (
@@ -1650,7 +1681,7 @@ export default function RoomPage() {
                                   {customerSuggestions.map((name) => (
                                     <li
                                       key={name}
-                                      onClick={() => { setCustomerName(name); setShowSuggestions(false); }}
+                                      onClick={() => { setCustomerName(name); setShowSuggestions(false); syncCustomerName(name); }} // Sync NGAY LẬP TỨC khi click
                                       className="px-4 py-3 text-sm font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2"
                                     >
                                       <Users className="w-3 h-3 text-slate-400" /> {name}
@@ -2202,9 +2233,16 @@ export default function RoomPage() {
                               type="text"
                               placeholder="Tên hoặc SĐT..."
                               value={customerName}
-                              onChange={(e) => { setCustomerName(e.target.value); setShowSuggestions(true); }}
+                              onChange={(e) => {
+                                setCustomerName(e.target.value);
+                                setShowSuggestions(true);
+                                debouncedSyncCustomerName(e.target.value);
+                              }}
                               onFocus={() => setShowSuggestions(true)}
-                              onBlur={() => { syncCustomerName(customerName); setTimeout(() => setShowSuggestions(false), 200); }}
+                              onBlur={() => {
+                                syncCustomerName(customerName);
+                                setTimeout(() => setShowSuggestions(false), 200);
+                              }}
                               className="h-9 text-xs bg-slate-50 border-slate-100 focus:ring-indigo-300 rounded-xl font-bold pl-7 focus:bg-white transition"
                             />
                           </div>
@@ -2213,7 +2251,7 @@ export default function RoomPage() {
                               {customerSuggestions.map((name) => (
                                 <li
                                   key={name}
-                                  onClick={() => { setCustomerName(name); setShowSuggestions(false); }}
+                                  onClick={() => { setCustomerName(name); setShowSuggestions(false); syncCustomerName(name); }}
                                   className="px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-indigo-50 border-b border-slate-50 last:border-0 cursor-pointer flex items-center gap-2 transition-colors"
                                 >
                                   <Users className="w-3 h-3 text-slate-400 shrink-0" /> {name}
