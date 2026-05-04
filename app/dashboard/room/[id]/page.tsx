@@ -138,9 +138,17 @@ export default function RoomPage() {
   // Refs quản lý Debounce để giảm request
   const customerNameDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const roomPriceDebounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Refs để lưu giá trị cuối cùng đã đồng bộ (tránh request trùng)
+  const lastSyncedCustomerName = useRef<string>('');
+  const lastSyncedRoomPrice = useRef<number>(0);
+
   // Reset cờ mỗi khi session mới được load
   useEffect(() => {
     isFirstRender.current = true;
+    if (session) {
+      lastSyncedCustomerName.current = session.customerName ?? (session as any).CustomerName ?? '';
+    }
   }, [session?.id ?? (session as any)?.Id]);
 
   // Tải danh sách tên khách hàng cũ để gợi ý
@@ -260,11 +268,13 @@ export default function RoomPage() {
 
   // Hàm đồng bộ tên khách hàng lên server (gọi khi Blur)
   const syncCustomerName = useCallback(async (name: string) => {
-    if (!session) return;
+    if (!session || name === lastSyncedCustomerName.current) return;
+
     const sessionId = session.id ?? (session as any).Id;
     if (!sessionId) return;
 
     try {
+      lastSyncedCustomerName.current = name;
       await fetch('/api/rooms/session', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -328,9 +338,10 @@ export default function RoomPage() {
 
   // Hàm đồng bộ giá phòng (gọi khi Blur)
   const syncRoomPrice = useCallback(async (price: number) => {
-    if (!room) return;
+    if (!room || price === lastSyncedRoomPrice.current) return;
 
     try {
+      lastSyncedRoomPrice.current = price;
       const res = await fetch('/api/admin/rooms', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -550,7 +561,7 @@ export default function RoomPage() {
     }, 45000); // Tăng lên 45 giây. Nhân viên có thể nhấn nút "Thanh toán" để xem giá mới nhất thay vì đợi máy.
 
     return () => clearInterval(interval);
-  }, [session, products]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.id ?? (session as any)?.Id, session?.status ?? (session as any)?.Status]); // Chỉ phụ thuộc vào ID và trạng thái để tránh reset interval vô ích
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -1671,6 +1682,9 @@ export default function RoomPage() {
                                 onFocus={() => setShowSuggestions(true)}
                                 onBlur={() => {
                                   // Đảm bảo sync lần cuối khi rời ô nhập nếu debounce chưa kịp chạy
+                                  if (customerNameDebounceRef.current) {
+                                    clearTimeout(customerNameDebounceRef.current);
+                                  }
                                   syncCustomerName(customerName);
                                   setTimeout(() => setShowSuggestions(false), 200);
                                 }}
@@ -2240,6 +2254,9 @@ export default function RoomPage() {
                               }}
                               onFocus={() => setShowSuggestions(true)}
                               onBlur={() => {
+                                if (customerNameDebounceRef.current) {
+                                  clearTimeout(customerNameDebounceRef.current);
+                                }
                                 syncCustomerName(customerName);
                                 setTimeout(() => setShowSuggestions(false), 200);
                               }}
