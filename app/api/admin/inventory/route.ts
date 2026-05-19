@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
 
         // Tìm các phiên phòng BẮT ĐẦU trong kỳ và ĐÃ THANH TOÁN (có hóa đơn)
         // Sử dụng StartTime thay vì CreatedAt của Invoice
+        // Lưu ý: Schema có relation `Invoice` (1-1 optional), không phải `Invoices` (1-many)
         const sessionsInPeriod = await prisma.roomSession.findMany({
             where: {
                 StoreId: storeId,
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
                 // Chỉ tính những phòng đã chốt (tránh tính nhầm hàng đang dùng trong phòng chưa thanh toán vào báo cáo doanh thu/bán chạy)
                 OR: [
                     { Status: 'completed' },
-                    { Invoices: { some: { Status: 'paid' } } }
+                    { Invoice: { is: { Status: 'paid' } } }
                 ]
             },
             select: { Id: true },
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
                 StartTime: { gte: startDate },
                 OR: [
                     { Status: 'completed' },
-                    { Invoices: { some: { Status: 'paid' } } }
+                    { Invoice: { is: { Status: 'paid' } } }
                 ]
             },
             select: { Id: true },
