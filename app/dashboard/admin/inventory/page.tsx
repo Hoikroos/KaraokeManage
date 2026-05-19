@@ -112,7 +112,6 @@ function formatWeekLabel(weekStart: Date): string {
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
 
 const PERIOD_OPTIONS = [
-    { id: 'weekly', label: 'Tuần' },
     { id: 'monthly', label: 'Tháng' },
     { id: 'yearly', label: 'Năm' },
 ] as const;
@@ -209,7 +208,7 @@ export default function InventoryStatsPage() {
     const { user } = useAuth();
     const [stores, setStores] = useState<Store[]>([]);
     const [selectedStoreId, setSelectedStoreId] = useState<string>('');
-    const [reportType, setReportType] = useState<PeriodType>('weekly');
+    const [reportType, setReportType] = useState<PeriodType>('monthly');
     const [stats, setStats] = useState<ProductStat[]>([]);
     const [lifetimeStats, setLifetimeStats] = useState<ProductStat[]>([]);
     const [logs, setLogs] = useState<InventoryLog[]>([]);
@@ -311,12 +310,7 @@ export default function InventoryStatsPage() {
             const now = new Date();
             end = new Date(); end.setHours(23, 59, 59, 999);
             start = new Date();
-            if (reportType === 'weekly') {
-                const day = now.getDay();
-                const diff = day === 0 ? -6 : 1 - day;
-                start.setDate(now.getDate() + diff);
-                start.setHours(0, 0, 0, 0);
-            } else if (reportType === 'monthly') {
+            if (reportType === 'monthly') {
                 start = new Date(now.getFullYear(), now.getMonth(), 1);
             } else if (reportType === 'yearly') {
                 start = new Date(now.getFullYear(), 0, 1);
