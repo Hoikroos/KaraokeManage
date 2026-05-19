@@ -270,36 +270,6 @@ export default function InventoryStatsPage() {
         return m;
     }, [stats]);
 
-    /* ── Tính kỳ hiệu lực giống hệt API: ưu tiên date input, fallback theo reportType ─── */
-    const effectivePeriod = useMemo(() => {
-        let start: Date;
-        let end: Date;
-        if (startDate) {
-            start = new Date(startDate); start.setHours(0, 0, 0, 0);
-            end = endDate ? new Date(endDate) : new Date();
-            end.setHours(23, 59, 59, 999);
-        } else {
-            const now = new Date();
-            end = new Date(); end.setHours(23, 59, 59, 999);
-            start = new Date();
-            if (reportType === 'daily') {
-                start.setHours(0, 0, 0, 0);
-            } else if (reportType === 'weekly') {
-                const day = now.getDay();
-                const diff = day === 0 ? -6 : 1 - day;
-                start.setDate(now.getDate() + diff);
-                start.setHours(0, 0, 0, 0);
-            } else if (reportType === 'monthly') {
-                start = new Date(now.getFullYear(), now.getMonth(), 1);
-            } else if (reportType === 'yearly') {
-                start = new Date(now.getFullYear(), 0, 1);
-            } else {
-                start.setHours(0, 0, 0, 0);
-            }
-        }
-        return { start, end };
-    }, [startDate, endDate, reportType]);
-
     /* ── Bán theo sản phẩm trong kỳ (tách inRoom vs offsite từ invoices) ─── */
     const salesByProduct = useMemo(() => {
         type ProductSales = { inRoom: number; offsite: number; revenue: number };
@@ -307,7 +277,14 @@ export default function InventoryStatsPage() {
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
-            if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
+            if (startDate) {
+                const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+                if (t < s) continue;
+            }
+            if (endDate) {
+                const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+                if (t > e) continue;
+            }
             const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
             for (const item of (inv.items || [])) {
                 const cur = m.get(item.productId) || { inRoom: 0, offsite: 0, revenue: 0 };
@@ -318,7 +295,7 @@ export default function InventoryStatsPage() {
             }
         }
         return m;
-    }, [invoices, effectivePeriod]);
+    }, [invoices, startDate, endDate]);
 
     /* ── Stats bổ sung các cột tính sẵn ─── */
     const augmentedStats = useMemo(() => {
@@ -386,7 +363,14 @@ export default function InventoryStatsPage() {
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
-            if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
+            if (startDate) {
+                const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+                if (t < s) continue;
+            }
+            if (endDate) {
+                const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+                if (t > e) continue;
+            }
             const dayKey = getWorkingDayKey(t);
             const dayDate = getWorkingDay(t);
             const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
@@ -437,7 +421,7 @@ export default function InventoryStatsPage() {
         }
         rows.sort((a, b) => (+b.dayDate - +a.dayDate) || (b.total - a.total));
         return rows;
-    }, [invoices, effectivePeriod, productCategoryLookup]);
+    }, [invoices, startDate, endDate, productCategoryLookup]);
 
     const filteredDailySales = useMemo(
         () => dailySalesRows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())),
