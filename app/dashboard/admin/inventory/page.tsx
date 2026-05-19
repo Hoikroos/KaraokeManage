@@ -194,6 +194,7 @@ export default function InventoryStatsPage() {
     const [selectedStoreId, setSelectedStoreId] = useState<string>('');
     const [reportType, setReportType] = useState<PeriodType>('daily');
     const [stats, setStats] = useState<ProductStat[]>([]);
+    const [lifetimeStats, setLifetimeStats] = useState<ProductStat[]>([]);
     const [logs, setLogs] = useState<InventoryLog[]>([]);
     const [invoices, setInvoices] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -239,6 +240,16 @@ export default function InventoryStatsPage() {
             .catch(() => setInvoices([]));
     }, [selectedStoreId]);
 
+    /* ── Fetch lifetime stats (cho cột "Số lượng tổng" lifetime) ─── */
+    useEffect(() => {
+        if (!selectedStoreId) return;
+        // startDate=1970-01-01 → API tính từ đầu → trả về lifetime tạo + nhập
+        fetch(`/api/admin/inventory?storeId=${selectedStoreId}&startDate=1970-01-01&type=daily`, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : { stats: [] })
+            .then(data => setLifetimeStats(Array.isArray(data.stats) ? data.stats : []))
+            .catch(() => setLifetimeStats([]));
+    }, [selectedStoreId]);
+
     const fetchInventoryStats = async () => {
         setIsLoading(true);
         try {
@@ -270,21 +281,44 @@ export default function InventoryStatsPage() {
         return m;
     }, [stats]);
 
-    /* ── Bán theo sản phẩm trong kỳ (tách inRoom vs offsite từ invoices) ─── */
+    /* ── Tính kỳ hiệu lực giống hệt API: ưu tiên date input, fallback theo reportType ─── */
+    const effectivePeriod = useMemo(() => {
+        let start: Date;
+        let end: Date;
+        if (startDate) {
+            start = new Date(startDate); start.setHours(0, 0, 0, 0);
+            end = endDate ? new Date(endDate) : new Date();
+            end.setHours(23, 59, 59, 999);
+        } else {
+            const now = new Date();
+            end = new Date(); end.setHours(23, 59, 59, 999);
+            start = new Date();
+            if (reportType === 'daily') {
+                start.setHours(0, 0, 0, 0);
+            } else if (reportType === 'weekly') {
+                const day = now.getDay();
+                const diff = day === 0 ? -6 : 1 - day;
+                start.setDate(now.getDate() + diff);
+                start.setHours(0, 0, 0, 0);
+            } else if (reportType === 'monthly') {
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+            } else if (reportType === 'yearly') {
+                start = new Date(now.getFullYear(), 0, 1);
+            } else {
+                start.setHours(0, 0, 0, 0);
+            }
+        }
+        return { start, end };
+    }, [startDate, endDate, reportType]);
+
+    /* ── Bán theo sản phẩm trong KỲ (tách inRoom vs offsite từ invoices) ─── */
     const salesByProduct = useMemo(() => {
         type ProductSales = { inRoom: number; offsite: number; revenue: number };
         const m = new Map<string, ProductSales>();
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
-            if (startDate) {
-                const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-                if (t < s) continue;
-            }
-            if (endDate) {
-                const e = new Date(endDate); e.setHours(23, 59, 59, 999);
-                if (t > e) continue;
-            }
+            if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
             const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
             for (const item of (inv.items || [])) {
                 const cur = m.get(item.productId) || { inRoom: 0, offsite: 0, revenue: 0 };
@@ -295,18 +329,30 @@ export default function InventoryStatsPage() {
             }
         }
         return m;
-    }, [invoices, startDate, endDate]);
+    }, [invoices, effectivePeriod]);
+
+    /* ── Lookup tổng tạo + nhập LIFETIME (theo productId) ─── */
+    const lifetimeTotalCreatedLookup = useMemo(() => {
+        const m = new Map<string, number>();
+        for (const s of lifetimeStats) {
+            m.set(s.productId, s.openingStock + s.totalRestocked);
+        }
+        return m;
+    }, [lifetimeStats]);
 
     /* ── Stats bổ sung các cột tính sẵn ─── */
     const augmentedStats = useMemo(() => {
         return stats.map(s => {
             const sales = salesByProduct.get(s.productId) || { inRoom: 0, offsite: 0, revenue: 0 };
-            const totalCreated = s.openingStock + s.totalRestocked;
+            // Tổng tạo + nhập: lifetime (cộng dồn từ đầu, không phụ thuộc kỳ)
+            // Fallback về period nếu lifetime chưa kịp load.
+            const totalCreated = lifetimeTotalCreatedLookup.get(s.productId) ?? (s.openingStock + s.totalRestocked);
             const inRoom = sales.inRoom;
-            // Xuất khác = tặng + mang về (offsite từ HĐ TKW/GFT) + hư hỏng (inventoryLog)
+            // Xuất khác trong kỳ = tặng + mang về (offsite từ HĐ TKW/GFT) + hư hỏng (inventoryLog) trong kỳ
             const otherOutput = sales.offsite + s.totalExported;
-            const remaining = totalCreated - inRoom - otherOutput;
-            // Sản lượng tổng dùng cho xếp hạng "bán chạy" / "bán chậm": bán phòng + tặng + mang về + hư hỏng
+            // Còn lại: số tồn thực tế hiện tại (không phụ thuộc kỳ)
+            const remaining = s.currentStock;
+            // Sản lượng dùng cho xếp hạng "bán chạy" / "bán chậm" trong kỳ
             const salesMetric = inRoom + otherOutput;
             return {
                 ...s,
@@ -318,7 +364,7 @@ export default function InventoryStatsPage() {
                 salesMetric,
             };
         });
-    }, [stats, salesByProduct]);
+    }, [stats, salesByProduct, lifetimeTotalCreatedLookup]);
 
     const bestSellers = useMemo(
         () => [...augmentedStats].sort((a, b) => b.salesMetric - a.salesMetric).slice(0, 5),
@@ -363,14 +409,7 @@ export default function InventoryStatsPage() {
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
-            if (startDate) {
-                const s = new Date(startDate); s.setHours(0, 0, 0, 0);
-                if (t < s) continue;
-            }
-            if (endDate) {
-                const e = new Date(endDate); e.setHours(23, 59, 59, 999);
-                if (t > e) continue;
-            }
+            if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
             const dayKey = getWorkingDayKey(t);
             const dayDate = getWorkingDay(t);
             const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
@@ -421,7 +460,7 @@ export default function InventoryStatsPage() {
         }
         rows.sort((a, b) => (+b.dayDate - +a.dayDate) || (b.total - a.total));
         return rows;
-    }, [invoices, startDate, endDate, productCategoryLookup]);
+    }, [invoices, effectivePeriod, productCategoryLookup]);
 
     const filteredDailySales = useMemo(
         () => dailySalesRows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())),
