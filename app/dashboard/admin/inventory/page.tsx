@@ -33,7 +33,7 @@ interface ProductStat {
     totalRestocked: number;
     totalSold: number;
     totalExported: number;
-    totalQuantity: number;
+    totalDecrement: number; // Đổi tên từ totalQuantity
     totalRevenue: number;
     currentStock: number;
     closingStock: number;
@@ -56,6 +56,40 @@ const CAT_LABELS: Record<string, string> = {
     dry: 'Đồ khô',
     fruit: 'Trái cây',
 };
+
+const WORK_DAY_START_HOUR = 6;
+
+function getWorkingDay(date: Date): Date {
+    const d = new Date(date);
+    if (d.getHours() < WORK_DAY_START_HOUR) {
+        d.setDate(d.getDate() - 1);
+    }
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function getWorkingDayKey(date: Date): string {
+    const d = getWorkingDay(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function formatDayShort(d: Date): string {
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatWeekday(d: Date): string {
+    const w = d.toLocaleDateString('vi-VN', { weekday: 'long' });
+    return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
+const WEEKDAY_SHORT_VI = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+
+function formatDayWithWeekday(d: Date): string {
+    return `${WEEKDAY_SHORT_VI[d.getDay()]}, ${formatDayShort(d)}`;
+}
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
 
@@ -161,6 +195,7 @@ export default function InventoryStatsPage() {
     const [reportType, setReportType] = useState<PeriodType>('daily');
     const [stats, setStats] = useState<ProductStat[]>([]);
     const [logs, setLogs] = useState<InventoryLog[]>([]);
+    const [invoices, setInvoices] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -195,6 +230,15 @@ export default function InventoryStatsPage() {
         if (selectedStoreId) fetchInventoryStats();
     }, [selectedStoreId, reportType, startDate, endDate]);
 
+    /* ── Fetch invoices (cho bảng sản lượng theo ngày) ─── */
+    useEffect(() => {
+        if (!selectedStoreId) return;
+        fetch(`/api/invoices?storeId=${selectedStoreId}`, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : [])
+            .then(data => setInvoices(Array.isArray(data) ? data : []))
+            .catch(() => setInvoices([]));
+    }, [selectedStoreId]);
+
     const fetchInventoryStats = async () => {
         setIsLoading(true);
         try {
@@ -220,14 +264,70 @@ export default function InventoryStatsPage() {
 
     /* ── Derived data ─── */
 
+    const productCategoryLookup = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const s of stats) m.set(s.productId, s.category);
+        return m;
+    }, [stats]);
+
+    /* ── Bán theo sản phẩm trong kỳ (tách inRoom vs offsite từ invoices) ─── */
+    const salesByProduct = useMemo(() => {
+        type ProductSales = { inRoom: number; offsite: number; revenue: number };
+        const m = new Map<string, ProductSales>();
+        for (const inv of invoices) {
+            if (inv.status !== 'paid') continue;
+            const t = new Date(inv.startTime);
+            if (startDate) {
+                const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+                if (t < s) continue;
+            }
+            if (endDate) {
+                const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+                if (t > e) continue;
+            }
+            const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
+            for (const item of (inv.items || [])) {
+                const cur = m.get(item.productId) || { inRoom: 0, offsite: 0, revenue: 0 };
+                if (isOffsite) cur.offsite += item.quantity;
+                else cur.inRoom += item.quantity;
+                cur.revenue += Number(item.price || 0) * Number(item.quantity || 0);
+                m.set(item.productId, cur);
+            }
+        }
+        return m;
+    }, [invoices, startDate, endDate]);
+
+    /* ── Stats bổ sung các cột tính sẵn ─── */
+    const augmentedStats = useMemo(() => {
+        return stats.map(s => {
+            const sales = salesByProduct.get(s.productId) || { inRoom: 0, offsite: 0, revenue: 0 };
+            const totalCreated = s.openingStock + s.totalRestocked;
+            const inRoom = sales.inRoom;
+            // Xuất khác = tặng + mang về (offsite từ HĐ TKW/GFT) + hư hỏng (inventoryLog)
+            const otherOutput = sales.offsite + s.totalExported;
+            const remaining = totalCreated - inRoom - otherOutput;
+            // Sản lượng tổng dùng cho xếp hạng "bán chạy" / "bán chậm": bán phòng + tặng + mang về + hư hỏng
+            const salesMetric = inRoom + otherOutput;
+            return {
+                ...s,
+                totalCreated,
+                inRoom,
+                otherOutput,
+                remaining,
+                computedRevenue: sales.revenue,
+                salesMetric,
+            };
+        });
+    }, [stats, salesByProduct]);
+
     const bestSellers = useMemo(
-        () => [...stats].sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 5),
-        [stats]
+        () => [...augmentedStats].sort((a, b) => b.salesMetric - a.salesMetric).slice(0, 5),
+        [augmentedStats]
     );
 
     const slowMoving = useMemo(
-        () => [...stats].sort((a, b) => a.totalQuantity - b.totalQuantity).slice(0, 5),
-        [stats]
+        () => [...augmentedStats].sort((a, b) => a.salesMetric - b.salesMetric).slice(0, 5),
+        [augmentedStats]
     );
 
     const lowStockProducts = useMemo(
@@ -237,23 +337,95 @@ export default function InventoryStatsPage() {
 
     const categoryData = useMemo(() => {
         const groups: Record<string, number> = {};
-        stats.forEach(s => {
-            groups[s.category] = (groups[s.category] || 0) + s.totalQuantity;
+        augmentedStats.forEach(s => {
+            groups[s.category] = (groups[s.category] || 0) + s.salesMetric;
         });
         return Object.entries(groups).map(([key, value]) => ({
             name: CAT_LABELS[key] ?? 'Khác',
             value,
         }));
-    }, [stats]);
+    }, [augmentedStats]);
 
     const filteredStats = useMemo(
-        () => stats.filter(s => s.productName.toLowerCase().includes(searchTerm.toLowerCase())),
-        [stats, searchTerm]
+        () => augmentedStats.filter(s => s.productName.toLowerCase().includes(searchTerm.toLowerCase())),
+        [augmentedStats, searchTerm]
     );
 
     const filteredLogs = useMemo(
         () => logs.filter(l => l.productName.toLowerCase().includes(searchTerm.toLowerCase())),
         [logs, searchTerm]
+    );
+
+    const dailySalesRows = useMemo(() => {
+        type Bucket = { productName: string; category: string; inRoom: number; takeawayGift: number; revenue: number };
+        const byDay = new Map<string, { dayDate: Date; products: Map<string, Bucket> }>();
+
+        for (const inv of invoices) {
+            if (inv.status !== 'paid') continue;
+            const t = new Date(inv.startTime);
+            if (startDate) {
+                const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+                if (t < s) continue;
+            }
+            if (endDate) {
+                const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+                if (t > e) continue;
+            }
+            const dayKey = getWorkingDayKey(t);
+            const dayDate = getWorkingDay(t);
+            const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
+
+            if (!byDay.has(dayKey)) byDay.set(dayKey, { dayDate, products: new Map() });
+            const bucket = byDay.get(dayKey)!;
+
+            for (const item of (inv.items || [])) {
+                const cur = bucket.products.get(item.productId) || {
+                    productName: item.productName,
+                    category: productCategoryLookup.get(item.productId) || '',
+                    inRoom: 0,
+                    takeawayGift: 0,
+                    revenue: 0,
+                };
+                if (isOffsite) cur.takeawayGift += item.quantity;
+                else cur.inRoom += item.quantity;
+                cur.revenue += Number(item.price || 0) * Number(item.quantity || 0);
+                bucket.products.set(item.productId, cur);
+            }
+        }
+
+        const rows: Array<{
+            dayKey: string;
+            dayDate: Date;
+            productId: string;
+            productName: string;
+            category: string;
+            inRoom: number;
+            takeawayGift: number;
+            total: number;
+            revenue: number;
+        }> = [];
+        for (const [dayKey, { dayDate, products }] of byDay.entries()) {
+            for (const [productId, p] of products.entries()) {
+                const total = p.inRoom + p.takeawayGift;
+                if (total === 0) continue;
+                rows.push({
+                    dayKey, dayDate, productId,
+                    productName: p.productName,
+                    category: p.category,
+                    inRoom: p.inRoom,
+                    takeawayGift: p.takeawayGift,
+                    total,
+                    revenue: p.revenue,
+                });
+            }
+        }
+        rows.sort((a, b) => (+b.dayDate - +a.dayDate) || (b.total - a.total));
+        return rows;
+    }, [invoices, startDate, endDate, productCategoryLookup]);
+
+    const filteredDailySales = useMemo(
+        () => dailySalesRows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())),
+        [dailySalesRows, searchTerm]
     );
 
     /* ── CSV export ─── */
@@ -264,7 +436,7 @@ export default function InventoryStatsPage() {
 
         const headers = isHistory
             ? ['Ngày nhập', 'Sản phẩm', 'Biến động', 'Ghi chú', 'Trạng thái']
-            : ['Sản phẩm', 'Loại', 'Tồn đầu', 'Đã nhập', 'Đã bán', 'Doanh thu', 'Tồn hiện tại'];
+            : ['Sản phẩm', 'Loại', 'Số lượng tổng (tạo + nhập)', 'Bán trong phòng', 'Xuất khác (tặng + mang về + hư hỏng)', 'Doanh thu', 'Số lượng còn lại'];
 
         const rows = isHistory
             ? logs.map(l => [
@@ -274,14 +446,14 @@ export default function InventoryStatsPage() {
                 l.note ?? '',
                 l.quantity >= 0 ? 'Nhập thêm' : 'Xuất/Hư hỏng',
             ])
-            : stats.map(s => [
+            : augmentedStats.map(s => [
                 s.productName,
                 CAT_LABELS[s.category] ?? s.category,
-                s.openingStock,
-                s.totalRestocked,
-                s.totalQuantity,
-                s.totalRevenue,
-                s.currentStock,
+                s.totalCreated,
+                s.inRoom,
+                s.otherOutput,
+                s.computedRevenue,
+                s.remaining,
             ]);
 
         const csv = '\ufeff' + [headers, ...rows].map(r => r.join(',')).join('\n');
@@ -437,16 +609,16 @@ export default function InventoryStatsPage() {
                         iconBg="bg-blue-50"
                         icon={<TrendingUp className="w-5 h-5 text-blue-500" />}
                         label="Bán chạy nhất"
-                        value={bestSellers[0]?.productName ?? '---'}
-                        sub={`Số lượng: ${bestSellers[0]?.totalQuantity ?? 0}`}
+                        value={bestSellers[0]?.productName || '---'}
+                        sub={`Số lượng: ${bestSellers[0]?.salesMetric ?? 0}`}
                         subColor="text-blue-500"
                     />
                     <KpiCard
                         iconBg="bg-rose-50"
                         icon={<TrendingDown className="w-5 h-5 text-rose-500" />}
                         label="Bán chậm nhất"
-                        value={slowMoving[0]?.productName ?? '---'}
-                        sub={`Số lượng: ${slowMoving[0]?.totalQuantity ?? 0}`}
+                        value={slowMoving[0]?.productName || '---'}
+                        sub={`Số lượng: ${slowMoving[0]?.salesMetric ?? 0}`}
                         subColor="text-rose-500"
                     />
                     <KpiCard
@@ -472,7 +644,7 @@ export default function InventoryStatsPage() {
                             <div className="h-[240px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={bestSellers} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} stroke="#f3f4f6" />
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
                                         <XAxis type="number" hide />
                                         <YAxis
                                             dataKey="productName"
@@ -482,9 +654,9 @@ export default function InventoryStatsPage() {
                                             width={110}
                                             tick={{ fontSize: 11, fontWeight: 600, fill: '#374151' }}
                                             tickFormatter={v => v.length > 14 ? v.slice(0, 14) + '…' : v}
-                                        />
+                                        /> {/* Đã bỏ vertical={false} vì là mặc định cho biểu đồ dọc */}
                                         <Tooltip content={<CustomBarTooltip />} cursor={{ fill: '#f9fafb' }} />
-                                        <Bar dataKey="totalQuantity" fill="#10b981" radius={[0, 6, 6, 0]} barSize={22} />
+                                        <Bar dataKey="salesMetric" fill="#10b981" radius={[0, 6, 6, 0]} barSize={22} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -549,13 +721,20 @@ export default function InventoryStatsPage() {
                             <table className="w-full">
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
-                                        {['Sản phẩm', 'Loại', 'Tồn đầu', `Nhập (${reportType})`, `Bán (${reportType})`, `Xuất (${reportType})`, 'Doanh thu', 'Tồn cuối kỳ'].map((h, i) => (
+                                        {([
+                                            { label: 'Sản phẩm', align: 'text-left' },
+                                            { label: 'Loại', align: 'text-left' },
+                                            { label: 'Số lượng tổng (tạo + nhập)', align: 'text-center' },
+                                            { label: 'Bán trong phòng', align: 'text-center' },
+                                            { label: 'Xuất khác (tặng + mang về + hư hỏng)', align: 'text-center' },
+                                            { label: 'Doanh thu', align: 'text-right' },
+                                            { label: 'Số lượng còn lại', align: 'text-center' },
+                                        ] as const).map(h => (
                                             <th
-                                                key={h}
-                                                className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider
-                                                    ${i >= 2 && i <= 5 ? 'text-center' : i === 6 ? 'text-right' : i === 7 ? 'text-center' : 'text-left'}`}
+                                                key={h.label}
+                                                className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}
                                             >
-                                                {h}
+                                                {h.label}
                                             </th>
                                         ))}
                                     </tr>
@@ -563,13 +742,13 @@ export default function InventoryStatsPage() {
                                 <tbody className="divide-y divide-slate-50">
                                     {isLoading ? (
                                         <tr>
-                                            <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm italic">
+                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
                                                 Đang tải dữ liệu...
                                             </td>
                                         </tr>
                                     ) : filteredStats.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm italic">
+                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
                                                 Không có dữ liệu thống kê cho giai đoạn này
                                             </td>
                                         </tr>
@@ -579,15 +758,14 @@ export default function InventoryStatsPage() {
                                             <td className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                 {CAT_LABELS[item.category] ?? item.category}
                                             </td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-semibold text-slate-600">{item.openingStock}</td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-blue-600">+{item.totalRestocked}</td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{item.totalSold}</td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">{item.totalExported}</td>
-                                            <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700">
-                                                {item.totalRevenue.toLocaleString('vi-VN')}đ
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-blue-600">{item.totalCreated}</td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{item.inRoom}</td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">{item.otherOutput}</td>
+                                            <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700 whitespace-nowrap">
+                                                {item.computedRevenue.toLocaleString('vi-VN')}đ
                                             </td>
                                             <td className="px-5 py-3 text-center">
-                                                <StockBadge stock={item.closingStock} />
+                                                <StockBadge stock={item.remaining} />
                                             </td>
                                         </tr>
                                     ))}
@@ -642,6 +820,78 @@ export default function InventoryStatsPage() {
                         )}
                     </div>
                 </div>
+
+                {/* ── Sản lượng bán theo ngày — chỉ ở tab Bán hàng ── */}
+                {activeTab === 'sales' && (
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                            <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-indigo-500" />
+                                Sản lượng bán theo ngày
+                                <span className="ml-1 text-[11px] font-normal text-slate-400">(hóa đơn đã thanh toán)</span>
+                            </h2>
+                            <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                                {filteredDailySales.length} dòng
+                            </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-100">
+                                    <tr>
+                                        {([
+                                            { label: 'Ngày', align: 'text-left' },
+                                            { label: 'Sản phẩm', align: 'text-left' },
+                                            { label: 'Loại', align: 'text-left' },
+                                            { label: 'Bán phòng', align: 'text-center' },
+                                            { label: 'Mang về', align: 'text-center' },
+                                            { label: 'Tổng', align: 'text-center' },
+                                            { label: 'Doanh thu', align: 'text-right' },
+                                        ] as const).map(h => (
+                                            <th
+                                                key={h.label}
+                                                className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}
+                                            >
+                                                {h.label}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {filteredDailySales.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
+                                                Chưa có hóa đơn đã thanh toán cho kỳ này
+                                            </td>
+                                        </tr>
+                                    ) : filteredDailySales.map(row => (
+                                        <tr
+                                            key={`${row.dayKey}-${row.productId}`}
+                                            className="hover:bg-slate-50/60 transition-colors"
+                                        >
+                                            <td className="px-5 py-3 text-[12px] text-slate-600 whitespace-nowrap">
+                                                {formatDayWithWeekday(row.dayDate)}
+                                            </td>
+                                            <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{row.productName}</td>
+                                            <td className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                {CAT_LABELS[row.category] ?? row.category}
+                                            </td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">
+                                                {row.inRoom > 0 ? row.inRoom : <span className="text-emerald-600">0</span>}
+                                            </td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">
+                                                {row.takeawayGift > 0 ? row.takeawayGift : <span className="text-orange-500">0</span>}
+                                            </td>
+                                            <td className="px-5 py-3 text-[13px] text-center font-extrabold text-slate-900">{row.total}</td>
+                                            <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700 whitespace-nowrap">
+                                                {row.revenue.toLocaleString('vi-VN')}đ
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </main>
 
             {/* ── Low-stock warning modal ── */}

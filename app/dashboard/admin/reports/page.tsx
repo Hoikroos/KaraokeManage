@@ -15,7 +15,7 @@ import {
 import {
     TrendingUp, Receipt, LayoutDashboard, MonitorPlay, Trash2,
     Calendar, Search, Download, X, ArrowLeft, FileText,
-    CheckCircle,
+    CheckCircle, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -33,20 +33,51 @@ const PERIOD_OPTIONS: { id: PeriodType; label: string }[] = [
 ];
 
 function getGroupKey(date: Date, period: PeriodType): string {
-    if (period === 'daily') return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    // Quy đổi về "ngày làm việc" (06:00 → 05:59 sáng hôm sau) trước khi gom nhóm.
+    // → Khách 01:00 sáng 12/5 vẫn được tính vào ngày 11/5 / tuần 11/5 / tháng 5...
+    const d = getWorkingDay(date);
+    if (period === 'daily') return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     if (period === 'weekly') {
-        const oneJan = new Date(date.getFullYear(), 0, 1);
-        const week = Math.ceil((Math.floor((date.getTime() - oneJan.getTime()) / 864e5) + oneJan.getDay() + 1) / 7);
+        const oneJan = new Date(d.getFullYear(), 0, 1);
+        const week = Math.ceil((Math.floor((d.getTime() - oneJan.getTime()) / 864e5) + oneJan.getDay() + 1) / 7);
         return `Tuần ${week}`;
     }
-    if (period === 'monthly') return `T${date.getMonth() + 1}`;
-    if (period === 'quarterly') return `Q${Math.floor(date.getMonth() / 3) + 1}`;
-    return `${date.getFullYear()}`;
+    if (period === 'monthly') return `T${d.getMonth() + 1}`;
+    if (period === 'quarterly') return `Q${Math.floor(d.getMonth() / 3) + 1}`;
+    return `${d.getFullYear()}`;
 }
 
 function fmtVND(n: number) {
     const rounded = Math.ceil(n / 1000) * 1000;
     return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(rounded);
+}
+
+const WORK_DAY_START_HOUR = 6;
+
+function getWorkingDay(date: Date): Date {
+    const d = new Date(date);
+    if (d.getHours() < WORK_DAY_START_HOUR) {
+        d.setDate(d.getDate() - 1);
+    }
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function getWorkingDayKey(date: Date): string {
+    const d = getWorkingDay(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function formatDayShort(d: Date): string {
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatWeekday(d: Date): string {
+    const w = d.toLocaleDateString('vi-VN', { weekday: 'long' });
+    return w.charAt(0).toUpperCase() + w.slice(1);
 }
 
 /* ─── Sub-components ─────────────────────────────────────────── */
@@ -112,6 +143,7 @@ export default function ReportsPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
     /* ── Fetch ─── */
     useEffect(() => {
@@ -224,7 +256,7 @@ export default function ReportsPage() {
             const id = (inv.id ?? '').toLowerCase();
             if (searchTerm && !id.includes(searchTerm.toLowerCase())) return false;
 
-            const d = new Date(inv.createdAt);
+            const d = new Date(inv.startTime); // Sử dụng Giờ vào
             if (startDate) {
                 const s = new Date(startDate);
                 s.setHours(0, 0, 0, 0);
@@ -243,7 +275,7 @@ export default function ReportsPage() {
         const groups: Record<string, { total: number; count: number }> = {};
         filteredInvoices.forEach(inv => {
             if (inv.status !== 'paid') return;
-            const key = getGroupKey(new Date(inv.createdAt), reportType);
+            const key = getGroupKey(new Date(inv.startTime), reportType); // Nhóm theo Giờ vào
             if (!groups[key]) groups[key] = { total: 0, count: 0 };
             groups[key].total += inv.totalPrice;
             // Chỉ tính lượt thuê cho các phòng thực tế (không phải mang về/tặng)
@@ -268,6 +300,39 @@ export default function ReportsPage() {
         paidInvoices.filter(inv => !inv.id.startsWith('TKW') && !inv.id.startsWith('GFT')),
         [paidInvoices]);
 
+    // Gộp hóa đơn theo "ngày làm việc" (06:00 → 05:59 sáng hôm sau)
+    const groupedByDay = useMemo(() => {
+        const groups: Record<string, { date: Date; invoices: Invoice[] }> = {};
+        for (const inv of filteredInvoices) {
+            const start = new Date(inv.startTime);
+            const key = getWorkingDayKey(start);
+            if (!groups[key]) groups[key] = { date: getWorkingDay(start), invoices: [] };
+            groups[key].invoices.push(inv);
+        }
+        return Object.entries(groups)
+            .map(([key, g]) => {
+                const sorted = [...g.invoices].sort(
+                    (a, b) => +new Date(b.startTime) - +new Date(a.startTime),
+                );
+                const paidInvs = sorted.filter(i => i.status === 'paid');
+                return {
+                    key,
+                    date: g.date,
+                    dateLabel: formatDayShort(g.date),
+                    weekday: formatWeekday(g.date),
+                    invoices: sorted,
+                    paidCount: paidInvs.length,
+                    paidTotal: paidInvs.reduce((s, i) => s + i.totalPrice, 0),
+                };
+            })
+            .sort((a, b) => +b.date - +a.date);
+    }, [filteredInvoices]);
+
+    const expandAllDays = () => {
+        setExpandedDays(Object.fromEntries(groupedByDay.map(g => [g.key, true])));
+    };
+    const collapseAllDays = () => setExpandedDays({});
+
     const selectedStore = stores.find(s => s.id === selectedStoreId);
     const hasActiveFilters = !!(startDate || endDate || searchTerm);
 
@@ -278,7 +343,7 @@ export default function ReportsPage() {
         const rows = filteredInvoices.map(inv => [
             `#${inv.id.slice(0, 8).toUpperCase()}`,
             `Phòng ${(inv as any).roomNumber ?? ''}`,
-            new Date(inv.createdAt).toLocaleString('vi-VN'),
+            new Date(inv.startTime).toLocaleString('vi-VN'), // In ra giờ vào trong Excel
             Math.ceil(inv.totalPrice / 1000) * 1000,
             inv.status === 'paid' ? 'Đã thanh toán' : 'Chờ',
         ]);
@@ -531,85 +596,153 @@ export default function ReportsPage() {
                     </div>
                 </div>
 
-                {/* Invoice table */}
+                {/* Invoice list grouped by working day */}
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                         <div className="flex items-center gap-2">
                             <h2 className="text-[13px] font-bold text-slate-800">
-                                Danh sách hóa đơn
+                                Danh sách hóa đơn theo ngày
                                 {selectedStore ? ` — ${selectedStore.name}` : ''}
                             </h2>
                             <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                                {filteredInvoices.length}
+                                {groupedByDay.length} ngày · {filteredInvoices.length} HĐ
                             </span>
                         </div>
+                        {groupedByDay.length > 0 && (
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={expandAllDays}
+                                    className="text-[12px] font-bold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                                >
+                                    Mở tất cả
+                                </button>
+                                <button
+                                    onClick={collapseAllDays}
+                                    className="text-[12px] font-bold text-slate-500 hover:text-slate-700 hover:underline transition-colors"
+                                >
+                                    Thu gọn
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="px-5 py-2 bg-amber-50/60 border-b border-amber-100 text-[11px] text-amber-800">
+                        Một &quot;ngày làm việc&quot; tính từ <span className="font-bold">06:00 sáng</span> đến <span className="font-bold">05:59 sáng hôm sau</span> <span className="italic">(rạng sáng vẫn thuộc ca tối hôm trước)</span>.
                     </div>
 
                     {isLoading ? (
                         <div className="py-12 text-center text-slate-400 text-[13px] italic">Đang tải...</div>
-                    ) : filteredInvoices.length === 0 ? (
+                    ) : groupedByDay.length === 0 ? (
                         <div className="py-12 text-center text-slate-400 text-[13px] italic">Chưa có hóa đơn nào</div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full" style={{ tableLayout: 'fixed' }}>
-                                <colgroup>
-                                    <col style={{ width: '100px' }} />
-                                    <col style={{ width: '110px' }} />
-                                    <col style={{ width: '165px' }} />
-                                    <col style={{ width: '145px' }} />
-                                    <col style={{ width: '120px' }} />
-                                    <col style={{ width: '130px' }} />
-                                </colgroup>
-                                <thead className="bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        {['Mã HD', 'Phòng', 'Thời gian', 'Tổng tiền', 'Trạng thái', 'Thao tác'].map(h => (
-                                            <th
-                                                key={h}
-                                                className="px-4 py-3 text-left text-[9px] font-extrabold text-slate-400 uppercase tracking-widest"
-                                            >
-                                                {h}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {filteredInvoices.map((invoice, idx) => (
-                                        <tr key={invoice.id} className={`transition-colors ${idx % 2 === 0 ? 'hover:bg-blue-50/40' : 'bg-slate-50/50 hover:bg-blue-50/40'
-                                            }`}>
-                                            <td className="px-4 py-3 font-mono text-[11px] font-semibold text-slate-500">
-                                                #{invoice.id.slice(0, 6).toUpperCase()}
-                                            </td>
-                                            <td className="px-4 py-3 text-[13px] font-bold text-slate-900">
-                                                Phòng {(invoice as any).roomNumber}
-                                            </td>
-                                            <td className="px-4 py-3 text-[11px] text-slate-500">
-                                                {new Date(invoice.createdAt).toLocaleString('vi-VN')}
-                                            </td>
-                                            <td className="px-4 py-3 text-[13px] font-bold text-slate-900">
-                                                {fmtVND(invoice.totalPrice)}đ
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <StatusBadge status={invoice.status} />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Link href={`/dashboard/invoice/${invoice.id}`}>
-                                                        <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-blue-600 text-[11px] font-bold hover:bg-blue-50 hover:border-blue-200 transition-all">
-                                                            Chi tiết
-                                                        </button>
-                                                    </Link>
-                                                    <button
-                                                        onClick={() => handleDeleteInvoice(invoice.id)}
-                                                        className="p-1.5 rounded-lg border border-red-100 bg-white text-red-400 hover:bg-red-50 hover:border-red-200 transition-all"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
+                        <div className="divide-y divide-slate-100">
+                            {groupedByDay.map(group => {
+                                const expanded = !!expandedDays[group.key];
+                                const toggle = () => setExpandedDays(prev => ({ ...prev, [group.key]: !prev[group.key] }));
+                                return (
+                                    <div key={group.key}>
+                                        <div className={`px-5 py-3 flex items-center justify-between gap-3 flex-wrap transition-colors ${expanded ? 'bg-blue-50/60' : 'bg-white hover:bg-slate-50/70'}`}>
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <button
+                                                    onClick={toggle}
+                                                    aria-label={expanded ? 'Thu gọn' : 'Mở rộng'}
+                                                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${expanded
+                                                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                                                            : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                                        }`}
+                                                >
+                                                    {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                </button>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-baseline gap-2 flex-wrap">
+                                                        <div className="text-[14px] font-extrabold text-slate-800">Ngày {group.dateLabel}</div>
+                                                        <div className="text-[12px] font-medium text-slate-400">{group.weekday}</div>
+                                                    </div>
+                                                    <div className="text-[11px] font-medium text-slate-500 mt-0.5">
+                                                        <span className="font-bold text-slate-700">{group.invoices.length}</span> hóa đơn
+                                                        <span className="mx-1.5 text-slate-300">·</span>
+                                                        <span className="font-bold text-emerald-600">{group.paidCount}</span>
+                                                        <span className="text-emerald-600"> đã thanh toán</span>
+                                                    </div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-[15px] font-extrabold text-emerald-600">{fmtVND(group.paidTotal)}đ</div>
+                                                <button
+                                                    onClick={toggle}
+                                                    className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all ${expanded
+                                                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                                                            : 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100'
+                                                        }`}
+                                                >
+                                                    {expanded ? 'Thu gọn' : 'Xem thêm'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {expanded && (
+                                            <div className="overflow-x-auto border-t border-slate-100">
+                                                <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                                                    <colgroup>
+                                                        <col style={{ width: '100px' }} />
+                                                        <col style={{ width: '110px' }} />
+                                                        <col style={{ width: '165px' }} />
+                                                        <col style={{ width: '145px' }} />
+                                                        <col style={{ width: '120px' }} />
+                                                        <col style={{ width: '130px' }} />
+                                                    </colgroup>
+                                                    <thead className="bg-slate-50 border-b border-slate-100">
+                                                        <tr>
+                                                            {['Mã HD', 'Phòng', 'Thời gian', 'Tổng tiền', 'Trạng thái', 'Thao tác'].map(h => (
+                                                                <th
+                                                                    key={h}
+                                                                    className="px-4 py-3 text-left text-[9px] font-extrabold text-slate-400 uppercase tracking-widest"
+                                                                >
+                                                                    {h}
+                                                                </th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {group.invoices.map((invoice, idx) => (
+                                                            <tr key={invoice.id} className={`transition-colors ${idx % 2 === 0 ? 'hover:bg-blue-50/40' : 'bg-slate-50/50 hover:bg-blue-50/40'}`}>
+                                                                <td className="px-4 py-3 font-mono text-[11px] font-semibold text-slate-500">
+                                                                    #{invoice.id.slice(0, 6).toUpperCase()}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-[13px] font-bold text-slate-900">
+                                                                    Phòng {(invoice as any).roomNumber}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-[11px] text-slate-500">
+                                                                    {new Date(invoice.startTime).toLocaleString('vi-VN')}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-[13px] font-bold text-slate-900">
+                                                                    {fmtVND(invoice.totalPrice)}đ
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <StatusBadge status={invoice.status} />
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Link href={`/dashboard/invoice/${invoice.id}`}>
+                                                                            <button className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-blue-600 text-[11px] font-bold hover:bg-blue-50 hover:border-blue-200 transition-all">
+                                                                                Chi tiết
+                                                                            </button>
+                                                                        </Link>
+                                                                        <button
+                                                                            onClick={() => handleDeleteInvoice(invoice.id)}
+                                                                            className="p-1.5 rounded-lg border border-red-100 bg-white text-red-400 hover:bg-red-50 hover:border-red-200 transition-all"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

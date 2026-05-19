@@ -2759,18 +2759,23 @@ export default function RoomPage() {
             {customerName && <p className="text-[12px] tracking-wide">Khách hàng: {customerName}</p>}
           </div>
           {/* Bảng chi tiết */}
-          <table className="w-full text-[13px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
+          <table className="w-full text-[13px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6, tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '52%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '34%' }} />
+            </colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid #000' }}>
                 <th className="text-left py-1 text-[11px] tracking-wide uppercase">Chi tiết</th>
-                <th className="text-center py-1 text-[11px] tracking-wide">SL</th>
-                <th className="text-right py-1 text-[11px] tracking-wide uppercase">T.Tiền</th>
+                <th className="text-center py-1 text-[11px] tracking-wide" style={{ paddingRight: 4 }}>SL</th>
+                <th className="text-right py-1 text-[11px] tracking-wide uppercase" style={{ paddingLeft: 8 }}>T.Tiền</th>
               </tr>
             </thead>
             <tbody>
               {/* Tiền phòng */}
               <tr>
-                <td className="py-1.5">
+                <td className="py-1.5 break-words">
                   <div className="font-bold">Tiền phòng</div>
                   <div className="text-[11px] font-normal text-black">Giá: {customPricePerHour.toLocaleString('vi-VN')}đ/h</div>
                   <div className="text-[11px] font-semibold text-black" style={{ lineHeight: 1.5 }}>
@@ -2780,19 +2785,19 @@ export default function RoomPage() {
                     {' '}({durationText})
                   </div>
                 </td>
-                <td className="text-center py-1.5">{(durationMinutes / 60).toFixed(2)}</td>
-                <td className="text-right py-1.5 font-black">{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+                <td className="text-center py-1.5" style={{ paddingRight: 4 }}>{(durationMinutes / 60).toFixed(2)}</td>
+                <td className="text-right py-1.5 font-black" style={{ paddingLeft: 8 }}>{roomChargeTotal.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
               </tr>
               {/* Các món */}
               {orderItems.map((item, index) => (
                 <tr key={item.id ?? index} style={{ borderTop: '1px dashed #000' }}>
-                  <td className="py-1.5 text-wrap break-word max-w-[40mm]">
+                  <td className="py-1.5 break-words">
                     <div className="font-bold leading-tight">{item.productName}</div>
                     {localItemNotes[item.productId] && <div className="text-[12px] font-normal italic text-black">Ghi chú: {localItemNotes[item.productId]}</div>}
                     <div className="text-[11px] font-normal text-black">Giá: {item.price.toLocaleString('vi-VN')}</div>
                   </td>
-                  <td className="text-center py-1.5">{item.quantity}</td>
-                  <td className="text-right py-1.5 font-black">{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
+                  <td className="text-center py-1.5" style={{ paddingRight: 4 }}>{item.quantity}</td>
+                  <td className="text-right py-1.5 font-black" style={{ paddingLeft: 8 }}>{(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}</td>
                 </tr>
               ))}
             </tbody>

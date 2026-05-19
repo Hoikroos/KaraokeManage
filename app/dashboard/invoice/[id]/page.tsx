@@ -279,18 +279,23 @@ export default function InvoicePage() {
           <p className="text-[11px] text-black">{new Date(invoice.createdAt).toLocaleString('vi-VN')}</p>
         </div>
         {/* Bảng chi tiết */}
-        <table className="w-full text-[13px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6 }}>
+        <table className="w-full text-[13px] mb-2" style={{ borderCollapse: 'collapse', lineHeight: 1.6, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '52%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '34%' }} />
+          </colgroup>
           <thead>
             <tr style={{ borderBottom: '1px solid #000' }}>
               <th className="text-left py-1 text-[11px] tracking-wide uppercase">Chi tiết</th>
-              <th className="text-center py-1 text-[11px] tracking-wide">SL</th>
-              <th className="text-right py-1 text-[11px] tracking-wide uppercase">T.Tiền</th>
+              <th className="text-center py-1 text-[11px] tracking-wide" style={{ paddingRight: 4 }}>SL</th>
+              <th className="text-right py-1 text-[11px] tracking-wide uppercase" style={{ paddingLeft: 8 }}>T.Tiền</th>
             </tr>
           </thead>
           <tbody>
             {/* Tiền phòng */}
             <tr>
-              <td className="py-1.5">
+              <td className="py-1.5 break-words">
                 <div className="font-bold">Tiền phòng</div>
                 <div className="text-[11px] font-normal text-black">
                   Giá: {room?.pricePerHour?.toLocaleString('vi-VN')}đ/h
@@ -302,23 +307,23 @@ export default function InvoicePage() {
                   {' '}({durationText})
                 </div>
               </td>
-              <td className="text-center py-1.5">{(durationMinutes / 60).toFixed(2)}</td>
-              <td className="text-right py-1.5 font-black">
+              <td className="text-center py-1.5" style={{ paddingRight: 4 }}>{(durationMinutes / 60).toFixed(2)}</td>
+              <td className="text-right py-1.5 font-black" style={{ paddingLeft: 8 }}>
                 {invoice.roomCost.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}
               </td>
             </tr>
             {/* Các món */}
             {(invoice.items || []).map((item: any, index: number) => (
               <tr key={index} style={{ borderTop: '1px dashed #000' }}>
-                <td className="py-1.5 break-words max-w-[40mm]">
+                <td className="py-1.5 break-words">
                   <div className="font-bold leading-tight">{item.productName}</div>
                   {item.note && <div className="text-[10px] font-normal italic text-black">Ghi chú: {item.note}</div>}
                   <div className="text-[11px] font-normal text-black">
                     Giá: {item.price.toLocaleString('vi-VN')}
                   </div>
                 </td>
-                <td className="text-center py-1.5">{item.quantity}</td>
-                <td className="text-right py-1.5 font-black">
+                <td className="text-center py-1.5" style={{ paddingRight: 4 }}>{item.quantity}</td>
+                <td className="text-right py-1.5 font-black" style={{ paddingLeft: 8 }}>
                   {(item.price * item.quantity).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}
                 </td>
               </tr>
