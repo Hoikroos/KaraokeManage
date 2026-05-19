@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import {
     TrendingUp, TrendingDown, ArrowLeft, Calendar, AlertTriangle,
-    Search, Boxes, Download, History, Package, X
+    Search, Boxes, Download, History, Package
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -78,11 +78,6 @@ function getWorkingDayKey(date: Date): string {
 
 function formatDayShort(d: Date): string {
     return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function formatWeekday(d: Date): string {
-    const w = d.toLocaleDateString('vi-VN', { weekday: 'long' });
-    return w.charAt(0).toUpperCase() + w.slice(1);
 }
 
 const WEEKDAY_SHORT_VI = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
@@ -352,8 +347,8 @@ export default function InventoryStatsPage() {
             const otherOutput = sales.offsite + s.totalExported;
             // Còn lại: số tồn thực tế hiện tại (không phụ thuộc kỳ)
             const remaining = s.currentStock;
-            // Sản lượng dùng cho xếp hạng "bán chạy" / "bán chậm" trong kỳ
-            const salesMetric = inRoom + otherOutput;
+            // "Bán chạy nhất" = bán trong phòng + mang về/tặng (KHÔNG cộng hư hỏng)
+            const salesMetric = inRoom + sales.offsite;
             return {
                 ...s,
                 totalCreated,
