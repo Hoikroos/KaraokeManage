@@ -86,10 +86,32 @@ function formatDayWithWeekday(d: Date): string {
     return `${WEEKDAY_SHORT_VI[d.getDay()]}, ${formatDayShort(d)}`;
 }
 
+function getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Monday = start
+    d.setDate(d.getDate() + diff);
+    return d;
+}
+
+function getWeekKey(date: Date): string {
+    const d = getWeekStart(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function formatWeekLabel(weekStart: Date): string {
+    const end = new Date(weekStart);
+    end.setDate(end.getDate() + 6);
+    return `${formatDayShort(weekStart)} – ${formatDayShort(end)}`;
+}
+
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
 
 const PERIOD_OPTIONS = [
-    { id: 'daily', label: 'Ngày' },
     { id: 'weekly', label: 'Tuần' },
     { id: 'monthly', label: 'Tháng' },
     { id: 'yearly', label: 'Năm' },
@@ -187,7 +209,7 @@ export default function InventoryStatsPage() {
     const { user } = useAuth();
     const [stores, setStores] = useState<Store[]>([]);
     const [selectedStoreId, setSelectedStoreId] = useState<string>('');
-    const [reportType, setReportType] = useState<PeriodType>('daily');
+    const [reportType, setReportType] = useState<PeriodType>('weekly');
     const [stats, setStats] = useState<ProductStat[]>([]);
     const [lifetimeStats, setLifetimeStats] = useState<ProductStat[]>([]);
     const [logs, setLogs] = useState<InventoryLog[]>([]);
@@ -198,6 +220,7 @@ export default function InventoryStatsPage() {
     const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
+    const [expandedWeeklyKeys, setExpandedWeeklyKeys] = useState<Record<string, boolean>>({});
 
     /* ── Fetch stores on mount ─── */
     useEffect(() => {
@@ -288,9 +311,7 @@ export default function InventoryStatsPage() {
             const now = new Date();
             end = new Date(); end.setHours(23, 59, 59, 999);
             start = new Date();
-            if (reportType === 'daily') {
-                start.setHours(0, 0, 0, 0);
-            } else if (reportType === 'weekly') {
+            if (reportType === 'weekly') {
                 const day = now.getDay();
                 const diff = day === 0 ? -6 : 1 - day;
                 start.setDate(now.getDate() + diff);
@@ -345,8 +366,8 @@ export default function InventoryStatsPage() {
             const inRoom = sales.inRoom;
             // Xuất khác trong kỳ = tặng + mang về (offsite từ HĐ TKW/GFT) + hư hỏng (inventoryLog) trong kỳ
             const otherOutput = sales.offsite + s.totalExported;
-            // Còn lại: số tồn thực tế hiện tại (không phụ thuộc kỳ)
-            const remaining = s.currentStock;
+            // Còn lại = Tổng (tạo + nhập) - bán trong phòng - xuất khác
+            const remaining = totalCreated - inRoom - otherOutput;
             // "Bán chạy nhất" = bán trong phòng + mang về/tặng (KHÔNG cộng hư hỏng)
             const salesMetric = inRoom + sales.offsite;
             return {
@@ -397,69 +418,104 @@ export default function InventoryStatsPage() {
         [logs, searchTerm]
     );
 
-    const dailySalesRows = useMemo(() => {
-        type Bucket = { productName: string; category: string; inRoom: number; takeawayGift: number; revenue: number };
-        const byDay = new Map<string, { dayDate: Date; products: Map<string, Bucket> }>();
+    /* ── Sản lượng theo TUẦN × sản phẩm, mỗi dòng có daily breakdown ─── */
+    const weeklySalesRows = useMemo(() => {
+        type DailyEntry = { dayKey: string; dayDate: Date; inRoom: number; takeawayGift: number; revenue: number };
+        type ProductBucket = {
+            productName: string;
+            category: string;
+            totalInRoom: number;
+            totalTakeawayGift: number;
+            totalRevenue: number;
+            days: Map<string, DailyEntry>;
+        };
+        // weekKey -> { weekStart, products: productId -> ProductBucket }
+        const byWeek = new Map<string, { weekStart: Date; products: Map<string, ProductBucket> }>();
 
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
-            if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
-            const dayKey = getWorkingDayKey(t);
             const dayDate = getWorkingDay(t);
+            const dayKey = getWorkingDayKey(t);
+            const weekKey = getWeekKey(dayDate);
+            const weekStart = getWeekStart(dayDate);
             const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
 
-            if (!byDay.has(dayKey)) byDay.set(dayKey, { dayDate, products: new Map() });
-            const bucket = byDay.get(dayKey)!;
+            if (!byWeek.has(weekKey)) byWeek.set(weekKey, { weekStart, products: new Map() });
+            const weekBucket = byWeek.get(weekKey)!;
 
             for (const item of (inv.items || [])) {
-                const cur = bucket.products.get(item.productId) || {
-                    productName: item.productName,
-                    category: productCategoryLookup.get(item.productId) || '',
-                    inRoom: 0,
-                    takeawayGift: 0,
-                    revenue: 0,
-                };
-                if (isOffsite) cur.takeawayGift += item.quantity;
-                else cur.inRoom += item.quantity;
-                cur.revenue += Number(item.price || 0) * Number(item.quantity || 0);
-                bucket.products.set(item.productId, cur);
+                let p = weekBucket.products.get(item.productId);
+                if (!p) {
+                    p = {
+                        productName: item.productName,
+                        category: productCategoryLookup.get(item.productId) || '',
+                        totalInRoom: 0,
+                        totalTakeawayGift: 0,
+                        totalRevenue: 0,
+                        days: new Map(),
+                    };
+                    weekBucket.products.set(item.productId, p);
+                }
+                let d = p.days.get(dayKey);
+                if (!d) {
+                    d = { dayKey, dayDate, inRoom: 0, takeawayGift: 0, revenue: 0 };
+                    p.days.set(dayKey, d);
+                }
+                const qty = item.quantity;
+                const rev = Number(item.price || 0) * Number(qty || 0);
+                if (isOffsite) {
+                    p.totalTakeawayGift += qty;
+                    d.takeawayGift += qty;
+                } else {
+                    p.totalInRoom += qty;
+                    d.inRoom += qty;
+                }
+                p.totalRevenue += rev;
+                d.revenue += rev;
             }
         }
 
         const rows: Array<{
-            dayKey: string;
-            dayDate: Date;
+            weekKey: string;
+            weekStart: Date;
+            weekLabel: string;
             productId: string;
             productName: string;
             category: string;
-            inRoom: number;
-            takeawayGift: number;
-            total: number;
-            revenue: number;
+            totalInRoom: number;
+            totalTakeawayGift: number;
+            grandTotal: number;
+            totalRevenue: number;
+            daily: DailyEntry[];
         }> = [];
-        for (const [dayKey, { dayDate, products }] of byDay.entries()) {
+        for (const [weekKey, { weekStart, products }] of byWeek.entries()) {
             for (const [productId, p] of products.entries()) {
-                const total = p.inRoom + p.takeawayGift;
-                if (total === 0) continue;
+                const grandTotal = p.totalInRoom + p.totalTakeawayGift;
+                if (grandTotal === 0) continue;
+                const daily = [...p.days.values()].sort((a, b) => +a.dayDate - +b.dayDate);
                 rows.push({
-                    dayKey, dayDate, productId,
+                    weekKey,
+                    weekStart,
+                    weekLabel: formatWeekLabel(weekStart),
+                    productId,
                     productName: p.productName,
                     category: p.category,
-                    inRoom: p.inRoom,
-                    takeawayGift: p.takeawayGift,
-                    total,
-                    revenue: p.revenue,
+                    totalInRoom: p.totalInRoom,
+                    totalTakeawayGift: p.totalTakeawayGift,
+                    grandTotal,
+                    totalRevenue: p.totalRevenue,
+                    daily,
                 });
             }
         }
-        rows.sort((a, b) => (+b.dayDate - +a.dayDate) || (b.total - a.total));
+        rows.sort((a, b) => (+b.weekStart - +a.weekStart) || (b.grandTotal - a.grandTotal));
         return rows;
-    }, [invoices, effectivePeriod, productCategoryLookup]);
+    }, [invoices, productCategoryLookup]);
 
-    const filteredDailySales = useMemo(
-        () => dailySalesRows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())),
-        [dailySalesRows, searchTerm]
+    const filteredWeeklySales = useMemo(
+        () => weeklySalesRows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())),
+        [weeklySalesRows, searchTerm]
     );
 
     /* ── CSV export ─── */
@@ -855,17 +911,17 @@ export default function InventoryStatsPage() {
                     </div>
                 </div>
 
-                {/* ── Sản lượng bán theo ngày — chỉ ở tab Bán hàng ── */}
+                {/* ── Sản lượng bán theo tuần — chỉ ở tab Bán hàng ── */}
                 {activeTab === 'sales' && (
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                             <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
                                 <Calendar className="w-4 h-4 text-indigo-500" />
-                                Sản lượng bán theo ngày
-                                <span className="ml-1 text-[11px] font-normal text-slate-400">(hóa đơn đã thanh toán)</span>
+                                Sản lượng bán theo tuần
+                                <span className="ml-1 text-[11px] font-normal text-slate-400">(hóa đơn đã thanh toán — bấm Xem chi tiết để xem từng ngày)</span>
                             </h2>
                             <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                                {filteredDailySales.length} dòng
+                                {filteredWeeklySales.length} dòng
                             </span>
                         </div>
                         <div className="overflow-x-auto">
@@ -873,16 +929,17 @@ export default function InventoryStatsPage() {
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr>
                                         {([
-                                            { label: 'Ngày', align: 'text-left' },
+                                            { label: 'Tuần', align: 'text-left' },
                                             { label: 'Sản phẩm', align: 'text-left' },
                                             { label: 'Loại', align: 'text-left' },
                                             { label: 'Bán phòng', align: 'text-center' },
                                             { label: 'Mang về', align: 'text-center' },
                                             { label: 'Tổng', align: 'text-center' },
                                             { label: 'Doanh thu', align: 'text-right' },
-                                        ] as const).map(h => (
+                                            { label: '', align: 'text-right' },
+                                        ] as const).map((h, i) => (
                                             <th
-                                                key={h.label}
+                                                key={`${h.label}-${i}`}
                                                 className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}
                                             >
                                                 {h.label}
@@ -891,36 +948,65 @@ export default function InventoryStatsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {filteredDailySales.length === 0 ? (
+                                    {filteredWeeklySales.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
-                                                Chưa có hóa đơn đã thanh toán cho kỳ này
+                                            <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm italic">
+                                                Chưa có hóa đơn đã thanh toán
                                             </td>
                                         </tr>
-                                    ) : filteredDailySales.map(row => (
-                                        <tr
-                                            key={`${row.dayKey}-${row.productId}`}
-                                            className="hover:bg-slate-50/60 transition-colors"
-                                        >
-                                            <td className="px-5 py-3 text-[12px] text-slate-600 whitespace-nowrap">
-                                                {formatDayWithWeekday(row.dayDate)}
-                                            </td>
-                                            <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{row.productName}</td>
-                                            <td className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                {CAT_LABELS[row.category] ?? row.category}
-                                            </td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">
-                                                {row.inRoom > 0 ? row.inRoom : <span className="text-emerald-600">0</span>}
-                                            </td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">
-                                                {row.takeawayGift > 0 ? row.takeawayGift : <span className="text-orange-500">0</span>}
-                                            </td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-extrabold text-slate-900">{row.total}</td>
-                                            <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700 whitespace-nowrap">
-                                                {row.revenue.toLocaleString('vi-VN')}đ
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    ) : filteredWeeklySales.flatMap(row => {
+                                        const expandKey = `${row.weekKey}-${row.productId}`;
+                                        const expanded = !!expandedWeeklyKeys[expandKey];
+                                        const out: React.ReactElement[] = [];
+                                        out.push(
+                                            <tr key={`main-${expandKey}`} className={`transition-colors ${expanded ? 'bg-blue-50/60' : 'hover:bg-slate-50/60'}`}>
+                                                <td className="px-5 py-3 text-[12px] font-semibold text-slate-700 whitespace-nowrap">
+                                                    {row.weekLabel}
+                                                </td>
+                                                <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{row.productName}</td>
+                                                <td className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                    {CAT_LABELS[row.category] ?? row.category}
+                                                </td>
+                                                <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{row.totalInRoom}</td>
+                                                <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">{row.totalTakeawayGift}</td>
+                                                <td className="px-5 py-3 text-[13px] text-center font-extrabold text-slate-900">{row.grandTotal}</td>
+                                                <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700 whitespace-nowrap">
+                                                    {row.totalRevenue.toLocaleString('vi-VN')}đ
+                                                </td>
+                                                <td className="px-5 py-3 text-right">
+                                                    <button
+                                                        onClick={() => setExpandedWeeklyKeys(prev => ({ ...prev, [expandKey]: !prev[expandKey] }))}
+                                                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${expanded
+                                                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+                                                            : 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100'
+                                                            }`}
+                                                    >
+                                                        {expanded ? 'Thu gọn' : 'Xem chi tiết'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                        if (expanded) {
+                                            row.daily.forEach(d => {
+                                                out.push(
+                                                    <tr key={`day-${expandKey}-${d.dayKey}`} className="bg-slate-50/40">
+                                                        <td className="px-5 py-2 pl-12 text-[11px] text-slate-500 whitespace-nowrap">
+                                                            ↳ {formatDayWithWeekday(d.dayDate)}
+                                                        </td>
+                                                        <td className="px-5 py-2 text-[11px] text-slate-400" colSpan={2}></td>
+                                                        <td className="px-5 py-2 text-[12px] text-center font-semibold text-emerald-600">{d.inRoom}</td>
+                                                        <td className="px-5 py-2 text-[12px] text-center font-semibold text-orange-500">{d.takeawayGift}</td>
+                                                        <td className="px-5 py-2 text-[12px] text-center font-bold text-slate-700">{d.inRoom + d.takeawayGift}</td>
+                                                        <td className="px-5 py-2 text-[12px] text-right text-slate-600 whitespace-nowrap">
+                                                            {d.revenue.toLocaleString('vi-VN')}đ
+                                                        </td>
+                                                        <td></td>
+                                                    </tr>
+                                                );
+                                            });
+                                        }
+                                        return out;
+                                    })}
                                 </tbody>
                             </table>
                         </div>
