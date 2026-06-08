@@ -155,9 +155,6 @@ export default function CustomersPage() {
     }, [filteredInvoices]);
 
     const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
-    const avgPerCustomer = customerStats.length > 0
-        ? Math.round(customerStats.reduce((s, c) => s + c.total, 0) / customerStats.length)
-        : 0;
 
     // ─── VẼ BIỂU ĐỒ GROUPED BAR: số lần ghé + chi tiêu ───
     const drawDualChart = useCallback(() => {
@@ -422,26 +419,6 @@ export default function CustomersPage() {
                     <div className="md:col-span-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label>
                         <Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                </div>
-
-                {/* Stat cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-                    <div className="bg-indigo-50 rounded-2xl p-4">
-                        <p className="text-xs font-bold text-indigo-500 uppercase mb-1">Doanh thu</p>
-                        <p className="text-xl font-black text-indigo-700">{totalSpendingAll.toLocaleString('vi-VN')}đ</p>
-                    </div>
-                    <div className="bg-emerald-50 rounded-2xl p-4">
-                        <p className="text-xs font-bold text-emerald-600 uppercase mb-1">Tổng lượt</p>
-                        <p className="text-xl font-black text-emerald-700">{filteredInvoices.length}</p>
-                    </div>
-                    <div className="bg-violet-50 rounded-2xl p-4">
-                        <p className="text-xs font-bold text-violet-600 uppercase mb-1">Nhóm khách</p>
-                        <p className="text-xl font-black text-violet-700">{customerStats.length}</p>
-                    </div>
-                    <div className="bg-amber-50 rounded-2xl p-4">
-                        <p className="text-xs font-bold text-amber-600 uppercase mb-1">TB / khách</p>
-                        <p className="text-xl font-black text-amber-700">{avgPerCustomer.toLocaleString('vi-VN')}đ</p>
                     </div>
                 </div>
 
