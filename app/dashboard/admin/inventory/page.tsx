@@ -600,7 +600,170 @@ export default function InventoryStatsPage() {
         [weeklySalesRows, searchTerm]
     );
 
-    /* ── CSV export ─── */
+    /* ── Excel export (có định dạng màu) ─── */
+    const exportToExcel = async () => {
+        const isHistory = activeTab === 'history';
+        if ((isHistory ? filteredLogs.length : filteredStats.length) === 0) {
+            toast.error('Không có dữ liệu để xuất');
+            return;
+        }
+
+        try {
+            const ExcelJS = (await import('exceljs')).default;
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'Quản lý Karaoke';
+
+            const C = {
+                header: 'FF1E293B', title: 'FF059669', stripe: 'FFF1F5F9', border: 'FFE2E8F0',
+                green: 'FF059669', orange: 'FFEA580C', blue: 'FF2563EB', rose: 'FFE11D48',
+            };
+            const thin = { style: 'thin' as const, color: { argb: C.border } };
+            const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
+
+            const buildSheet = (
+                name: string,
+                title: string,
+                columns: { header: string; width: number; align?: 'left' | 'center' | 'right' }[],
+                dataRows: { value: any; color?: string; numFmt?: string }[][]
+            ) => {
+                const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 3 }] });
+                const nCols = columns.length;
+
+                ws.mergeCells(1, 1, 1, nCols);
+                const titleCell = ws.getCell(1, 1);
+                titleCell.value = title;
+                titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.title } };
+                titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+                ws.getRow(1).height = 26;
+
+                ws.mergeCells(2, 1, 2, nCols);
+                const subCell = ws.getCell(2, 1);
+                subCell.value = `Xuất lúc: ${new Date().toLocaleString('vi-VN')}`;
+                subCell.font = { italic: true, size: 10, color: { argb: 'FF64748B' } };
+                subCell.alignment = { horizontal: 'left', indent: 1 };
+
+                const headerRow = ws.getRow(3);
+                columns.forEach((col, i) => {
+                    const cell = headerRow.getCell(i + 1);
+                    cell.value = col.header;
+                    cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.header } };
+                    cell.alignment = { vertical: 'middle', horizontal: col.align ?? 'center', wrapText: true };
+                    cell.border = allBorders;
+                    ws.getColumn(i + 1).width = col.width;
+                });
+                headerRow.height = 30;
+
+                dataRows.forEach((row, rIdx) => {
+                    const r = ws.getRow(4 + rIdx);
+                    row.forEach((cellData, cIdx) => {
+                        const cell = r.getCell(cIdx + 1);
+                        cell.value = cellData.value;
+                        cell.border = allBorders;
+                        cell.alignment = { vertical: 'middle', horizontal: columns[cIdx].align ?? 'center' };
+                        if (cellData.numFmt) cell.numFmt = cellData.numFmt;
+                        cell.font = { size: 11, color: { argb: cellData.color ?? 'FF1E293B' }, bold: !!cellData.color };
+                        if (rIdx % 2 === 1) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.stripe } };
+                        }
+                    });
+                });
+            };
+
+            if (isHistory) {
+                buildSheet(
+                    'Lịch sử nhập kho',
+                    'LỊCH SỬ NHẬP / XUẤT KHO',
+                    [
+                        { header: 'Thời gian', width: 22, align: 'left' },
+                        { header: 'Sản phẩm', width: 28, align: 'left' },
+                        { header: 'Biến động', width: 14 },
+                        { header: 'Ghi chú', width: 36, align: 'left' },
+                        { header: 'Trạng thái', width: 16 },
+                    ],
+                    filteredLogs.map(l => [
+                        { value: new Date(l.createdAt).toLocaleString('vi-VN') },
+                        { value: l.productName },
+                        { value: l.quantity, color: l.quantity >= 0 ? C.green : C.rose },
+                        { value: l.note ?? '—' },
+                        { value: l.quantity >= 0 ? 'Nhập thêm' : 'Xuất / Hư', color: l.quantity >= 0 ? C.green : C.rose },
+                    ])
+                );
+            } else {
+                buildSheet(
+                    'Tồn kho & bán hàng',
+                    'TỔNG QUAN TỒN KHO & BÁN HÀNG',
+                    [
+                        { header: 'Sản phẩm', width: 28, align: 'left' },
+                        { header: 'Loại', width: 14 },
+                        { header: 'SL tổng (tạo + nhập)', width: 18 },
+                        { header: 'Bán trong phòng', width: 16 },
+                        { header: 'Xuất khác (tặng/mang về/hư)', width: 20 },
+                        { header: 'Doanh thu', width: 18, align: 'right' },
+                        { header: 'Còn lại', width: 12 },
+                    ],
+                    filteredStats.map(s => [
+                        { value: s.productName },
+                        { value: CAT_LABELS[s.category] ?? s.category },
+                        { value: s.totalCreated, color: C.blue },
+                        { value: s.inRoom, color: C.green },
+                        { value: s.otherOutput, color: C.orange },
+                        { value: s.computedRevenue, numFmt: '#,##0"đ"' },
+                        { value: s.remaining },
+                    ])
+                );
+            }
+
+            if (monthlyStock.length > 0) {
+                const monthRows: { value: any; color?: string }[][] = [];
+                for (const g of monthlyStock) {
+                    for (const r of g.rows) {
+                        monthRows.push([
+                            { value: g.label, color: C.blue },
+                            { value: r.productName },
+                            { value: r.opening },
+                            { value: r.restock, color: C.green },
+                            { value: r.opening + r.restock, color: C.blue },
+                            { value: r.sold },
+                            { value: r.exported, color: C.orange },
+                            { value: r.closing, color: C.green },
+                        ]);
+                    }
+                }
+                buildSheet(
+                    'Sổ kho theo tháng',
+                    'SỔ KHO THEO THÁNG (tồn đầu = dư tháng trước + nhập)',
+                    [
+                        { header: 'Tháng', width: 14, align: 'left' },
+                        { header: 'Sản phẩm', width: 26, align: 'left' },
+                        { header: 'Tồn đầu', width: 12 },
+                        { header: '+ Nhập', width: 12 },
+                        { header: '= Tổng có', width: 12 },
+                        { header: '− Bán', width: 12 },
+                        { header: '− Xuất khác', width: 14 },
+                        { header: 'Tồn cuối', width: 12 },
+                    ],
+                    monthRows
+                );
+            }
+
+            const buf = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bao-cao-kho-${activeTab}-${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('Xuất file Excel thành công!');
+        } catch (err) {
+            console.error('Export Excel error:', err);
+            toast.error('Lỗi khi xuất file Excel');
+        }
+    };
+
+    /* ── CSV export (giữ lại làm dự phòng) ─── */
     const exportToCSV = () => {
         const isHistory = activeTab === 'history';
         const source = isHistory ? logs : stats;
@@ -666,11 +829,11 @@ export default function InventoryStatsPage() {
                 </div>
 
                 <Button
-                    onClick={exportToCSV}
+                    onClick={exportToExcel}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2 transition-all shadow-md hover:shadow-lg"
                 >
                     <Download className="w-3.5 h-3.5" />
-                    Xuất báo cáo
+                    Xuất Excel
                 </Button>
             </header>
 
