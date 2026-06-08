@@ -220,6 +220,12 @@ export default function InventoryStatsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [logDirection, setLogDirection] = useState<'all' | 'in' | 'out'>('all');
     const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
+    // Sổ kho theo tháng (tồn đầu = tồn cuối tháng trước + nhập trong tháng)
+    const [monthlyStock, setMonthlyStock] = useState<{
+        key: string; label: string;
+        rows: { productId: string; productName: string; category: string; opening: number; restock: number; sold: number; exported: number; closing: number }[];
+    }[]>([]);
+    const [loadingMonthly, setLoadingMonthly] = useState(false);
     const [expandedWeeklyKeys, setExpandedWeeklyKeys] = useState<Record<string, boolean>>({});
 
     /* ── Fetch stores on mount ─── */
@@ -288,6 +294,58 @@ export default function InventoryStatsPage() {
             toast.error('Lỗi khi tải dữ liệu thống kê kho');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    /* ── Tải sổ kho theo từng tháng trong khoảng đang chọn ─── */
+    const loadMonthlyStock = async () => {
+        if (!selectedStoreId) return;
+        setLoadingMonthly(true);
+        try {
+            const fmt = (d: Date) =>
+                `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            // Danh sách các tháng từ start → end (tối đa 24 tháng để tránh quá nhiều request)
+            const months: { y: number; m: number }[] = [];
+            let cur = new Date(effectivePeriod.start.getFullYear(), effectivePeriod.start.getMonth(), 1);
+            const last = new Date(effectivePeriod.end.getFullYear(), effectivePeriod.end.getMonth(), 1);
+            while (cur <= last && months.length < 24) {
+                months.push({ y: cur.getFullYear(), m: cur.getMonth() });
+                cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+            }
+
+            const results = await Promise.all(months.map(async ({ y, m }) => {
+                const mStart = fmt(new Date(y, m, 1));
+                const mEnd = fmt(new Date(y, m + 1, 0));
+                const res = await fetch(
+                    `/api/admin/inventory?storeId=${selectedStoreId}&startDate=${mStart}&endDate=${mEnd}&type=monthly`,
+                    { cache: 'no-store' }
+                );
+                const data = res.ok ? await res.json() : { stats: [] };
+                const stats: ProductStat[] = Array.isArray(data.stats) ? data.stats : [];
+                return {
+                    key: `${y}-${String(m + 1).padStart(2, '0')}`,
+                    label: `Tháng ${m + 1}/${y}`,
+                    rows: stats.map(s => ({
+                        productId: s.productId,
+                        productName: s.productName,
+                        category: s.category,
+                        opening: Math.max(0, Math.round(s.openingStock)),
+                        restock: Math.round(s.totalRestocked),
+                        sold: Math.round(s.totalSold),
+                        exported: Math.round(s.totalExported),
+                        closing: Math.round(s.closingStock),
+                    })),
+                };
+            }));
+
+            // Mới nhất → cũ nhất
+            results.sort((a, b) => b.key.localeCompare(a.key));
+            setMonthlyStock(results);
+        } catch {
+            toast.error('Lỗi khi tải sổ kho theo tháng');
+        } finally {
+            setLoadingMonthly(false);
         }
     };
 
@@ -977,6 +1035,83 @@ export default function InventoryStatsPage() {
                                     ))}
                                 </tbody>
                             </table>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Sổ kho theo tháng (tồn đầu = dư tháng trước + nhập trong tháng) ── */}
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                        <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-indigo-500" />
+                            Sổ kho theo tháng
+                            <span className="ml-1 text-[11px] font-normal text-slate-400">
+                                (Tồn đầu = tồn cuối tháng trước + nhập trong tháng)
+                            </span>
+                        </h2>
+                        <Button
+                            onClick={loadMonthlyStock}
+                            disabled={loadingMonthly}
+                            className="h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+                        >
+                            {loadingMonthly ? 'Đang tính...' : monthlyStock.length ? 'Làm mới' : 'Xem tồn kho theo tháng'}
+                        </Button>
+                    </div>
+
+                    <div className="px-5 py-4 space-y-5">
+                        {monthlyStock.length === 0 ? (
+                            <p className="text-center text-slate-400 text-sm italic py-6">
+                                Bấm "Xem tồn kho theo tháng" để tính tồn kho từng tháng trong khoảng thời gian đang chọn.
+                            </p>
+                        ) : (
+                            monthlyStock.map(group => {
+                                const rows = group.rows.filter(r =>
+                                    r.productName.toLowerCase().includes(searchTerm.toLowerCase())
+                                );
+                                if (rows.length === 0) return null;
+                                return (
+                                    <div key={group.key} className="border border-slate-100 rounded-xl overflow-hidden">
+                                        <div className="bg-slate-100/70 px-4 py-2.5 text-[12px] font-bold text-slate-700 flex items-center gap-2">
+                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                            {group.label}
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                    <tr>
+                                                        {([
+                                                            { label: 'Sản phẩm', align: 'text-left' },
+                                                            { label: 'Tồn đầu (dư tháng trước)', align: 'text-center' },
+                                                            { label: '+ Nhập trong tháng', align: 'text-center' },
+                                                            { label: '= Tổng có', align: 'text-center' },
+                                                            { label: '− Bán', align: 'text-center' },
+                                                            { label: '− Xuất khác', align: 'text-center' },
+                                                            { label: 'Tồn cuối', align: 'text-center' },
+                                                        ] as const).map(h => (
+                                                            <th key={h.label} className={`px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}>
+                                                                {h.label}
+                                                            </th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {rows.map(r => (
+                                                        <tr key={r.productId} className="hover:bg-slate-50/60 transition-colors">
+                                                            <td className="px-4 py-2.5 text-[13px] font-bold text-slate-900">{r.productName}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center font-semibold text-slate-500">{r.opening}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center font-bold text-emerald-600">+{r.restock}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center font-bold text-blue-600">{r.opening + r.restock}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center font-semibold text-slate-600">{r.sold}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center font-semibold text-orange-500">{r.exported}</td>
+                                                            <td className="px-4 py-2.5 text-center"><StockBadge stock={r.closing} /></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
                 </div>
