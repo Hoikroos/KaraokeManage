@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/app/context';
 import {
@@ -422,6 +422,25 @@ export default function InventoryStatsPage() {
         }),
         [logs, searchTerm, logDirection]
     );
+
+    // Nhóm lịch sử nhập kho theo từng tháng (giữ thứ tự mới nhất → cũ nhất từ API)
+    const logsByMonth = useMemo(() => {
+        const groups: { key: string; label: string; items: InventoryLog[]; totalIn: number; totalOut: number }[] = [];
+        const index: Record<string, number> = {};
+        for (const log of filteredLogs) {
+            const d = new Date(log.createdAt);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (index[key] === undefined) {
+                index[key] = groups.length;
+                groups.push({ key, label: `Tháng ${d.getMonth() + 1}/${d.getFullYear()}`, items: [], totalIn: 0, totalOut: 0 });
+            }
+            const g = groups[index[key]];
+            g.items.push(log);
+            if (log.quantity >= 0) g.totalIn += log.quantity;
+            else g.totalOut += Math.abs(log.quantity);
+        }
+        return groups;
+    }, [filteredLogs]);
 
     /* ── Sản lượng theo TUẦN × sản phẩm, mỗi dòng có daily breakdown ─── */
     const weeklySalesRows = useMemo(() => {
@@ -920,21 +939,41 @@ export default function InventoryStatsPage() {
                                                 Chưa có lịch sử nhập kho cho kỳ này
                                             </td>
                                         </tr>
-                                    ) : filteredLogs.map(log => (
-                                        <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
-                                            <td className="px-5 py-3 text-[12px] text-slate-500">
-                                                {new Date(log.createdAt).toLocaleString('vi-VN')}
-                                            </td>
-                                            <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{log.productName}</td>
-                                            <td className={`px-5 py-3 text-[13px] text-center font-bold
-                                                ${log.quantity >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
-                                            </td>
-                                            <td className="px-5 py-3 text-[12px] text-slate-500 italic">{log.note ?? '—'}</td>
-                                            <td className="px-5 py-3 text-center">
-                                                <StatusPill quantity={log.quantity} />
-                                            </td>
-                                        </tr>
+                                    ) : logsByMonth.map(group => (
+                                        <Fragment key={group.key}>
+                                            {/* Dòng tiêu đề tháng + tổng nhập/xuất */}
+                                            <tr className="bg-slate-100/70">
+                                                <td colSpan={5} className="px-5 py-2.5">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <span className="text-[12px] font-bold text-slate-700 flex items-center gap-2">
+                                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                                            {group.label}
+                                                            <span className="text-[11px] font-normal text-slate-400">({group.items.length} biến động)</span>
+                                                        </span>
+                                                        <span className="flex items-center gap-3 text-[11px] font-bold">
+                                                            <span className="text-emerald-600">Nhập +{group.totalIn}</span>
+                                                            <span className="text-rose-600">Xuất −{group.totalOut}</span>
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {group.items.map(log => (
+                                                <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                                                    <td className="px-5 py-3 text-[12px] text-slate-500">
+                                                        {new Date(log.createdAt).toLocaleString('vi-VN')}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{log.productName}</td>
+                                                    <td className={`px-5 py-3 text-[13px] text-center font-bold
+                                                        ${log.quantity >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                        {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-[12px] text-slate-500 italic">{log.note ?? '—'}</td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        <StatusPill quantity={log.quantity} />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </Fragment>
                                     ))}
                                 </tbody>
                             </table>
