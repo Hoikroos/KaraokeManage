@@ -408,8 +408,13 @@ export default function InventoryStatsPage() {
         [augmentedStats, searchTerm]
     );
 
+    // Ẩn (KHÔNG xóa) các log hoàn kho do hủy phòng — dữ liệu vẫn còn trong DB để kiểm tra sau.
+    const isCancelReturnLog = (l: InventoryLog) =>
+        l.id?.startsWith('RETURN-') || (l.note ?? '').startsWith('Hoàn kho do hủy phòng');
+
     const filteredLogs = useMemo(
         () => logs.filter(l => {
+            if (isCancelReturnLog(l)) return false;
             if (!l.productName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
             if (logDirection === 'in' && l.quantity < 0) return false;
             if (logDirection === 'out' && l.quantity >= 0) return false;
