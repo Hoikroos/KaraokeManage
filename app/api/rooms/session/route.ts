@@ -98,46 +98,13 @@ export async function PUT(request: Request) {
 
     const updateData: any = {};
 
-    // ✅ XỬ LÝ HỦY PHÒNG: Hoàn kho và xóa danh sách món (orderItems)
+    // ✅ XỬ LÝ HỦY PHÒNG: chỉ xóa danh sách món đã gọi.
+    // KHÔNG hoàn kho, vì gọi món KHÔNG trừ kho (kho chỉ bị trừ khi thanh toán/hoàn tất phòng).
+    // Nếu cộng kho lại ở đây sẽ làm tồn kho bị dư ảo.
     const newStatus = status || Status;
     if (newStatus === 'cancelled') {
-      await prisma.$transaction(async (tx) => {
-        // Lấy thông tin session để có StoreId chính xác
-        const sessionData = await tx.roomSession.findUnique({
-          where: { Id: id },
-          select: { StoreId: true }
-        });
-
-        if (!sessionData) throw new Error('Session not found');
-
-        // 1. Tìm tất cả các món đã gọi của phiên này
-        const items = await tx.orderItem.findMany({
-          where: { RoomSessionId: id }
-        });
-
-        // 2. Hoàn trả số lượng vào kho cho từng sản phẩm
-        for (const item of items) {
-          await tx.product.update({
-            where: { Id: item.ProductId },
-            data: { Quantity: { increment: item.Quantity } }
-          });
-
-          await (tx as any).inventoryLog.create({
-            data: {
-              Id: `RETURN-${Date.now()}-${item.Id}`,
-              ProductId: item.ProductId,
-              StoreId: sessionData.StoreId,
-              Quantity: item.Quantity,
-              Type: 'restock',
-              Note: `Hoàn kho do hủy phòng ${id}`
-            }
-          });
-        }
-
-        // 3. Xóa vĩnh viễn các orderItems của phiên này
-        await tx.orderItem.deleteMany({
-          where: { RoomSessionId: id }
-        });
+      await prisma.orderItem.deleteMany({
+        where: { RoomSessionId: id }
       });
     }
 

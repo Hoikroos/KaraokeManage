@@ -218,6 +218,7 @@ export default function InventoryStatsPage() {
     const [endDate, setEndDate] = useState('');
     const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [logDirection, setLogDirection] = useState<'all' | 'in' | 'out'>('all');
     const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
     const [expandedWeeklyKeys, setExpandedWeeklyKeys] = useState<Record<string, boolean>>({});
 
@@ -408,8 +409,13 @@ export default function InventoryStatsPage() {
     );
 
     const filteredLogs = useMemo(
-        () => logs.filter(l => l.productName.toLowerCase().includes(searchTerm.toLowerCase())),
-        [logs, searchTerm]
+        () => logs.filter(l => {
+            if (!l.productName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+            if (logDirection === 'in' && l.quantity < 0) return false;
+            if (logDirection === 'out' && l.quantity >= 0) return false;
+            return true;
+        }),
+        [logs, searchTerm, logDirection]
     );
 
     /* ── Sản lượng theo TUẦN × sản phẩm, mỗi dòng có daily breakdown ─── */
@@ -672,7 +678,7 @@ export default function InventoryStatsPage() {
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => { setActiveTab(tab.id as any); setSearchTerm(''); }}
+                            onClick={() => { setActiveTab(tab.id as any); setSearchTerm(''); setLogDirection('all'); }}
                             className={`
                                 flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold
                                 border transition-all
@@ -788,14 +794,40 @@ export default function InventoryStatsPage() {
                         <h2 className="text-[13px] font-bold text-slate-800">
                             {activeTab === 'sales' ? 'Chi tiết sản lượng bán hàng' : 'Chi tiết các đợt nhập kho'}
                         </h2>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <Input
-                                placeholder="Tìm sản phẩm..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="pl-9 h-9 text-xs bg-slate-50 border-none rounded-lg w-52"
-                            />
+                        <div className="flex items-center gap-2">
+                            {activeTab !== 'sales' && (
+                                <div className="flex items-center bg-slate-50 rounded-lg p-0.5">
+                                    {([
+                                        { id: 'all', label: 'Tất cả' },
+                                        { id: 'in', label: 'Nhập' },
+                                        { id: 'out', label: 'Xuất' },
+                                    ] as const).map(opt => (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => setLogDirection(opt.id)}
+                                            className={`px-3 h-8 text-xs font-bold rounded-md transition-colors
+                                                ${logDirection === opt.id
+                                                    ? opt.id === 'in'
+                                                        ? 'bg-emerald-500 text-white'
+                                                        : opt.id === 'out'
+                                                            ? 'bg-rose-500 text-white'
+                                                            : 'bg-white text-slate-800 shadow-sm'
+                                                    : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                <Input
+                                    placeholder="Tìm sản phẩm..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className="pl-9 h-9 text-xs bg-slate-50 border-none rounded-lg w-52"
+                                />
+                            </div>
                         </div>
                     </div>
 
