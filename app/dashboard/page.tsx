@@ -299,7 +299,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="p-4 sm:p-6 min-h-[400px]">
+          <div className="p-4 sm:p-6">
             {/* Tabs Filter */}
             <div className="flex flex-wrap gap-2 mb-6">
               {[
