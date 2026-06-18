@@ -299,6 +299,7 @@ export default function ProductsPage() {
   // ─── Summary Stats ────────────────────────────────────────────────────
   const allProducts = Array.isArray(products) ? products : [];
   const totalValue = allProducts.reduce((s, p) => s + p.price * p.quantity, 0);
+  const categoryCount = new Set(allProducts.map(p => p.category)).size;
   const lowStockCount = allProducts.filter(p => p.quantity > 0 && p.quantity <= 5).length;
   const outOfStockCount = allProducts.filter(p => p.quantity === 0).length;
 
@@ -351,7 +352,7 @@ export default function ProductsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: 'Tổng sản phẩm', value: allProducts.length, icon: <Box className="w-4 h-4" />, color: 'text-indigo-600 bg-indigo-50' },
-            { label: 'Giá trị tồn kho', value: `${(totalValue / 1_000_000).toFixed(1)}M đ`, icon: <TrendingUp className="w-4 h-4" />, color: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Loại sản phẩm', value: `${categoryCount} loại`, icon: <Layers className="w-4 h-4" />, color: 'text-emerald-600 bg-emerald-50' },
             { label: 'Sắp hết hàng', value: `${lowStockCount} món`, icon: <AlertTriangle className="w-4 h-4" />, color: 'text-amber-600 bg-amber-50' },
             { label: 'Hết hàng', value: `${outOfStockCount} món`, icon: <XCircle className="w-4 h-4" />, color: 'text-rose-600 bg-rose-50' },
           ].map(stat => (
