@@ -227,11 +227,11 @@ export default function Dashboard() {
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
-          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPVxB_JC4vXgTLp2bVx9AtGkEFLPAhazc4NMRsSMENlw&s=10"
+          src="https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=2069&auto=format&fit=crop"
           alt="background"
-          className="w-full h-full object-cover blur-none opacity-[0.9] scale-100"
+          className="w-full h-full object-cover blur-none opacity-[0.65] scale-100"
         />
-        <div className="absolute inset-0 bg-white/10" /> {/* Lớp phủ màu trắng nhẹ để làm dịu ảnh nền */}
+        <div className="absolute inset-0 bg-white/5" /> {/* Lớp phủ trong suốt cực nhẹ */}
       </div>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
@@ -283,16 +283,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl shadow-slate-200/40 border border-white/40 overflow-hidden transition-all">
-          {/* Lớp nền mờ nghệ thuật riêng cho khung danh sách phòng */}
-          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-            <img
-              src=""
-              alt="room list bg"
-              className="w-full h-full object-cover blur-none opacity-[0.25] scale-105"
-            />
-          </div>
-
+        <div className="relative bg-white/80 backdrop-blur-md rounded-3xl shadow-xl shadow-slate-200/40 border border-white/50 overflow-hidden transition-all">
           {/* Filtering and Selection Header */}
           <div className="p-4 sm:p-6 border-b border-slate-200/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
             {user?.role === 'admin' && stores.length > 1 && (
