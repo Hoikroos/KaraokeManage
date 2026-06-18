@@ -295,8 +295,6 @@ export default function Dashboard() {
 
           {/* Filtering and Selection Header */}
           <div className="p-4 sm:p-6 border-b border-slate-200/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-xl font-bold text-slate-800">Danh sách phòng</h2>
-
             {user?.role === 'admin' && stores.length > 1 && (
               <div className="flex flex-wrap gap-2 items-center bg-slate-50 p-1 rounded-lg">
                 {stores.map((store) => (
