@@ -284,7 +284,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl shadow-slate-200/40 border border-white/70 overflow-hidden transition-all">
           {/* Filtering and Selection Header */}
-          <div className="p-4 sm:p-6 border-b border-slate-200/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="">
             {user?.role === 'admin' && stores.length > 1 && (
               <div className="flex flex-wrap gap-2 items-center bg-slate-50 p-1 rounded-lg">
                 {stores.map((store) => (
