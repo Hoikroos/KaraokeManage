@@ -223,15 +223,15 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/30 backdrop-blur-sm">
+    <div className="min-h-screen bg-slate-50/20 backdrop-blur-none">
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
           src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTr_OwA8qTz-bWerOQgnbD0tXlC9Erzwr_1qRL0l_QoVw&s=10"
           alt="background"
-          className="w-full h-full object-cover blur-[10px] opacity-[0.4] scale-110"
+          className="w-full h-full object-cover blur-[6px] opacity-[0.6] scale-110"
         />
-        <div className="absolute inset-0 bg-white/5 backdrop-blur-none" />
+        <div className="absolute inset-0 bg-white/0 backdrop-blur-none" />
       </div>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
@@ -283,13 +283,13 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="relative bg-white/60 backdrop-blur-md rounded-3xl shadow-xl shadow-slate-200/40 border border-white/40 overflow-hidden transition-all">
+        <div className="relative bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl shadow-slate-200/40 border border-white/40 overflow-hidden transition-all">
           {/* Lớp nền mờ nghệ thuật riêng cho khung danh sách phòng */}
           <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
             <img
               src="https://images.unsplash.com/photo-1514525253361-bee8a19740c1?q=80&w=1974&auto=format&fit=crop"
               alt="room list bg"
-              className="w-full h-full object-cover blur-[20px] opacity-[0.25] scale-125"
+              className="w-full h-full object-cover blur-[15px] opacity-[0.35] scale-125"
             />
           </div>
 
