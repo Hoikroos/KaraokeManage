@@ -307,7 +307,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-2 sm:p-2">
             {/* Tabs Filter */}
             
             <div className="flex flex-wrap gap-2 mb-6">
@@ -340,7 +340,7 @@ export default function Dashboard() {
                 <p>{activeTab === 'all' ? 'Chưa có dữ liệu phòng' : 'Không có phòng nào ở trạng thái này'}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-2">
                 {filteredRooms.map((room) => (
                   <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
