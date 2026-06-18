@@ -284,13 +284,13 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-[1600px] mx-auto px-2 sm:px-6 py-4 sm:py-8">
         <div className=" bg-white/80
   backdrop-blur-md
-  rounded-[32px]
+  rounded-2xl sm:rounded-[32px]
   shadow-2xl
   border border-white
-  p-8 shadow-slate-200/40 border border-white/70 overflow-hidden transition-all">
+  p-4 sm:p-8 shadow-slate-200/40 border border-white/70 overflow-hidden transition-all">
           {/* Filtering and Selection Header */}
           <div className="">
             {user?.role === 'admin' && stores.length > 1 && (
@@ -317,14 +317,6 @@ export default function Dashboard() {
                 <p className="text-slate-500 mt-2">
                   Quản lý trạng thái phòng / bàn trong hệ thống
                 </p>
-              </div>
-
-              <div className="mt-4 lg:mt-0">
-                <input
-                  type="text"
-                  placeholder="Tìm phòng / bàn..."
-                  className="w-80 h-12 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mb-6">
@@ -357,32 +349,32 @@ export default function Dashboard() {
                 <p>{activeTab === 'all' ? 'Chưa có dữ liệu phòng' : 'Không có phòng nào ở trạng thái này'}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
                 {filteredRooms.map((room) => (
                   <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
                       className={`relative overflow-hidden
     bg-white
     border
-    rounded-3xl
+    rounded-2xl sm:rounded-3xl
     shadow-md
     hover:shadow-xl
     hover:-translate-y-1
     transition-all duration-300
-    p-5
-    min-h-[180px] ${room.status === 'empty'
+    p-3 sm:p-5
+    min-h-[130px] sm:min-h-[180px] ${room.status === 'empty'
                           ? 'bg-white/80 border-blue-600 hover:border-blue-800 hover:bg-white/90 shadow-sm'
                           : 'bg-white/80 border-red-600 hover:border-red-800 hover:bg-white/90 shadow-sm'
                         }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-1.5 sm:gap-3">
-                          <div className={`p-1.5 sm:p-2 rounded-xl ${room.status === 'empty' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center">
-                              <Home className="w-6 h-6 text-blue-600" />
+                          <div className={`p-1 sm:p-2 rounded-lg sm:rounded-xl ${room.status === 'empty' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+                            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-blue-50 flex items-center justify-center">
+                              <Home className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
                             </div>
                           </div>
-                          <h3 className="text-base sm:text-2xl font-bold text-slate-900 truncate">
+                          <h3 className="text-sm sm:text-2xl font-bold text-slate-900 truncate">
                             P. {room.roomNumber}
                           </h3>
                         </div>
