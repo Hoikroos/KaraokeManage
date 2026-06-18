@@ -323,6 +323,7 @@ export default function ExportPage() {
                                             <span className="text-[11px] font-bold text-slate-400">{new Date(inv.createdAt || inv.CreatedAt).toLocaleString('vi-VN')}</span>
                                         </div>
                                         <div className="font-bold text-slate-800 truncate">{inv.customerName || inv.CustomerName}</div>
+                                        <div className="font-bold text-slate-800 text-sm leading-tight break-words">{inv.customerName || inv.CustomerName}</div>
                                         <div className="text-xs text-indigo-600 font-black">{(inv.totalPrice || 0).toLocaleString('vi-VN')}đ</div>
                                     </div>
                                     <Button
@@ -448,10 +449,16 @@ export default function ExportPage() {
                         <span>Mã phiếu:</span>
                         <span>{lastExport?.id?.substring(0, 10)}</span>
                     </div>
-                    {customerName && (
+                    {(customerName || lastExport?.customerName || lastExport?.CustomerName) && (
                         <div className="flex justify-between">
                             <span>Người nhận:</span>
-                            <span>{customerName}</span>
+                            <span>
+                                {(() => {
+                                    const fullName = lastExport?.customerName || lastExport?.CustomerName || customerName || '';
+                                    return fullName.split(': ')[0].split(' [')[0];
+                                    return fullName.split(': ')[0].split(' | ')[0];
+                                })()}
+                            </span>
                         </div>
                     )}
                 </div>
@@ -470,7 +477,7 @@ export default function ExportPage() {
                                 <td className="py-2">{item.name}</td>
                                 <td className="text-center">{item.quantity}</td>
                                 <td className="text-right">
-                                    {exportType === 'gift' ? '0' : (item.price * item.quantity).toLocaleString('vi-VN')}
+                                    {(item.price * item.quantity).toLocaleString('vi-VN')}
                                 </td>
                             </tr>
                         ))}
@@ -478,16 +485,40 @@ export default function ExportPage() {
                 </table>
 
                 <div className="space-y-1">
-                    <div className="flex justify-between text-lg font-black pt-2 border-t-2 border-black">
-                        <span>TỔNG CỘNG:</span>
-                        <span>{exportType === 'gift' ? '0đ' : `${totalAmount.toLocaleString('vi-VN')}đ`}</span>
-                    </div>
-                    {note && (
-                        <div className="mt-4 pt-2 border-t-2 border-black">
-                            <p className="text-[12px] font-black uppercase mb-1">Ghi chú:</p>
-                            <p className="text-[18px] leading-tight font-black break-words" style={{ textTransform: 'none' }}>{note}</p>
-                        </div>
-                    )}
+                    {(() => {
+                        // Tính trị giá thực tế từ lastExport (áp dụng được cả khi in lại từ lịch sử)
+                        const val = lastExport?.items?.reduce((s: number, i: any) => s + (Number(i.price) * Number(i.quantity)), 0) || totalAmount;
+                        const isGift = lastExport?.id?.startsWith('GFT') || exportType === 'gift';
+                        
+                        return (
+                            <>
+                                <div className="flex justify-between text-lg font-black pt-2 border-t-2 border-black">
+                                    <span>TỔNG GIÁ TRỊ:</span>
+                                    <span>{val.toLocaleString('vi-VN')}đ</span>
+                                </div>
+                                {isGift && (
+                                    <div className="flex justify-between text-lg font-black">
+                                        <span>THANH TOÁN:</span>
+                                        <span>0đ</span>
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
+
+                    {/* Hiển thị ghi chú trên phiếu in: Ưu tiên tách từ Log, nếu không có thì lấy từ ô nhập */}
+                    {(() => {
+                        const fullName = lastExport?.customerName || lastExport?.CustomerName || '';
+                        const noteMatchFromLog = fullName.split(' | Ghichu: ');
+                        const displayNote = noteMatchFromLog.length > 1 ? noteMatchFromLog[1] : (lastExport?.note || note);
+                        
+                        return displayNote ? (
+                            <div className="mt-4 pt-2 border-t-2 border-black">
+                                <p className="text-[12px] font-black uppercase mb-1">Ghi chú:</p>
+                                <p className="text-[18px] leading-tight font-black break-words" style={{ textTransform: 'none' }}>{displayNote}</p>
+                            </div>
+                        ) : null;
+                    })()}
                 </div>
             </div>
 

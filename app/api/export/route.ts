@@ -45,9 +45,9 @@ export async function POST(request: Request) {
             }
 
             // Vì DB không có cột Note, ta gộp thông tin món vào CustomerName để xem lại trong lịch sử
-            const itemsSummary = items.map((i: any) => `${i.name} x${i.quantity}`).join(', ');
+            const itemsSummary = items.map((i: any) => `${i.name}(Số lượng ${i.quantity})`).join(', ');
             const baseName = customerName || (type === 'gift' ? 'Khách tặng' : 'Khách mang về');
-            const finalName = `${baseName} [${itemsSummary}]`.substring(0, 255);
+            const finalName = `${baseName}: ${itemsSummary}`.substring(0, 255);
 
             const sessionId = 'SES_EX' + Date.now().toString();
 

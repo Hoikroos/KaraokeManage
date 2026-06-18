@@ -261,7 +261,7 @@ export default function Dashboard() {
               <span className="hidden md:inline">Thực đơn</span>
             </Button>
             <Link href="/dashboard/export" className="hidden md:flex">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2 border border-slate-100 bg-white shadow-sm">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2 bg-white">
                 <ShoppingBag className="w-4 h-4" />
                 <span className="hidden md:inline">Bán mang về</span>
               </Button>
