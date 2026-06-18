@@ -223,15 +223,15 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/5 backdrop-blur-none">
+    <div className="min-h-screen bg-transparent">
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
           src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTr_OwA8qTz-bWerOQgnbD0tXlC9Erzwr_1qRL0l_QoVw&s=10"
           alt="background"
-          className="w-full h-full object-cover blur-none opacity-[0.4] scale-100"
+          className="w-full h-full object-cover blur-none opacity-[0.6] scale-100"
         />
-        <div className="absolute inset-0 bg-white/0 backdrop-blur-none" />
+        <div className="absolute inset-0 bg-white/10" /> {/* Lớp phủ màu trắng nhẹ để làm dịu ảnh nền */}
       </div>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
@@ -287,7 +287,7 @@ export default function Dashboard() {
           {/* Lớp nền mờ nghệ thuật riêng cho khung danh sách phòng */}
           <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
             <img
-              src="https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=2070&auto=format&fit=crop"
+              src=""
               alt="room list bg"
               className="w-full h-full object-cover blur-none opacity-[0.25] scale-105"
             />
