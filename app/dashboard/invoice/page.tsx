@@ -221,8 +221,7 @@ export default function InvoiceHistoryPage() {
                             <History className="w-5 h-5 text-blue-600" /> Lịch sử hóa đơn
                         </h1>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {/* ✅ Nút thùng rác */}
+                    {/* <div className="flex items-center gap-2">
                         <Link href="/dashboard/invoice/trash">
                             <Button
                                 variant="ghost"
@@ -232,7 +231,7 @@ export default function InvoiceHistoryPage() {
                                 <Trash2 className="w-4 h-4" />
                             </Button>
                         </Link>
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
