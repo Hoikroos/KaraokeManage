@@ -9,8 +9,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Hệ Thống Quản Lý Karaoke',
-  description: 'Hệ thống quản lý karaoke chuyên nghiệp giúp bạn dễ dàng quản lý phòng, đặt lịch, và thanh toán. Tối ưu hóa trải nghiệm khách hàng và tăng doanh thu cho quán karaoke của bạn',
+  title: 'Hệ Thống Quản Lý Bán Hàng',
+  description: 'Hệ Thống Quản Lý Bán hàng Chuyên Nghiệp Giúp bạn dễ dàng quản lý phòng, đặt lịch, và thanh toán. Tối ưu hóa trải nghiệm khách hàng và tăng doanh thu cho quán của bạn',
   generator: 'v0.app',
   icons: {
     icon: [

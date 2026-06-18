@@ -67,7 +67,7 @@ export default function AdminDashboard() {
             },
             {
               title: 'Quản lý phòng',
-              desc: 'Thêm, sửa, xóa và cấu hình phòng karaoke theo chi nhánh.',
+              desc: 'Thêm, sửa, xóa và cấu hình phòng theo chi nhánh.',
               href: '/dashboard/admin/rooms',
               icon: <LayoutGrid className="w-6 h-6" />,
               color: 'text-green-600',

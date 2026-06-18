@@ -156,7 +156,7 @@ export default function StoresPage() {
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Tên quán karaoke"
+                    placeholder="Tên quán"
                     required
                     className="bg-slate-50 border-slate-200 focus:bg-white"
                   />

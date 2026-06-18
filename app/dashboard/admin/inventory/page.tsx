@@ -297,51 +297,56 @@ export default function InventoryStatsPage() {
         }
     };
 
-    /* ── Tải sổ kho theo từng tháng trong khoảng đang chọn ─── */
+    /* ── Tính sổ kho theo từng tháng trong khoảng đang chọn (dùng lại được) ─── */
+    const computeMonthlyStock = async (): Promise<typeof monthlyStock> => {
+        if (!selectedStoreId) return [];
+        const fmt = (d: Date) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        // Danh sách các tháng từ start → end (tối đa 24 tháng để tránh quá nhiều request)
+        const months: { y: number; m: number }[] = [];
+        let cur = new Date(effectivePeriod.start.getFullYear(), effectivePeriod.start.getMonth(), 1);
+        const last = new Date(effectivePeriod.end.getFullYear(), effectivePeriod.end.getMonth(), 1);
+        while (cur <= last && months.length < 24) {
+            months.push({ y: cur.getFullYear(), m: cur.getMonth() });
+            cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+
+        const results = await Promise.all(months.map(async ({ y, m }) => {
+            const mStart = fmt(new Date(y, m, 1));
+            const mEnd = fmt(new Date(y, m + 1, 0));
+            const res = await fetch(
+                `/api/admin/inventory?storeId=${selectedStoreId}&startDate=${mStart}&endDate=${mEnd}&type=monthly`,
+                { cache: 'no-store' }
+            );
+            const data = res.ok ? await res.json() : { stats: [] };
+            const stats: ProductStat[] = Array.isArray(data.stats) ? data.stats : [];
+            return {
+                key: `${y}-${String(m + 1).padStart(2, '0')}`,
+                label: `Tháng ${m + 1}/${y}`,
+                rows: stats.map(s => ({
+                    productId: s.productId,
+                    productName: s.productName,
+                    category: s.category,
+                    opening: Math.max(0, Math.round(s.openingStock)),
+                    restock: Math.round(s.totalRestocked),
+                    sold: Math.round(s.totalSold),
+                    exported: Math.round(s.totalExported),
+                    closing: Math.round(s.closingStock),
+                })),
+            };
+        }));
+
+        results.sort((a, b) => b.key.localeCompare(a.key)); // mới nhất → cũ nhất
+        return results;
+    };
+
+    /* ── Tải sổ kho theo tháng (cho nút bấm) ─── */
     const loadMonthlyStock = async () => {
         if (!selectedStoreId) return;
         setLoadingMonthly(true);
         try {
-            const fmt = (d: Date) =>
-                `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-            // Danh sách các tháng từ start → end (tối đa 24 tháng để tránh quá nhiều request)
-            const months: { y: number; m: number }[] = [];
-            let cur = new Date(effectivePeriod.start.getFullYear(), effectivePeriod.start.getMonth(), 1);
-            const last = new Date(effectivePeriod.end.getFullYear(), effectivePeriod.end.getMonth(), 1);
-            while (cur <= last && months.length < 24) {
-                months.push({ y: cur.getFullYear(), m: cur.getMonth() });
-                cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
-            }
-
-            const results = await Promise.all(months.map(async ({ y, m }) => {
-                const mStart = fmt(new Date(y, m, 1));
-                const mEnd = fmt(new Date(y, m + 1, 0));
-                const res = await fetch(
-                    `/api/admin/inventory?storeId=${selectedStoreId}&startDate=${mStart}&endDate=${mEnd}&type=monthly`,
-                    { cache: 'no-store' }
-                );
-                const data = res.ok ? await res.json() : { stats: [] };
-                const stats: ProductStat[] = Array.isArray(data.stats) ? data.stats : [];
-                return {
-                    key: `${y}-${String(m + 1).padStart(2, '0')}`,
-                    label: `Tháng ${m + 1}/${y}`,
-                    rows: stats.map(s => ({
-                        productId: s.productId,
-                        productName: s.productName,
-                        category: s.category,
-                        opening: Math.max(0, Math.round(s.openingStock)),
-                        restock: Math.round(s.totalRestocked),
-                        sold: Math.round(s.totalSold),
-                        exported: Math.round(s.totalExported),
-                        closing: Math.round(s.closingStock),
-                    })),
-                };
-            }));
-
-            // Mới nhất → cũ nhất
-            results.sort((a, b) => b.key.localeCompare(a.key));
-            setMonthlyStock(results);
+            setMonthlyStock(await computeMonthlyStock());
         } catch {
             toast.error('Lỗi khi tải sổ kho theo tháng');
         } finally {
@@ -611,7 +616,7 @@ export default function InventoryStatsPage() {
         try {
             const ExcelJS = (await import('exceljs')).default;
             const wb = new ExcelJS.Workbook();
-            wb.creator = 'Quản lý Karaoke';
+            wb.creator = 'Quản Lý Bán Hàng';
 
             const C = {
                 header: 'FF1E293B', title: 'FF059669', stripe: 'FFF1F5F9', border: 'FFE2E8F0',
@@ -715,9 +720,11 @@ export default function InventoryStatsPage() {
                 );
             }
 
-            if (monthlyStock.length > 0) {
+            // Sổ kho theo tháng — tự tính nếu chưa tải sẵn
+            const monthly = monthlyStock.length > 0 ? monthlyStock : await computeMonthlyStock();
+            if (monthly.length > 0) {
                 const monthRows: { value: any; color?: string }[][] = [];
-                for (const g of monthlyStock) {
+                for (const g of monthly) {
                     for (const r of g.rows) {
                         monthRows.push([
                             { value: g.label, color: C.blue },
@@ -745,6 +752,32 @@ export default function InventoryStatsPage() {
                         { header: 'Tồn cuối', width: 12 },
                     ],
                     monthRows
+                );
+            }
+
+            // Sản lượng bán theo tuần
+            if (weeklySalesRows.length > 0) {
+                buildSheet(
+                    'Sản lượng bán theo tuần',
+                    'SẢN LƯỢNG BÁN THEO TUẦN (hóa đơn đã thanh toán)',
+                    [
+                        { header: 'Tuần', width: 24, align: 'left' },
+                        { header: 'Sản phẩm', width: 26, align: 'left' },
+                        { header: 'Loại', width: 14 },
+                        { header: 'Bán trong phòng', width: 16 },
+                        { header: 'Mang về / Tặng', width: 16 },
+                        { header: 'Tổng', width: 12 },
+                        { header: 'Doanh thu', width: 18, align: 'right' },
+                    ],
+                    weeklySalesRows.map(r => [
+                        { value: r.weekLabel },
+                        { value: r.productName },
+                        { value: CAT_LABELS[r.category] ?? r.category },
+                        { value: r.totalInRoom, color: C.green },
+                        { value: r.totalTakeawayGift, color: C.orange },
+                        { value: r.grandTotal, color: C.blue },
+                        { value: r.totalRevenue, numFmt: '#,##0"đ"' },
+                    ])
                 );
             }
 

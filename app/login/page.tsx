@@ -50,7 +50,7 @@ export default function LoginPage() {
               <Music className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">ĐĂNG NHẬP</h1>
-            <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">Hệ thống quản lý Karaoke</p>
+            <p className="text-slate-400 text-sm font-medium uppercase tracking-widest">Hệ thống quản lý Bán Hàng</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

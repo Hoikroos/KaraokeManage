@@ -47,9 +47,34 @@ export async function POST(request: NextRequest) {
     const requestedTotalPrice = Number(requestTotalPrice);
     const totalPrice = !isNaN(requestedTotalPrice) ? requestedTotalPrice : Math.ceil(subtotal / 1000) * 1000;
 
-    // Thực hiện trong transaction để đảm bảo tính nhất quán dữ liệu
-    const [invoice] = await prisma.$transaction([
-      prisma.invoice.create({
+    // Thực hiện trong transaction để đảm bảo tính nhất quán dữ liệu (bao gồm trừ kho)
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Duyệt qua từng món trong đơn hàng để trừ kho thực tế
+      for (const item of items) {
+        // Cập nhật số lượng sản phẩm
+        await tx.product.update({
+          where: { Id: item.ProductId },
+          data: { Quantity: { decrement: item.Quantity } },
+        });
+
+        // 2. Ghi log kho (giúp báo cáo chính xác và xem được lịch sử xuất kho)
+        if ((tx as any).inventoryLog) {
+          await (tx as any).inventoryLog.create({
+            data: {
+              Id: 'LOG_INV_' + Date.now() + Math.random().toString(36).substring(7),
+              ProductId: item.ProductId,
+              StoreId: session.StoreId,
+              Quantity: -item.Quantity,
+              Type: 'sale',
+              Note: `Thanh toán phòng ${room.RoomNumber || (room as any).RoomNumber}`,
+              CreatedAt: new Date(),
+            },
+          });
+        }
+      }
+
+      // 3. Tạo bản ghi hóa đơn
+      const newInvoice = await tx.invoice.create({
         data: {
           Id: Date.now().toString(),
           RoomSessionId: roomSessionId,
@@ -62,22 +87,26 @@ export async function POST(request: NextRequest) {
           TotalPrice: totalPrice,
           Status: 'paid',
         },
-      }),
-      // Cập nhật trạng thái session
-      prisma.roomSession.update({
+      });
+
+      // 4. Kết thúc phiên làm việc
+      await tx.roomSession.update({
         where: { Id: roomSessionId },
         data: { Status: 'completed' },
-      }),
-      // Đưa phòng về trạng thái trống
-      prisma.room.update({
+      });
+
+      // 5. Đưa phòng về trạng thái trống
+      await tx.room.update({
         where: { Id: session.RoomId },
         data: { Status: 'empty' },
-      }),
-    ]);
+      });
+
+      return newInvoice;
+    });
 
     // Return invoice with items for display
     return Response.json({
-      ...invoice,
+      ...result,
       items: items.map(item => ({
         id: item.Id,
         roomSessionId: item.RoomSessionId,
