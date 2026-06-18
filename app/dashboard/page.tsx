@@ -91,26 +91,27 @@ export default function Dashboard() {
       const data = rawData.filter(r => (r.id ?? (r as any).Id) !== 'EXTERNAL');
 
       const sortedData = [...data].sort((a, b) => {
-        const numA = parseInt(a.roomNumber?.toString().replace(/\D/g, '') || '0');
-        const numB = parseInt(b.roomNumber?.toString().replace(/\D/g, '') || '0');
+        const numA = parseInt((a.roomNumber || (a as any).RoomNumber)?.toString().replace(/\D/g, '') || '0');
+        const numB = parseInt((b.roomNumber || (b as any).RoomNumber)?.toString().replace(/\D/g, '') || '0');
 
         if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
           return numA - numB;
         }
         if (!isNaN(numA) && isNaN(numB)) return -1;
         if (isNaN(numA) && !isNaN(numB)) return 1;
-        return String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true });
+        return String(a.roomNumber || (a as any).RoomNumber).localeCompare(String(b.roomNumber || (b as any).RoomNumber), undefined, { numeric: true });
       });
 
       setRooms(sortedData);
 
-      const occupiedRooms = data.filter(r => r.status === 'occupied');
+      const occupiedRooms = data.filter(r => (r.status || (r as any).Status) === 'occupied');
       const sessionData: Record<string, RoomSession> = {};
       const totalsData: Record<string, number> = {};
 
       await Promise.all(occupiedRooms.map(async (room) => {
+        const roomId = room.id || (room as any).Id;
         try { // Chỉ lấy session nếu thực sự cần thiết, hoặc gộp vào API rooms
-          const sessionRes = await fetch(`/api/rooms/session?roomId=${room.id}&t=${Date.now()}`, {
+          const sessionRes = await fetch(`/api/rooms/session?roomId=${roomId}&t=${Date.now()}`, {
             cache: 'no-store',
             headers: {
               'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -119,9 +120,9 @@ export default function Dashboard() {
           });
           if (sessionRes.ok) {
             const session = await sessionRes.json();
-            sessionData[room.id] = session;
+            sessionData[roomId] = session;
 
-            const sessionId = session.id || (session as any).Id;
+            const sessionId = session.id || (session as any).Id || (session as any).id;
             // TỐI ƯU: Nếu là nhân viên xem ngoài sảnh, có thể chưa cần load chi tiết đơn hàng ngay
             // giúp giảm Function Invocations đáng kể
             const ordersRes = await fetch(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`, {
@@ -133,11 +134,11 @@ export default function Dashboard() {
               const productSum = orders.reduce((sum: number, item: any) =>
                 sum + (Number(item.price || item.Price || 0) * (item.quantity || item.Quantity || 0)), 0
               );
-              totalsData[room.id] = productSum;
+              totalsData[roomId] = productSum;
             }
           }
         } catch (err) {
-          console.error(`Lỗi tải phiên cho phòng ${room.id}:`, err);
+          console.error(`Lỗi tải phiên cho phòng ${roomId}:`, err);
         }
       }));
 
@@ -215,13 +216,13 @@ export default function Dashboard() {
     router.push('/login');
   };
 
-  const selectedStore = stores.find((s) => s.id === selectedStoreId);
-  const occupiedRooms = rooms.filter((r) => r.status === 'occupied').length;
-  const emptyRooms = rooms.filter((r) => r.status === 'empty').length;
+  const selectedStore = stores.find((s) => (s.id || (s as any).Id) === selectedStoreId);
+  const occupiedRooms = rooms.filter((r) => (r.status || (r as any).Status) === 'occupied').length;
+  const emptyRooms = rooms.filter((r) => (r.status || (r as any).Status) === 'empty').length;
 
   const filteredRooms = rooms.filter((room) => {
-    const matchTab = activeTab === 'all' ? true : room.status === activeTab;
-    const matchSearch = searchQuery === '' || String(room.roomNumber).toLowerCase().includes(searchQuery.toLowerCase());
+    const matchTab = activeTab === 'all' ? true : (room.status || (room as any).Status) === activeTab;
+    const matchSearch = searchQuery === '' || String(room.roomNumber || (room as any).RoomNumber).toLowerCase().includes(searchQuery.toLowerCase());
     return matchTab && matchSearch;
   });
 
@@ -315,7 +316,7 @@ export default function Dashboard() {
         </div>
 
         {/* Search + View Toggle row */}
-        
+
         {/* Tabs - horizontal scroll on mobile */}
         <div className="flex gap-2 mb-5 overflow-x-auto pb-0.5 -mx-3 px-3 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
@@ -353,12 +354,14 @@ export default function Dashboard() {
             : "flex flex-col gap-2.5"
           }>
             {filteredRooms.map((room) => (
-              <Link key={room.id} href={`/dashboard/room/${room.id}`}>
+              <Link key={room.id || (room as any).Id} href={`/dashboard/room/${room.id || (room as any).Id}`}>
                 <div
                   className={`relative bg-white border-2 rounded-2xl shadow-sm active:scale-[0.98] hover:shadow-md transition-all duration-150 cursor-pointer overflow-hidden
                     ${(() => {
-                      if (room.status === 'empty') return 'border-blue-400';
-                      const isPaused = (sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused';
+                      const status = room.status || (room as any).Status;
+                      const rId = room.id || (room as any).Id;
+                      if (status === 'empty') return 'border-blue-400';
+                      const isPaused = (sessions[rId] as any)?.status === 'paused' || (sessions[rId] as any)?.Status === 'paused';
                       return isPaused ? 'border-amber-400' : 'border-red-400';
                     })()}
                     ${viewMode === 'list' ? 'flex items-center gap-3 px-4 py-3.5' : 'p-3 sm:p-5'}
@@ -378,26 +381,33 @@ export default function Dashboard() {
                     </div>
 
                     {/* Room name */}
-                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 flex-1 min-w-0 leading-tight break-all">
-                      P. {room.roomNumber}
+                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 flex-1 min-w-0 leading-tight">
+                      P. {room.roomNumber || (room as any).RoomNumber}
                     </h3>
 
                     {/* Status badge */}
-                    <span
-                      className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-xs font-bold rounded-full flex-shrink-0 ${room.status === 'empty'
-                        ? 'bg-green-100 text-green-700'
-                        : (((sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused')
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-red-100 text-red-600')
-                        }`}
-                    >
-                      {room.status === 'empty'
-                        ? 'Trống'
-                        : (((sessions[room.id] as any)?.status === 'paused' || (sessions[room.id] as any)?.Status === 'paused')
-                          ? 'Tạm dừng'
-                          : 'Đang dùng')
-                      }
-                    </span>
+                    {(() => {
+                      const status = room.status || (room as any).Status;
+                      const rId = room.id || (room as any).Id;
+                      const isPaused = (sessions[rId] as any)?.status === 'paused' || (sessions[rId] as any)?.Status === 'paused';
+                      return (
+                        <span
+                          className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-xs font-bold rounded-full flex-shrink-0 ${status === 'empty'
+                            ? 'bg-green-100 text-green-700'
+                            : (isPaused
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-red-100 text-red-600')
+                            }`}
+                        >
+                          {status === 'empty'
+                            ? 'Trống'
+                            : (isPaused
+                              ? 'Tạm dừng'
+                              : 'Đang dùng')
+                          }
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* Time & Money info */}
@@ -434,9 +444,14 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 text-slate-500">
                       <Banknote className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                       <span className="text-xs sm:text-sm">
-                        Thành Tiền: {room.status === 'occupied' && sessions[room.id] ? (() => {
-                          const session = sessions[room.id] as any;
-                          if (!session) return '0 đ';
+                        Thành Tiền: {(() => {
+                          const status = room.status || (room as any).Status;
+                          const rId = room.id || (room as any).Id;
+                          const session = sessions[rId] as any;
+                          const pricePerHour = room.pricePerHour || (room as any).PricePerHour || 0;
+
+                          if (status !== 'occupied' || !session) return '0 đ';
+
                           let roomCharge = 0;
                           const isPending = (session as any).status === 'pending' || (session as any)?.Status === 'pending';
                           if (!isPending) {
@@ -454,10 +469,10 @@ export default function Dashboard() {
                             const diffMs = end - start;
                             if (diffMs > 0) {
                               const minutes = Math.ceil(diffMs / 60000);
-                              roomCharge = Math.ceil((minutes * room.pricePerHour) / 60);
+                              roomCharge = Math.ceil((minutes * pricePerHour) / 60);
                             }
                           }
-                          const productTotal = sessionTotals[room.id] || 0;
+                          const productTotal = sessionTotals[rId] || 0;
                           return `${(Math.ceil((roomCharge + productTotal) / 1000) * 1000).toLocaleString('vi-VN')} đ`;
                         })() : '0 đ'}
                       </span>
