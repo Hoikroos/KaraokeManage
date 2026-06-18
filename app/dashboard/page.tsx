@@ -283,7 +283,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="relative bg-white/80 backdrop-blur-md rounded-3xl shadow-xl shadow-slate-200/40 border border-white/50 overflow-hidden transition-all">
+        <div className="relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl shadow-slate-200/40 border border-white/70 overflow-hidden transition-all">
           {/* Filtering and Selection Header */}
           <div className="p-4 sm:p-6 border-b border-slate-200/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
             {user?.role === 'admin' && stores.length > 1 && (
@@ -336,9 +336,9 @@ export default function Dashboard() {
                 {filteredRooms.map((room) => (
                   <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
-                      className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 backdrop-blur-sm ${room.status === 'empty'
-                        ? 'bg-white/40 border-blue-200 hover:border-blue-400 hover:bg-white/60 shadow-sm'
-                        : 'bg-white/40 border-rose-200 hover:border-rose-400 hover:bg-white/60 shadow-sm'
+                      className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 backdrop-blur-none ${room.status === 'empty'
+                        ? 'bg-white/80 border-blue-200 hover:border-blue-400 hover:bg-white/90 shadow-sm'
+                        : 'bg-white/80 border-rose-200 hover:border-rose-400 hover:bg-white/90 shadow-sm'
                         }`}
                     >
                       <div className="flex items-start justify-between">
