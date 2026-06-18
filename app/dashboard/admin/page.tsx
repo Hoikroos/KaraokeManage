@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Store, DoorOpen, Users, Receipt, BarChart3, Settings, ChevronRight, ShoppingCart, Building2, LayoutGrid, UserCircle, LogOut, Boxes, ShieldCheck } from 'lucide-react';
+import { Store, DoorOpen, Users, Receipt, BarChart3, Settings, ChevronRight, ShoppingCart, Building2, LayoutGrid, UserCircle, LogOut, Boxes, ShieldCheck } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -29,9 +29,11 @@ export default function AdminDashboard() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-xl">
-              <LayoutDashboard className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/LogoNew.jpg"
+              alt="Logo"
+              className="w-10 h-10 rounded-xl object-cover shadow-sm"
+            />
             <h1 className="text-[19px] font-extrabold text-slate-900 tracking-tight">Quản Trị Hệ Thống Quản Lý Bán Hàng</h1>
           </div>
           <div className="flex items-center gap-4">
