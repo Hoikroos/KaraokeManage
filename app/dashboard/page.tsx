@@ -223,7 +223,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-screen bg-secondary">
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
