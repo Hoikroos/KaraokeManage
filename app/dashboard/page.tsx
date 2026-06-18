@@ -416,9 +416,14 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 text-slate-500">
                       <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                       <span className="text-xs sm:text-sm">
-                        Thời gian: {room.status === 'occupied' && sessions[room.id] ? (() => {
-                          const session = sessions[room.id];
-                          if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '--:--';
+                        Thời gian: {(() => {
+                          const status = room.status || (room as any).Status;
+                          const rId = room.id || (room as any).Id;
+                          const session = sessions[rId];
+
+                          if (status !== 'occupied' || !session) return '--:--';
+                          if ((session as any).status === 'pending' || (session as any)?.Status === 'pending') return '--:--';
+
                           const start = new Date((session.startTime || (session as any).StartTime)).getTime();
 
                           let end: number;
@@ -436,7 +441,7 @@ export default function Dashboard() {
                           const hours = Math.floor(totalMinutes / 60);
                           const minutes = totalMinutes % 60;
                           return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
-                        })() : '--:--'}
+                        })()}
                       </span>
                     </div>
 
@@ -453,18 +458,16 @@ export default function Dashboard() {
                           if (status !== 'occupied' || !session) return '0 đ';
 
                           let roomCharge = 0;
-                          const isPending = (session as any).status === 'pending' || (session as any)?.Status === 'pending';
-                          if (!isPending) {
-                            const start = new Date((session.startTime || (session as any).StartTime)).getTime();
+                          const isPending = session.status === 'pending' || session.Status === 'pending';
 
-                            let end: number;
-                            const savedEnd = session.endTime || (session as any).EndTime;
-                            if (savedEnd) {
-                              end = new Date(savedEnd).getTime();
-                            } else {
-                              const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
-                              end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
-                            }
+                          if (!isPending) {
+                            const start = new Date(session.startTime || session.StartTime).getTime();
+                            const savedEnd = session.endTime || session.EndTime;
+                            const isPaused = session.status === 'paused' || session.Status === 'paused';
+
+                            const end = savedEnd
+                              ? new Date(savedEnd).getTime()
+                              : (isPaused ? new Date(session.updatedAt || session.UpdatedAt || currentTime).getTime() : currentTime.getTime());
 
                             const diffMs = end - start;
                             if (diffMs > 0) {
@@ -474,7 +477,7 @@ export default function Dashboard() {
                           }
                           const productTotal = sessionTotals[rId] || 0;
                           return `${(Math.ceil((roomCharge + productTotal) / 1000) * 1000).toLocaleString('vi-VN')} đ`;
-                        })() : '0 đ'}
+                        })()}
                       </span>
                     </div>
                   </div>
