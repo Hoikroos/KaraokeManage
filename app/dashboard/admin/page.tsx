@@ -32,7 +32,7 @@ export default function AdminDashboard() {
             <div className="bg-blue-600 p-2 rounded-lg">
               <LayoutDashboard className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Quản Trị Hệ Thống</h1>
+            <h1 className="text-xl font-bold text-slate-900">Quản Trị Hệ Thống Quản Lý Bán Hàng</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end">
