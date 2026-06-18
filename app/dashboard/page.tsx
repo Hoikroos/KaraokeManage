@@ -229,9 +229,8 @@ export default function Dashboard() {
         <img
           src="https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=2069&auto=format&fit=crop"
           alt="background"
-          className="w-full h-full object-cover blur-none opacity-[0.65] scale-100"
+          className="w-full h-full object-cover blur-none opacity-100 scale-100"
         />
-        <div className="absolute inset-0 bg-white/5" /> {/* Lớp phủ trong suốt cực nhẹ */}
       </div>
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
