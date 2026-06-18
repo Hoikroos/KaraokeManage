@@ -417,7 +417,8 @@ export default function Dashboard() {
                       <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                        <span className="text-[11px] sm:text-sm">
                                 {(() => {
-                                  const session = sessions[room.id];
+                                  const rId = room.id || (room as any).Id;
+                                  const session = sessions[rId];
                                   if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
                                   const start = new Date((session.startTime || (session as any).StartTime)).getTime();
 
