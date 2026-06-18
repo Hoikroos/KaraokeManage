@@ -229,7 +229,7 @@ export default function Dashboard() {
         <img
           src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTr_OwA8qTz-bWerOQgnbD0tXlC9Erzwr_1qRL0l_QoVw&s=10"
           alt="background"
-          className="w-full h-full object-cover blur-none opacity-[0.6] scale-100"
+          className="w-full h-full object-cover blur-none opacity-[0.9] scale-100"
         />
         <div className="absolute inset-0 bg-white/10" /> {/* Lớp phủ màu trắng nhẹ để làm dịu ảnh nền */}
       </div>
