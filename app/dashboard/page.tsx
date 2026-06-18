@@ -344,7 +344,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-center h-64 text-slate-400 font-medium">Đang tải dữ liệu...</div>
         ) : filteredRooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white rounded-2xl border border-slate-100">
-            <Package className="w-12 h-12 mb-2 opacity-20" />
+            <Home className="w-12 h-12 mb-2 opacity-20" />
             <p className="text-sm">{activeTab === 'all' ? 'Chưa có dữ liệu phòng' : 'Không có phòng nào ở trạng thái này'}</p>
           </div>
         ) : (
@@ -367,14 +367,14 @@ export default function Dashboard() {
                   {/* Watermark */}
                   {viewMode === 'grid' && (
                     <div className="absolute right-2 bottom-2 opacity-[0.035] pointer-events-none">
-                      <Waves className="w-16 h-16 text-blue-600" />
+                      <Home className="w-16 h-16 text-blue-600" />
                     </div>
                   )}
 
                   <div className={`flex items-center gap-2 ${viewMode === 'grid' ? 'mb-3' : 'flex-1 min-w-0'}`}>
                     {/* Icon */}
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Waves className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                      <Home className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                     </div>
 
                     {/* Room name */}
@@ -434,7 +434,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 text-slate-500">
                       <Banknote className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                       <span className="text-xs sm:text-sm">
-                        Tiền: {room.status === 'occupied' && sessions[room.id] ? (() => {
+                        Thành Tiền: {room.status === 'occupied' && sessions[room.id] ? (() => {
                           const session = sessions[room.id] as any;
                           if (!session) return '0 đ';
                           let roomCharge = 0;
