@@ -236,9 +236,12 @@ export default function Dashboard() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <LayoutDashboard className="w-6 h-6 text-white" />
-            </div>
+            {/* Thay thế icon LayoutDashboard bằng logo từ ảnh */}
+            <img
+              src="/logoNew.jpg"
+              alt="Logo Hệ thống"
+              className="w-10 h-10 rounded-lg object-cover" // Điều chỉnh kích thước và bo góc để phù hợp
+            />
             <h1 className="text-xl font-bold text-slate-900 hidden md:block">QUẢN LÝ HỆ THỐNG BÁN HÀNG</h1>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
