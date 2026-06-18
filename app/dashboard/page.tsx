@@ -223,13 +223,13 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/20 backdrop-blur-none">
+    <div className="min-h-screen bg-slate-50/5 backdrop-blur-none">
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
           src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTr_OwA8qTz-bWerOQgnbD0tXlC9Erzwr_1qRL0l_QoVw&s=10"
           alt="background"
-          className="w-full h-full object-cover blur-[6px] opacity-[0.6] scale-110"
+          className="w-full h-full object-cover blur-[2px] opacity-[1] scale-110"
         />
         <div className="absolute inset-0 bg-white/0 backdrop-blur-none" />
       </div>
