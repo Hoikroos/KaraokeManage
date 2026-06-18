@@ -323,7 +323,6 @@ export default function ExportPage() {
                                             <span className="text-[11px] font-bold text-slate-400">{new Date(inv.createdAt || inv.CreatedAt).toLocaleString('vi-VN')}</span>
                                         </div>
                                         <div className="font-bold text-slate-800 truncate">{inv.customerName || inv.CustomerName}</div>
-                                        <div className="font-bold text-slate-800 text-sm leading-tight break-words">{inv.customerName || inv.CustomerName}</div>
                                         <div className="text-xs text-indigo-600 font-black">{(inv.totalPrice || 0).toLocaleString('vi-VN')}đ</div>
                                     </div>
                                     <Button
