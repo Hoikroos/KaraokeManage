@@ -309,16 +309,7 @@ export default function Dashboard() {
 
           <div className="p-4 sm:p-6">
             {/* Tabs Filter */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
-              <div>
-                <h2 className="text-4xl font-bold text-slate-900">
-                  Phòng / Bàn
-                </h2>
-                <p className="text-slate-500 mt-2">
-                  Quản lý trạng thái phòng / bàn trong hệ thống
-                </p>
-              </div>
-            </div>
+            
             <div className="flex flex-wrap gap-2 mb-6">
               {[
                 { id: 'all', label: 'Tất cả', count: rooms.length, color: 'blue' },
