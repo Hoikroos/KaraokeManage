@@ -415,34 +415,29 @@ export default function Dashboard() {
                     {/* Time */}
                     <div className="flex items-center gap-2 text-slate-500">
                       <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span className="text-xs sm:text-sm">
-                        Thời gian: {(() => {
-                          const status = room.status || (room as any).Status;
-                          const rId = room.id || (room as any).Id;
-                          const session = sessions[rId];
+                       <span className="text-[11px] sm:text-sm">
+                                {(() => {
+                                  const session = sessions[room.id];
+                                  if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
+                                  const start = new Date((session.startTime || (session as any).StartTime)).getTime();
 
-                          if (status !== 'occupied' || !session) return '--:--';
-                          if ((session as any).status === 'pending' || (session as any)?.Status === 'pending') return '--:--';
+                                  let end: number;
+                                  const savedEnd = session.endTime || (session as any).EndTime;
+                                  if (savedEnd) {
+                                    end = new Date(savedEnd).getTime();
+                                  } else {
+                                    const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
+                                    end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
+                                  }
 
-                          const start = new Date((session.startTime || (session as any).StartTime)).getTime();
-
-                          let end: number;
-                          const savedEnd = session.endTime || (session as any).EndTime;
-                          if (savedEnd) {
-                            end = new Date(savedEnd).getTime();
-                          } else {
-                            const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
-                            end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
-                          }
-
-                          const diffMs = end - start;
-                          if (diffMs <= 0) return '0p';
-                          const totalMinutes = Math.ceil(diffMs / 60000);
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = totalMinutes % 60;
-                          return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
-                        })()}
-                      </span>
+                                  const diffMs = end - start;
+                                  if (diffMs <= 0) return '0p';
+                                  const totalMinutes = Math.ceil(diffMs / 60000);
+                                  const hours = Math.floor(totalMinutes / 60);
+                                  const minutes = totalMinutes % 60;
+                                  return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
+                                })()}
+                              </span>
                     </div>
 
                     {/* Money */}
