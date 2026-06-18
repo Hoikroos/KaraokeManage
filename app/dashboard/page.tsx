@@ -227,7 +227,7 @@ export default function Dashboard() {
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
-          src="https://images.unsplash.com/photo-1519751138004-ad0e0e90547b?q=80&w=2070&auto=format&fit=crop"
+          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTr_OwA8qTz-bWerOQgnbD0tXlC9Erzwr_1qRL0l_QoVw&s=10"
           alt="background"
           className="w-full h-full object-cover blur-[100px] opacity-[0.15] scale-110"
         />
