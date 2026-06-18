@@ -223,7 +223,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
       {/* Lớp nền mờ nghệ thuật cho Dashboard chính */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <img
@@ -285,7 +285,12 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="relative bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl shadow-slate-200/40 border border-white/70 overflow-hidden transition-all">
+        <div className=" bg-white/80
+  backdrop-blur-md
+  rounded-[32px]
+  shadow-2xl
+  border border-white
+  p-8 shadow-slate-200/40 border border-white/70 overflow-hidden transition-all">
           {/* Filtering and Selection Header */}
           <div className="">
             {user?.role === 'admin' && stores.length > 1 && (
@@ -304,6 +309,24 @@ export default function Dashboard() {
 
           <div className="p-4 sm:p-6">
             {/* Tabs Filter */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+              <div>
+                <h2 className="text-4xl font-bold text-slate-900">
+                  Phòng / Bàn
+                </h2>
+                <p className="text-slate-500 mt-2">
+                  Quản lý trạng thái phòng / bàn trong hệ thống
+                </p>
+              </div>
+
+              <div className="mt-4 lg:mt-0">
+                <input
+                  type="text"
+                  placeholder="Tìm phòng / bàn..."
+                  className="w-80 h-12 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2 mb-6">
               {[
                 { id: 'all', label: 'Tất cả', count: rooms.length, color: 'blue' },
@@ -334,19 +357,30 @@ export default function Dashboard() {
                 <p>{activeTab === 'all' ? 'Chưa có dữ liệu phòng' : 'Không có phòng nào ở trạng thái này'}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                 {filteredRooms.map((room) => (
                   <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
-                      className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 backdrop-blur-none ${room.status === 'empty'
-                        ? 'bg-white/80 border-blue-600 hover:border-blue-800 hover:bg-white/90 shadow-sm'
-                        : 'bg-white/80 border-red-600 hover:border-red-800 hover:bg-white/90 shadow-sm'
+                      className={`relative overflow-hidden
+    bg-white
+    border
+    rounded-3xl
+    shadow-md
+    hover:shadow-xl
+    hover:-translate-y-1
+    transition-all duration-300
+    p-5
+    min-h-[180px] ${room.status === 'empty'
+                          ? 'bg-white/80 border-blue-600 hover:border-blue-800 hover:bg-white/90 shadow-sm'
+                          : 'bg-white/80 border-red-600 hover:border-red-800 hover:bg-white/90 shadow-sm'
                         }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-1.5 sm:gap-3">
                           <div className={`p-1.5 sm:p-2 rounded-xl ${room.status === 'empty' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                            <Home className="w-5 h-5" />
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center">
+                              <Home className="w-6 h-6 text-blue-600" />
+                            </div>
                           </div>
                           <h3 className="text-base sm:text-2xl font-bold text-slate-900 truncate">
                             P. {room.roomNumber}
