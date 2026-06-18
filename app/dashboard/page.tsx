@@ -242,12 +242,12 @@ export default function Dashboard() {
               alt="Logo Hệ thống"
               className="w-10 h-10 rounded-lg object-cover" // Điều chỉnh kích thước và bo góc để phù hợp
             />
-            <h1 className="text-xl font-bold text-slate-900 hidden md:block">QUẢN LÝ HỆ THỐNG BÁN HÀNG</h1>
+            <h1 className="text-xl font-bold text-blue-600 hidden md:block">QUẢN LÝ HỆ THỐNG BÁN HÀNG</h1>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="hidden sm:flex flex-col items-end mr-2">
-              <span className="text-slate-900 font-semibold text-sm">{user?.name}</span>
-              <span className="text-slate-500 text-[10px] uppercase tracking-wider">{user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</span>
+              <span className="text-slate-500 font-semibold text-sm">{user?.name}</span>
+              <span className="text-slate-300 text-[10px] uppercase tracking-wider">{user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</span>
             </div>
 
             {/* Ẩn 3 nút này trên mobile, chỉ hiện từ md trở lên */}
@@ -261,12 +261,12 @@ export default function Dashboard() {
             </Button>
             <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/products')} className="hidden md:flex text-slate-600 hover:text-blue-600 gap-2">
               <Package className="w-4 h-4" />
-              <span className="hidden md:inline">Thực đơn</span>
+              <span className="hidden md:inline">Thực đơn/ Kho</span>
             </Button>
             <Link href="/dashboard/export" className="hidden md:flex">
               <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-2 bg-white">
                 <ShoppingBag className="w-4 h-4" />
-                <span className="hidden md:inline">Bán mang về</span>
+                <span className="hidden md:inline">Bán mang về/ Tặng</span>
               </Button>
             </Link>
 
