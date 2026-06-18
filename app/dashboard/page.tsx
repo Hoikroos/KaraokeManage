@@ -238,7 +238,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             {/* Thay thế icon LayoutDashboard bằng logo từ ảnh */}
             <img
-              src="/logoNew.jpg"
+              src="/LogoNew.jpg"
               alt="Logo Hệ thống"
               className="w-10 h-10 rounded-lg object-cover" // Điều chỉnh kích thước và bo góc để phù hợp
             />
