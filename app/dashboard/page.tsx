@@ -336,8 +336,8 @@ export default function Dashboard() {
                   <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
                       className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 backdrop-blur-none ${room.status === 'empty'
-                        ? 'bg-white/80 border-blue-200 hover:border-blue-400 hover:bg-white/90 shadow-sm'
-                        : 'bg-white/80 border-rose-200 hover:border-rose-400 hover:bg-white/90 shadow-sm'
+                        ? 'bg-white/80 border-blue-600 hover:border-blue-800 hover:bg-white/90 shadow-sm'
+                        : 'bg-white/80 border-red-600 hover:border-red-800 hover:bg-white/90 shadow-sm'
                         }`}
                     >
                       <div className="flex items-start justify-between">
