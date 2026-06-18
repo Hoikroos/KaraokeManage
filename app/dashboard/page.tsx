@@ -283,9 +283,18 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="relative bg-white/60 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-200/50 border border-white/40 overflow-hidden transition-all">
+          {/* Lớp nền mờ nghệ thuật riêng cho khung danh sách phòng */}
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+            <img
+              src="https://images.unsplash.com/photo-1514525253361-bee8a19740c1?q=80&w=1974&auto=format&fit=crop"
+              alt="room list bg"
+              className="w-full h-full object-cover blur-[120px] opacity-[0.08] scale-125"
+            />
+          </div>
+
           {/* Filtering and Selection Header */}
-          <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="p-4 sm:p-6 border-b border-slate-200/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h2 className="text-xl font-bold text-slate-800">Danh sách phòng</h2>
 
             {user?.role === 'admin' && stores.length > 1 && (
@@ -338,9 +347,9 @@ export default function Dashboard() {
                 {filteredRooms.map((room) => (
                   <Link key={room.id} href={`/dashboard/room/${room.id}`}>
                     <Card
-                      className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 ${room.status === 'empty'
-                        ? 'bg-slate-100 border-blue-300 hover:border-blue-500 hover:bg-slate-200'
-                        : 'bg-slate-100 border-red-400 hover:border-red-500 hover:bg-slate-200'
+                      className={`p-3 sm:p-6 h-auto min-h-[140px] sm:h-44 flex flex-col justify-between cursor-pointer transition-all border-2 backdrop-blur-sm ${room.status === 'empty'
+                        ? 'bg-white/40 border-blue-200 hover:border-blue-400 hover:bg-white/60 shadow-sm'
+                        : 'bg-white/40 border-rose-200 hover:border-rose-400 hover:bg-white/60 shadow-sm'
                         }`}
                     >
                       <div className="flex items-start justify-between">
