@@ -946,13 +946,13 @@ export default function InventoryStatsPage() {
                             </select>
                         )}
 
-                        <Button
+                        {/* <Button
                             onClick={exportToExcel}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2"
                         >
                             <Download className="w-3.5 h-3.5" />
                             Xuất Excel
-                        </Button>
+                        </Button> */}
                     </div>
                 </div>
             </header>
