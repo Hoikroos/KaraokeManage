@@ -19,7 +19,8 @@ import {
 } from 'recharts';
 import {
     TrendingUp, TrendingDown, ArrowLeft, Calendar, AlertTriangle,
-    Search, Boxes, Download, History, Package, ArrowUpDown, ArrowUp, ArrowDown
+    Search, Boxes, Download, History, Package, ArrowUpDown, ArrowUp, ArrowDown,
+    ChevronDown, Filter, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,7 +34,7 @@ interface ProductStat {
     totalRestocked: number;
     totalSold: number;
     totalExported: number;
-    totalDecrement: number; // Đổi tên từ totalQuantity
+    totalDecrement: number;
     totalRevenue: number;
     currentStock: number;
     closingStock: number;
@@ -90,7 +91,7 @@ function getWeekStart(date: Date): Date {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // Monday = start
+    const diff = day === 0 ? -6 : 1 - day;
     d.setDate(d.getDate() + diff);
     return d;
 }
@@ -109,7 +110,8 @@ function formatWeekLabel(weekStart: Date): string {
     return `${formatDayShort(weekStart)} – ${formatDayShort(end)}`;
 }
 
-const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
+const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#6366f1'];
+const PIE_COLORS = ['#3b82f6', '#10b981', '#f97316', '#a78bfa', '#64748b'];
 
 const PERIOD_OPTIONS = [
     { id: 'monthly', label: 'Tháng' },
@@ -118,52 +120,52 @@ const PERIOD_OPTIONS = [
 
 type PeriodType = typeof PERIOD_OPTIONS[number]['id'];
 
-/* ─── Sub-components ─────────────────────────────────────────── */
+/* ─── Custom Recharts Tooltip ─────────────────────────────────── */
 
-function KpiCard({
-    icon,
-    iconBg,
-    label,
-    value,
-    sub,
-    subColor,
-    onClick,
-}: {
-    icon: React.ReactNode;
-    iconBg: string;
-    label: string;
-    value: string;
-    sub: string;
-    subColor: string;
-    onClick?: () => void;
-}) {
+const CustomBarTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
     return (
-        <div
-            onClick={onClick}
-            className={`
-                bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 border border-slate-200
-                flex items-center gap-4 transition-all duration-200 group
-                hover:shadow-lg hover:border-slate-300
-                ${onClick ? 'cursor-pointer' : ''}
-            `}
-        >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg} group-hover:scale-110 transition-transform duration-200`}>
-                {icon}
-            </div>
-            <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-                <h3 className="text-lg font-extrabold text-slate-900 truncate">{value}</h3>
-                <p className={`text-xs font-semibold mt-0.5 ${subColor}`}>{sub}</p>
-            </div>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs font-semibold text-gray-700">
+            Đã bán: <span className="text-emerald-600">{payload[0].value?.toLocaleString('vi-VN')}</span>
         </div>
     );
-}
+};
 
+const CustomPieTooltip = ({ active, payload }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs font-semibold text-gray-700">
+            {payload[0].name}: <span className="text-blue-600">{payload[0].value?.toLocaleString('vi-VN')}</span>
+        </div>
+    );
+};
+
+const CustomLineTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs font-semibold text-gray-700">
+            <p className="text-gray-400 text-[10px] mb-0.5">{label}</p>
+            Tổng: <span className="text-emerald-600">{payload[0].value?.toLocaleString('vi-VN')}</span>
+        </div>
+    );
+};
+
+const CustomHistoryBarTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs font-semibold text-gray-700">
+            <p className="text-gray-500 mb-0.5">{label}</p>
+            Nhập: <span className="text-emerald-600">+{payload[0].value?.toLocaleString('vi-VN')}</span>
+        </div>
+    );
+};
+
+/* ─── Stock Badge ─────────────────────────────────────────────── */
 function StockBadge({ stock }: { stock: number }) {
     return (
         <span className={`
-            inline-block px-3 py-1 rounded-full text-[11px] font-bold
-            ${stock > 5 ? 'bg-slate-100 text-slate-600' : 'bg-rose-50 text-rose-600'}
+            inline-block px-2.5 py-0.5 rounded-full text-xs font-bold
+            ${stock > 5 ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}
         `}>
             {stock}
         </span>
@@ -172,45 +174,15 @@ function StockBadge({ stock }: { stock: number }) {
 
 function StatusPill({ quantity }: { quantity: number }) {
     return quantity >= 0 ? (
-        <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wide">
-            Nhập thêm
+        <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-semibold border border-emerald-100">
+            Nhập
         </span>
     ) : (
-        <span className="inline-block px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-[10px] font-bold uppercase tracking-wide">
-            Xuất / Hư
+        <span className="inline-block px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 text-[11px] font-semibold border border-red-100">
+            Xuất
         </span>
     );
 }
-
-/* ─── Custom Recharts Tooltip ─────────────────────────────────── */
-
-const CustomBarTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-        <div className="bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-2 text-sm font-semibold text-slate-700">
-            Đã bán: <span className="text-emerald-600">{payload[0].value}</span>
-        </div>
-    );
-};
-
-const CustomPieTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-        <div className="bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-2 text-sm font-semibold text-slate-700">
-            {payload[0].name}: <span className="text-indigo-600">{payload[0].value}</span>
-        </div>
-    );
-};
-
-const CustomLineTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-        <div className="bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-2 text-sm font-semibold text-slate-700">
-            <p className="text-slate-400 text-[11px] font-bold mb-0.5">{label}</p>
-            Tổng: <span className="text-emerald-600">{payload[0].value}</span>
-        </div>
-    );
-};
 
 /* ─── Main Page ──────────────────────────────────────────────── */
 
@@ -230,13 +202,15 @@ export default function InventoryStatsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [logDirection, setLogDirection] = useState<'all' | 'in' | 'out'>('all');
     const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
-    // Sổ kho theo tháng (tồn đầu = tồn cuối tháng trước + nhập trong tháng)
     const [monthlyStock, setMonthlyStock] = useState<{
         key: string; label: string;
         rows: { productId: string; productName: string; category: string; opening: number; restock: number; sold: number; exported: number; closing: number }[];
     }[]>([]);
     const [loadingMonthly, setLoadingMonthly] = useState(false);
     const [expandedWeeklyKeys, setExpandedWeeklyKeys] = useState<Record<string, boolean>>({});
+    const [statsPage, setStatsPage] = useState(1);
+    const [logsPage, setLogsPage] = useState(1);
+    const PAGE_SIZE = 10;
 
     /* ── Fetch stores on mount ─── */
     useEffect(() => {
@@ -244,12 +218,9 @@ export default function InventoryStatsPage() {
             try {
                 const res = await fetch('/api/admin/stores');
                 let data = await res.json();
-
-                // Chỉ hiển thị chi nhánh được gán cho Admin
                 if (user?.storeId && user.storeId !== 'all') {
                     data = data.filter((s: Store) => s.id === user.storeId);
                 }
-
                 setStores(data);
                 const initialStoreId = (user?.storeId && user.storeId !== 'all') ? user.storeId : (data[0]?.id || '');
                 setSelectedStoreId(initialStoreId);
@@ -265,7 +236,7 @@ export default function InventoryStatsPage() {
         if (selectedStoreId) fetchInventoryStats();
     }, [selectedStoreId, reportType, startDate, endDate]);
 
-    /* ── Fetch invoices (cho bảng sản lượng theo ngày) ─── */
+    /* ── Fetch invoices ─── */
     useEffect(() => {
         if (!selectedStoreId) return;
         fetch(`/api/invoices?storeId=${selectedStoreId}`, { cache: 'no-store' })
@@ -274,10 +245,9 @@ export default function InventoryStatsPage() {
             .catch(() => setInvoices([]));
     }, [selectedStoreId]);
 
-    /* ── Fetch lifetime stats (cho cột "Số lượng tổng" lifetime) ─── */
+    /* ── Fetch lifetime stats ─── */
     useEffect(() => {
         if (!selectedStoreId) return;
-        // startDate=1970-01-01 → API tính từ đầu → trả về lifetime tạo + nhập
         fetch(`/api/admin/inventory?storeId=${selectedStoreId}&startDate=1970-01-01&type=daily`, { cache: 'no-store' })
             .then(r => r.ok ? r.json() : { stats: [] })
             .then(data => setLifetimeStats(Array.isArray(data.stats) ? data.stats : []))
@@ -290,7 +260,6 @@ export default function InventoryStatsPage() {
             let url = `/api/admin/inventory?storeId=${selectedStoreId}&type=${reportType}`;
             if (startDate) url += `&startDate=${startDate}`;
             if (endDate) url += `&endDate=${endDate}`;
-
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
@@ -307,13 +276,11 @@ export default function InventoryStatsPage() {
         }
     };
 
-    /* ── Tính sổ kho theo từng tháng trong khoảng đang chọn (dùng lại được) ─── */
+    /* ── Tính sổ kho theo từng tháng ─── */
     const computeMonthlyStock = async (): Promise<typeof monthlyStock> => {
         if (!selectedStoreId) return [];
         const fmt = (d: Date) =>
             `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-        // Danh sách các tháng từ start → end (tối đa 24 tháng để tránh quá nhiều request)
         const months: { y: number; m: number }[] = [];
         let cur = new Date(effectivePeriod.start.getFullYear(), effectivePeriod.start.getMonth(), 1);
         const last = new Date(effectivePeriod.end.getFullYear(), effectivePeriod.end.getMonth(), 1);
@@ -321,7 +288,6 @@ export default function InventoryStatsPage() {
             months.push({ y: cur.getFullYear(), m: cur.getMonth() });
             cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
         }
-
         const results = await Promise.all(months.map(async ({ y, m }) => {
             const mStart = fmt(new Date(y, m, 1));
             const mEnd = fmt(new Date(y, m + 1, 0));
@@ -346,12 +312,10 @@ export default function InventoryStatsPage() {
                 })),
             };
         }));
-
-        results.sort((a, b) => b.key.localeCompare(a.key)); // mới nhất → cũ nhất
+        results.sort((a, b) => b.key.localeCompare(a.key));
         return results;
     };
 
-    /* ── Tải sổ kho theo tháng (cho nút bấm) ─── */
     const loadMonthlyStock = async () => {
         if (!selectedStoreId) return;
         setLoadingMonthly(true);
@@ -365,14 +329,12 @@ export default function InventoryStatsPage() {
     };
 
     /* ── Derived data ─── */
-
     const productCategoryLookup = useMemo(() => {
         const m = new Map<string, string>();
         for (const s of stats) m.set(s.productId, s.category);
         return m;
     }, [stats]);
 
-    /* ── Tính kỳ hiệu lực giống hệt API: ưu tiên date input, fallback theo reportType ─── */
     const effectivePeriod = useMemo(() => {
         let start: Date;
         let end: Date;
@@ -395,7 +357,6 @@ export default function InventoryStatsPage() {
         return { start, end };
     }, [startDate, endDate, reportType]);
 
-    /* ── Bán theo sản phẩm trong KỲ (tách inRoom vs offsite từ invoices) ─── */
     const salesByProduct = useMemo(() => {
         type ProductSales = { inRoom: number; offsite: number; revenue: number };
         const m = new Map<string, ProductSales>();
@@ -415,7 +376,6 @@ export default function InventoryStatsPage() {
         return m;
     }, [invoices, effectivePeriod]);
 
-    /* ── Lookup tổng tạo + nhập LIFETIME (theo productId) ─── */
     const lifetimeTotalCreatedLookup = useMemo(() => {
         const m = new Map<string, number>();
         for (const s of lifetimeStats) {
@@ -424,19 +384,13 @@ export default function InventoryStatsPage() {
         return m;
     }, [lifetimeStats]);
 
-    /* ── Stats bổ sung các cột tính sẵn ─── */
     const augmentedStats = useMemo(() => {
         return stats.map(s => {
             const sales = salesByProduct.get(s.productId) || { inRoom: 0, offsite: 0, revenue: 0 };
-            // Tổng tạo + nhập: lifetime (cộng dồn từ đầu, không phụ thuộc kỳ)
-            // Fallback về period nếu lifetime chưa kịp load.
             const totalCreated = lifetimeTotalCreatedLookup.get(s.productId) ?? (s.openingStock + s.totalRestocked);
             const inRoom = sales.inRoom;
-            // Xuất khác trong kỳ = tặng + mang về (offsite từ HĐ TKW/GFT) + hư hỏng (inventoryLog) trong kỳ
             const otherOutput = sales.offsite + s.totalExported;
-            // Còn lại = Tổng (tạo + nhập) - bán trong phòng - xuất khác
             const remaining = totalCreated - inRoom - otherOutput;
-            // "Bán chạy nhất" = bán trong phòng + mang về/tặng (KHÔNG cộng hư hỏng)
             const salesMetric = inRoom + sales.offsite;
             return {
                 ...s,
@@ -481,7 +435,6 @@ export default function InventoryStatsPage() {
         [augmentedStats, searchTerm]
     );
 
-    // Ẩn (KHÔNG xóa) các log hoàn kho do hủy phòng — dữ liệu vẫn còn trong DB để kiểm tra sau.
     const isCancelReturnLog = (l: InventoryLog) =>
         l.id?.startsWith('RETURN-') || (l.note ?? '').startsWith('Hoàn kho do hủy phòng');
 
@@ -496,7 +449,6 @@ export default function InventoryStatsPage() {
         [logs, searchTerm, logDirection]
     );
 
-    // Nhóm lịch sử nhập kho theo từng tháng (giữ thứ tự mới nhất → cũ nhất từ API)
     const logsByMonth = useMemo(() => {
         const groups: { key: string; label: string; items: InventoryLog[]; totalIn: number; totalOut: number }[] = [];
         const index: Record<string, number> = {};
@@ -515,7 +467,74 @@ export default function InventoryStatsPage() {
         return groups;
     }, [filteredLogs]);
 
-    /* ── Sản lượng theo TUẦN × sản phẩm, mỗi dòng có daily breakdown ─── */
+    /* ── Sản lượng bán theo ngày trong tháng (ma trận) ─── */
+    const dailySalesMatrix = useMemo(() => {
+        // Tính tất cả các ngày trong period
+        const dayKeys: string[] = [];
+        const dayLabels: { key: string; date: Date; label: string }[] = [];
+        const cur = new Date(effectivePeriod.start);
+        cur.setHours(0, 0, 0, 0);
+        while (cur <= effectivePeriod.end && dayLabels.length < 31) {
+            const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+            dayKeys.push(key);
+            dayLabels.push({ key, date: new Date(cur), label: `${String(cur.getDate()).padStart(2, '0')}/${String(cur.getMonth() + 1).padStart(2, '0')}` });
+            cur.setDate(cur.getDate() + 1);
+        }
+
+        // productId -> { productName, days: dayKey -> qty }
+        const productMap = new Map<string, { productName: string; days: Map<string, number> }>();
+        for (const inv of invoices) {
+            if (inv.status !== 'paid') continue;
+            const t = new Date(inv.startTime);
+            if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
+            const dayDate = getWorkingDay(t);
+            const dayKey = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, '0')}-${String(dayDate.getDate()).padStart(2, '0')}`;
+            for (const item of (inv.items || [])) {
+                if (!productMap.has(item.productId)) {
+                    productMap.set(item.productId, { productName: item.productName, days: new Map() });
+                }
+                const p = productMap.get(item.productId)!;
+                p.days.set(dayKey, (p.days.get(dayKey) || 0) + item.quantity);
+            }
+        }
+
+        const rows = [...productMap.entries()].map(([productId, p]) => {
+            const total = [...p.days.values()].reduce((a, b) => a + b, 0);
+            return { productId, productName: p.productName, days: p.days, total };
+        }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+
+        const grandTotalByDay = new Map<string, number>();
+        for (const row of rows) {
+            for (const [dk, qty] of row.days.entries()) {
+                grandTotalByDay.set(dk, (grandTotalByDay.get(dk) || 0) + qty);
+            }
+        }
+
+        return { dayLabels, rows, grandTotalByDay };
+    }, [invoices, effectivePeriod]);
+
+    /* ── History monthly chart data (cho tab lịch sử) ─── */
+    const historyMonthlyChart = useMemo(() => {
+        const m = new Map<string, number>();
+        for (const log of logs) {
+            if (log.quantity <= 0) continue;
+            const d = new Date(log.createdAt);
+            const key = `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+            m.set(key, (m.get(key) || 0) + log.quantity);
+        }
+        return [...m.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => a.label.localeCompare(b.label));
+    }, [logs]);
+
+    /* ── History KPIs ─── */
+    const historyKpis = useMemo(() => {
+        const totalLogs = filteredLogs.length;
+        const totalIn = filteredLogs.filter(l => l.quantity > 0).reduce((a, l) => a + l.quantity, 0);
+        const mostIn = [...augmentedStats].sort((a, b) => b.totalRestocked - a.totalRestocked)[0];
+        const leastIn = [...augmentedStats].sort((a, b) => a.totalRestocked - b.totalRestocked)[0];
+        return { totalLogs, totalIn, mostIn, leastIn };
+    }, [filteredLogs, augmentedStats]);
+
+    /* ── Sản lượng theo TUẦN × sản phẩm ─── */
     const weeklySalesRows = useMemo(() => {
         type DailyEntry = { dayKey: string; dayDate: Date; inRoom: number; takeawayGift: number; revenue: number };
         type ProductBucket = {
@@ -526,9 +545,7 @@ export default function InventoryStatsPage() {
             totalRevenue: number;
             days: Map<string, DailyEntry>;
         };
-        // weekKey -> { weekStart, products: productId -> ProductBucket }
         const byWeek = new Map<string, { weekStart: Date; products: Map<string, ProductBucket> }>();
-
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
@@ -537,53 +554,32 @@ export default function InventoryStatsPage() {
             const weekKey = getWeekKey(dayDate);
             const weekStart = getWeekStart(dayDate);
             const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
-
             if (!byWeek.has(weekKey)) byWeek.set(weekKey, { weekStart, products: new Map() });
             const weekBucket = byWeek.get(weekKey)!;
-
             for (const item of (inv.items || [])) {
                 let p = weekBucket.products.get(item.productId);
                 if (!p) {
                     p = {
                         productName: item.productName,
                         category: productCategoryLookup.get(item.productId) || '',
-                        totalInRoom: 0,
-                        totalTakeawayGift: 0,
-                        totalRevenue: 0,
+                        totalInRoom: 0, totalTakeawayGift: 0, totalRevenue: 0,
                         days: new Map(),
                     };
                     weekBucket.products.set(item.productId, p);
                 }
                 let d = p.days.get(dayKey);
-                if (!d) {
-                    d = { dayKey, dayDate, inRoom: 0, takeawayGift: 0, revenue: 0 };
-                    p.days.set(dayKey, d);
-                }
+                if (!d) { d = { dayKey, dayDate, inRoom: 0, takeawayGift: 0, revenue: 0 }; p.days.set(dayKey, d); }
                 const qty = item.quantity;
                 const rev = Number(item.price || 0) * Number(qty || 0);
-                if (isOffsite) {
-                    p.totalTakeawayGift += qty;
-                    d.takeawayGift += qty;
-                } else {
-                    p.totalInRoom += qty;
-                    d.inRoom += qty;
-                }
-                p.totalRevenue += rev;
-                d.revenue += rev;
+                if (isOffsite) { p.totalTakeawayGift += qty; d.takeawayGift += qty; }
+                else { p.totalInRoom += qty; d.inRoom += qty; }
+                p.totalRevenue += rev; d.revenue += rev;
             }
         }
-
         const rows: Array<{
-            weekKey: string;
-            weekStart: Date;
-            weekLabel: string;
-            productId: string;
-            productName: string;
-            category: string;
-            totalInRoom: number;
-            totalTakeawayGift: number;
-            grandTotal: number;
-            totalRevenue: number;
+            weekKey: string; weekStart: Date; weekLabel: string;
+            productId: string; productName: string; category: string;
+            totalInRoom: number; totalTakeawayGift: number; grandTotal: number; totalRevenue: number;
             daily: DailyEntry[];
         }> = [];
         for (const [weekKey, { weekStart, products }] of byWeek.entries()) {
@@ -592,17 +588,10 @@ export default function InventoryStatsPage() {
                 if (grandTotal === 0) continue;
                 const daily = [...p.days.values()].sort((a, b) => +a.dayDate - +b.dayDate);
                 rows.push({
-                    weekKey,
-                    weekStart,
-                    weekLabel: formatWeekLabel(weekStart),
-                    productId,
-                    productName: p.productName,
-                    category: p.category,
-                    totalInRoom: p.totalInRoom,
-                    totalTakeawayGift: p.totalTakeawayGift,
-                    grandTotal,
-                    totalRevenue: p.totalRevenue,
-                    daily,
+                    weekKey, weekStart, weekLabel: formatWeekLabel(weekStart),
+                    productId, productName: p.productName, category: p.category,
+                    totalInRoom: p.totalInRoom, totalTakeawayGift: p.totalTakeawayGift,
+                    grandTotal, totalRevenue: p.totalRevenue, daily,
                 });
             }
         }
@@ -615,35 +604,45 @@ export default function InventoryStatsPage() {
         [weeklySalesRows, searchTerm]
     );
 
-    /* ── Excel export (có định dạng màu) ─── */
+    /* ── Pagination ─── */
+    const paginatedStats = useMemo(() => {
+        const start = (statsPage - 1) * PAGE_SIZE;
+        return filteredStats.slice(start, start + PAGE_SIZE);
+    }, [filteredStats, statsPage]);
+
+    const statsTotalPages = Math.max(1, Math.ceil(filteredStats.length / PAGE_SIZE));
+
+    const paginatedLogs = useMemo(() => {
+        const start = (logsPage - 1) * PAGE_SIZE;
+        return filteredLogs.slice(start, start + PAGE_SIZE);
+    }, [filteredLogs, logsPage]);
+
+    const logsTotalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+
+    /* ── Excel export ─── */
     const exportToExcel = async () => {
         const isHistory = activeTab === 'history';
         if ((isHistory ? filteredLogs.length : filteredStats.length) === 0) {
             toast.error('Không có dữ liệu để xuất');
             return;
         }
-
         try {
             const ExcelJS = (await import('exceljs')).default;
             const wb = new ExcelJS.Workbook();
             wb.creator = 'Quản Lý Bán Hàng';
-
             const C = {
                 header: 'FF1E293B', title: 'FF059669', stripe: 'FFF1F5F9', border: 'FFE2E8F0',
                 green: 'FF059669', orange: 'FFEA580C', blue: 'FF2563EB', rose: 'FFE11D48',
             };
             const thin = { style: 'thin' as const, color: { argb: C.border } };
             const allBorders = { top: thin, left: thin, bottom: thin, right: thin };
-
             const buildSheet = (
-                name: string,
-                title: string,
+                name: string, title: string,
                 columns: { header: string; width: number; align?: 'left' | 'center' | 'right' }[],
                 dataRows: { value: any; color?: string; numFmt?: string }[][]
             ) => {
                 const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 3 }] });
                 const nCols = columns.length;
-
                 ws.mergeCells(1, 1, 1, nCols);
                 const titleCell = ws.getCell(1, 1);
                 titleCell.value = title;
@@ -651,13 +650,11 @@ export default function InventoryStatsPage() {
                 titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.title } };
                 titleCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
                 ws.getRow(1).height = 26;
-
                 ws.mergeCells(2, 1, 2, nCols);
                 const subCell = ws.getCell(2, 1);
                 subCell.value = `Xuất lúc: ${new Date().toLocaleString('vi-VN')}`;
                 subCell.font = { italic: true, size: 10, color: { argb: 'FF64748B' } };
                 subCell.alignment = { horizontal: 'left', indent: 1 };
-
                 const headerRow = ws.getRow(3);
                 columns.forEach((col, i) => {
                     const cell = headerRow.getCell(i + 1);
@@ -669,7 +666,6 @@ export default function InventoryStatsPage() {
                     ws.getColumn(i + 1).width = col.width;
                 });
                 headerRow.height = 30;
-
                 dataRows.forEach((row, rIdx) => {
                     const r = ws.getRow(4 + rIdx);
                     row.forEach((cellData, cIdx) => {
@@ -679,17 +675,12 @@ export default function InventoryStatsPage() {
                         cell.alignment = { vertical: 'middle', horizontal: columns[cIdx].align ?? 'center' };
                         if (cellData.numFmt) cell.numFmt = cellData.numFmt;
                         cell.font = { size: 11, color: { argb: cellData.color ?? 'FF1E293B' }, bold: !!cellData.color };
-                        if (rIdx % 2 === 1) {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.stripe } };
-                        }
+                        if (rIdx % 2 === 1) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.stripe } };
                     });
                 });
             };
-
             if (isHistory) {
-                buildSheet(
-                    'Lịch sử nhập kho',
-                    'LỊCH SỬ NHẬP / XUẤT KHO',
+                buildSheet('Lịch sử nhập kho', 'LỊCH SỬ NHẬP / XUẤT KHO',
                     [
                         { header: 'Thời gian', width: 22, align: 'left' },
                         { header: 'Sản phẩm', width: 28, align: 'left' },
@@ -706,9 +697,7 @@ export default function InventoryStatsPage() {
                     ])
                 );
             } else {
-                buildSheet(
-                    'Tồn kho & bán hàng',
-                    'TỔNG QUAN TỒN KHO & BÁN HÀNG',
+                buildSheet('Tồn kho & bán hàng', 'TỔNG QUAN TỒN KHO & BÁN HÀNG',
                     [
                         { header: 'Sản phẩm', width: 28, align: 'left' },
                         { header: 'Loại', width: 14 },
@@ -729,8 +718,6 @@ export default function InventoryStatsPage() {
                     ])
                 );
             }
-
-            // Sổ kho theo tháng — tự tính nếu chưa tải sẵn
             const monthly = monthlyStock.length > 0 ? monthlyStock : await computeMonthlyStock();
             if (monthly.length > 0) {
                 const monthRows: { value: any; color?: string }[][] = [];
@@ -748,9 +735,7 @@ export default function InventoryStatsPage() {
                         ]);
                     }
                 }
-                buildSheet(
-                    'Sổ kho theo tháng',
-                    'SỔ KHO THEO THÁNG (tồn đầu = dư tháng trước + nhập)',
+                buildSheet('Sổ kho theo tháng', 'SỔ KHO THEO THÁNG (tồn đầu = dư tháng trước + nhập)',
                     [
                         { header: 'Tháng', width: 14, align: 'left' },
                         { header: 'Sản phẩm', width: 26, align: 'left' },
@@ -764,12 +749,8 @@ export default function InventoryStatsPage() {
                     monthRows
                 );
             }
-
-            // Sản lượng bán theo tuần
             if (weeklySalesRows.length > 0) {
-                buildSheet(
-                    'Sản lượng bán theo tuần',
-                    'SẢN LƯỢNG BÁN THEO TUẦN (hóa đơn đã thanh toán)',
+                buildSheet('Sản lượng bán theo tuần', 'SẢN LƯỢNG BÁN THEO TUẦN (hóa đơn đã thanh toán)',
                     [
                         { header: 'Tuần', width: 24, align: 'left' },
                         { header: 'Sản phẩm', width: 26, align: 'left' },
@@ -790,7 +771,6 @@ export default function InventoryStatsPage() {
                     ])
                 );
             }
-
             const buf = await wb.xlsx.writeBuffer();
             const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = URL.createObjectURL(blob);
@@ -806,34 +786,17 @@ export default function InventoryStatsPage() {
         }
     };
 
-    /* ── CSV export (giữ lại làm dự phòng) ─── */
+    /* ── CSV export ─── */
     const exportToCSV = () => {
         const isHistory = activeTab === 'history';
         const source = isHistory ? logs : stats;
         if (source.length === 0) { toast.error('Không có dữ liệu để xuất'); return; }
-
         const headers = isHistory
             ? ['Ngày nhập', 'Sản phẩm', 'Biến động', 'Ghi chú', 'Trạng thái']
-            : ['Sản phẩm', 'Loại', 'Số lượng tổng (tạo + nhập)', 'Bán trong phòng', 'Xuất khác (tặng + mang về + hư hỏng)', 'Doanh thu', 'Số lượng còn lại'];
-
+            : ['Sản phẩm', 'Loại', 'Số lượng tổng (tạo + nhập)', 'Bán trong phòng', 'Xuất khác', 'Doanh thu', 'Số lượng còn lại'];
         const rows = isHistory
-            ? logs.map(l => [
-                new Date(l.createdAt).toLocaleString('vi-VN'),
-                l.productName,
-                l.quantity > 0 ? `+${l.quantity}` : String(l.quantity),
-                l.note ?? '',
-                l.quantity >= 0 ? 'Nhập thêm' : 'Xuất/Hư hỏng',
-            ])
-            : augmentedStats.map(s => [
-                s.productName,
-                CAT_LABELS[s.category] ?? s.category,
-                s.totalCreated,
-                s.inRoom,
-                s.otherOutput,
-                s.computedRevenue,
-                s.remaining,
-            ]);
-
+            ? logs.map(l => [new Date(l.createdAt).toLocaleString('vi-VN'), l.productName, l.quantity > 0 ? `+${l.quantity}` : String(l.quantity), l.note ?? '', l.quantity >= 0 ? 'Nhập thêm' : 'Xuất/Hư hỏng'])
+            : augmentedStats.map(s => [s.productName, CAT_LABELS[s.category] ?? s.category, s.totalCreated, s.inRoom, s.otherOutput, s.computedRevenue, s.remaining]);
         const csv = '\ufeff' + [headers, ...rows].map(r => r.join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -845,183 +808,208 @@ export default function InventoryStatsPage() {
         toast.success('Xuất file thành công!');
     };
 
+    /* ── Pagination renderer ─── */
+    const renderPagination = (page: number, totalPages: number, setPage: (p: number) => void, total: number) => {
+        const pages = [];
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) {
+                pages.push(i);
+            } else if (pages[pages.length - 1] !== '...') {
+                pages.push('...');
+            }
+        }
+        return (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-white">
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>Hiển thị</span>
+                    <span className="font-semibold text-gray-700">10</span>
+                    <span>kết quả mỗi trang</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setPage(Math.max(1, page - 1))}
+                        disabled={page === 1}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+                    >
+                        ‹
+                    </button>
+                    {pages.map((p, i) =>
+                        p === '...' ? (
+                            <span key={`dots-${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-xs">…</span>
+                        ) : (
+                            <button
+                                key={p}
+                                onClick={() => setPage(p as number)}
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors
+                                    ${page === p ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                            >
+                                {p}
+                            </button>
+                        )
+                    )}
+                    <button
+                        onClick={() => setPage(Math.min(totalPages, page + 1))}
+                        disabled={page === totalPages}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs"
+                    >
+                        ›
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     /* ─────────────────────────────────────────────────────────── */
     /*  RENDER                                                     */
     /* ─────────────────────────────────────────────────────────── */
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
+        <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
 
-            {/* ── Top bar ── */}
-            <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 sticky top-0 z-40 h-14 flex items-center justify-between px-7 shadow-lg border-b border-slate-700">
-                <div className="flex items-center gap-4">
-                    <Link href="/dashboard/admin">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-400 hover:text-white hover:bg-white/10 rounded-lg gap-2 text-xs font-semibold transition-all"
+            {/* ── Header ── */}
+            <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+                <div className="flex items-center justify-between px-6 h-14">
+                    {/* Tabs */}
+                    <div className="flex items-center gap-0">
+                        <button
+                            onClick={() => { setActiveTab('sales'); setSearchTerm(''); setLogDirection('all'); }}
+                            className={`px-5 h-14 text-[13px] font-semibold border-b-2 transition-all ${activeTab === 'sales'
+                                ? 'border-emerald-500 text-emerald-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            Quay lại
-                        </Button>
-                    </Link>
-                    <h1 className="text-white text-[15px] font-bold tracking-tight flex items-center gap-2">
-                        <Boxes className="w-5 h-5 text-emerald-400" />
-                        Báo cáo <span className="text-emerald-400">Kho hàng</span>
-                    </h1>
-                </div>
+                            Tổng quan tồn kho &amp; bán hàng
+                        </button>
+                        <button
+                            onClick={() => { setActiveTab('history'); setSearchTerm(''); setLogDirection('all'); }}
+                            className={`px-5 h-14 text-[13px] font-semibold border-b-2 transition-all ${activeTab === 'history'
+                                ? 'border-emerald-500 text-emerald-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        >
+                            Lịch sử nhập hàng
+                        </button>
+                    </div>
 
-                <Button
-                    onClick={exportToExcel}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2 transition-all shadow-md hover:shadow-lg"
-                >
-                    <Download className="w-3.5 h-3.5" />
-                    Xuất Excel
-                </Button>
-            </header>
+                    {/* Right controls */}
+                    <div className="flex items-center gap-3">
+                        {/* Date range picker */}
+                        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 h-9 bg-white text-xs text-gray-600">
+                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={e => { setStartDate(e.target.value); setStatsPage(1); setLogsPage(1); }}
+                                className="border-none outline-none bg-transparent text-xs w-28"
+                            />
+                            <span className="text-gray-300">–</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={e => { setEndDate(e.target.value); setStatsPage(1); setLogsPage(1); }}
+                                className="border-none outline-none bg-transparent text-xs w-28"
+                            />
+                        </div>
 
-            {/* ── Filter bar ── */}
-            <div className="bg-white border-b border-slate-200 px-7 py-4 flex flex-wrap items-center gap-5 shadow-sm">
-                {/* Stores */}
-                {stores.length > 1 && (
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chi nhánh</span>
-                        <div className="flex gap-2 flex-wrap">
-                            {stores.map(store => (
+                        {/* Period tabs */}
+                        <div className="flex items-center gap-1 text-xs font-semibold text-gray-500">
+                            <span>Chu kỳ:</span>
+                            {PERIOD_OPTIONS.map(opt => (
                                 <button
-                                    key={store.id}
-                                    onClick={() => setSelectedStoreId(store.id)}
-                                    className={`
-                                        px-4 py-1.5 rounded-lg text-[12px] font-semibold border transition-all
-                                        ${selectedStoreId === store.id
-                                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white border-emerald-700 shadow-md'
-                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}
-                                    `}
+                                    key={opt.id}
+                                    onClick={() => setReportType(opt.id)}
+                                    className={`px-3 h-8 rounded-lg transition-colors ${reportType === opt.id
+                                        ? 'bg-gray-100 text-gray-900 font-bold'
+                                        : 'hover:bg-gray-50 text-gray-500'}`}
                                 >
-                                    {store.name}
+                                    {opt.label}
                                 </button>
                             ))}
                         </div>
-                    </div>
-                )}
 
-                {/* Date range */}
-                <div className="flex items-end gap-3">
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Từ ngày</span>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={e => setStartDate(e.target.value)}
-                                className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 rounded-lg w-40"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đến ngày</span>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={e => setEndDate(e.target.value)}
-                                className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 rounded-lg w-40"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Period tabs */}
-                <div className="ml-auto flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chu kỳ</span>
-                    <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
-                        {PERIOD_OPTIONS.map(opt => (
-                            <button
-                                key={opt.id}
-                                onClick={() => setReportType(opt.id)}
-                                className={`
-                                    px-3 py-1.5 rounded-md text-[12px] font-semibold transition-all
-                                    ${reportType === opt.id
-                                        ? 'bg-white text-emerald-600 shadow-sm border border-emerald-200'
-                                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}
-                                `}
+                        {/* Stores (nếu nhiều hơn 1) */}
+                        {stores.length > 1 && (
+                            <select
+                                value={selectedStoreId}
+                                onChange={e => setSelectedStoreId(e.target.value)}
+                                className="border border-gray-200 rounded-lg px-3 h-9 text-xs text-gray-700 bg-white outline-none"
                             >
-                                {opt.label}
-                            </button>
-                        ))}
+                                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        )}
+
+                        <Button
+                            onClick={exportToExcel}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            Xuất Excel
+                        </Button>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            {/* ── Main content ── */}
-            <main className="max-w-[1200px] mx-auto px-7 py-6 space-y-5">
+            {/* ═══════════════════════════════════════════════════ */}
+            {/* TAB: TỔNG QUAN TỒN KHO & BÁN HÀNG                 */}
+            {/* ═══════════════════════════════════════════════════ */}
+            {activeTab === 'sales' && (
+                <main className="max-w-[1400px] mx-auto px-6 py-6 space-y-5">
 
-                {/* Tab bar */}
-                <div className="flex items-center gap-2">
-                    {[
-                        { id: 'sales', label: 'Tổng quan tồn kho & bán hàng', icon: <TrendingUp className="w-3.5 h-3.5" /> },
-                        { id: 'history', label: 'Lịch sử nhập hàng thêm', icon: <History className="w-3.5 h-3.5" /> },
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => { setActiveTab(tab.id as any); setSearchTerm(''); setLogDirection('all'); }}
-                            className={`
-                                flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold
-                                border transition-all
-                                ${activeTab === tab.id
-                                    ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'}
-                            `}
+                    {/* KPI row */}
+                    <div className="grid grid-cols-3 gap-4">
+                        {/* Bán chạy nhất */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                                <TrendingUp className="w-5 h-5 text-blue-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Bán chạy nhất</p>
+                                <p className="text-[15px] font-extrabold text-gray-900 truncate">{bestSellers[0]?.productName || '---'}</p>
+                                <p className="text-xs text-blue-500 font-semibold">Số lượng: {bestSellers[0]?.salesMetric?.toLocaleString('vi-VN') ?? 0}</p>
+                            </div>
+                        </div>
+
+                        {/* Bán chậm nhất */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                                <TrendingDown className="w-5 h-5 text-red-400" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Bán chậm nhất</p>
+                                <p className="text-[15px] font-extrabold text-gray-900 truncate">{slowMoving[0]?.productName || '---'}</p>
+                                <p className="text-xs text-red-400 font-semibold">Số lượng: {slowMoving[0]?.salesMetric?.toLocaleString('vi-VN') ?? 0}</p>
+                            </div>
+                        </div>
+
+                        {/* Cảnh báo kho */}
+                        <div
+                            className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4 cursor-pointer hover:border-amber-300 transition-colors"
+                            onClick={() => setIsWarningModalOpen(true)}
                         >
-                            {tab.icon}
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Cảnh báo kho</p>
+                                <p className="text-[15px] font-extrabold text-gray-900">{lowStockProducts.length} mặt hàng</p>
+                                <p className="text-xs text-amber-500 font-semibold">Tồn kho dưới 5 đơn vị</p>
+                            </div>
+                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-8 px-3 gap-1.5 ml-auto flex-shrink-0">
+                                <Download className="w-3 h-3" />
+                                Xuất Excel
+                            </Button>
+                        </div>
+                    </div>
 
-                {/* KPI cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <KpiCard
-                        iconBg="bg-blue-50"
-                        icon={<TrendingUp className="w-5 h-5 text-blue-500" />}
-                        label="Bán chạy nhất"
-                        value={bestSellers[0]?.productName || '---'}
-                        sub={`Số lượng: ${bestSellers[0]?.salesMetric ?? 0}`}
-                        subColor="text-blue-500"
-                    />
-                    <KpiCard
-                        iconBg="bg-rose-50"
-                        icon={<TrendingDown className="w-5 h-5 text-rose-500" />}
-                        label="Bán chậm nhất"
-                        value={slowMoving[0]?.productName || '---'}
-                        sub={`Số lượng: ${slowMoving[0]?.salesMetric ?? 0}`}
-                        subColor="text-rose-500"
-                    />
-                    <KpiCard
-                        iconBg="bg-amber-50"
-                        icon={<AlertTriangle className="w-5 h-5 text-amber-500" />}
-                        label="Cảnh báo kho"
-                        value={`${lowStockProducts.length} mặt hàng`}
-                        sub="Tồn kho dưới 5 đơn vị"
-                        subColor="text-amber-500"
-                        onClick={() => setIsWarningModalOpen(true)}
-                    />
-                </div>
-
-                {/* Charts — only on sales tab */}
-                {activeTab === 'sales' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Best sellers bar */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                            <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2 mb-5">
-                                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    {/* Charts row */}
+                    <div className="grid grid-cols-3 gap-4">
+                        {/* Top 5 bar chart */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5">
+                            <h2 className="text-[13px] font-bold text-gray-800 flex items-center gap-2 mb-4">
+                                <TrendingUp className="w-4 h-4 text-emerald-500" />
                                 Top 5 sản phẩm bán chạy
                             </h2>
-                            <div className="h-[240px]">
+                            <div className="h-[200px]">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={bestSellers} layout="vertical">
+                                    <BarChart data={bestSellers} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
                                         <XAxis type="number" hide />
                                         <YAxis
@@ -1029,286 +1017,218 @@ export default function InventoryStatsPage() {
                                             type="category"
                                             axisLine={false}
                                             tickLine={false}
-                                            width={110}
+                                            width={90}
                                             tick={{ fontSize: 11, fontWeight: 600, fill: '#374151' }}
-                                            tickFormatter={v => v.length > 14 ? v.slice(0, 14) + '…' : v}
-                                        /> {/* Đã bỏ vertical={false} vì là mặc định cho biểu đồ dọc */}
+                                            tickFormatter={v => v.length > 12 ? v.slice(0, 12) + '…' : v}
+                                        />
                                         <Tooltip content={<CustomBarTooltip />} cursor={{ fill: '#f9fafb' }} />
-                                        <Bar dataKey="salesMetric" fill="#10b981" radius={[0, 6, 6, 0]} barSize={22} />
+                                        <Bar dataKey="salesMetric" fill="#10b981" radius={[0, 4, 4, 0]} barSize={18}
+                                            label={{ position: 'right', fontSize: 11, fontWeight: 700, fill: '#374151', formatter: (v: number) => v.toLocaleString('vi-VN') }}
+                                        />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
 
-                        {/* Category donut */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                            <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2 mb-5">
-                                <Package className="w-4 h-4 text-indigo-500" />
+                        {/* Donut chart */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5">
+                            <h2 className="text-[13px] font-bold text-gray-800 flex items-center gap-2 mb-4">
+                                <Package className="w-4 h-4 text-blue-500" />
                                 Tiêu thụ theo danh mục
                             </h2>
-                            <div className="h-[240px]">
+                            <div className="h-[200px] relative">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
-                                        <Pie
-                                            data={categoryData}
-                                            innerRadius={55}
-                                            outerRadius={80}
-                                            paddingAngle={4}
-                                            dataKey="value"
-                                        >
+                                        <Pie data={categoryData} innerRadius={55} outerRadius={78} paddingAngle={3} dataKey="value">
                                             {categoryData.map((_, i) => (
-                                                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                                <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                                             ))}
                                         </Pie>
                                         <Tooltip content={<CustomPieTooltip />} />
-                                        <Legend
-                                            verticalAlign="bottom"
-                                            height={36}
-                                            formatter={(value) => (
-                                                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{value}</span>
-                                            )}
-                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
+                                {/* Center label */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-[11px] text-gray-400 font-medium">Tổng</span>
+                                    <span className="text-lg font-extrabold text-gray-900">
+                                        {categoryData.reduce((a, b) => a + b.value, 0).toLocaleString('vi-VN')}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400">sản phẩm</span>
+                                </div>
+                            </div>
+                            {/* Legend */}
+                            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                                {categoryData.map((d, i) => {
+                                    const total = categoryData.reduce((a, b) => a + b.value, 0);
+                                    const pct = total ? ((d.value / total) * 100).toFixed(1) : '0.0';
+                                    return (
+                                        <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
+                                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                                            <span className="text-gray-600 truncate">{d.name}</span>
+                                            <span className="ml-auto font-bold text-gray-700">{d.value.toLocaleString('vi-VN')} ({pct}%)</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
-                    </div>
-                )}
 
-                {/* Detail table */}
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                    {/* Table header */}
-                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
-                        <h2 className="text-[13px] font-bold text-slate-800">
-                            {activeTab === 'sales' ? 'Chi tiết sản lượng bán hàng' : 'Chi tiết các đợt nhập kho'}
-                        </h2>
-                        <div className="flex items-center gap-2">
-                            {activeTab !== 'sales' && (
-                                <div className="flex items-center bg-slate-50 rounded-lg p-0.5">
-                                    {([
-                                        { id: 'all', label: 'Tất cả' },
-                                        { id: 'in', label: 'Nhập' },
-                                        { id: 'out', label: 'Xuất' },
-                                    ] as const).map(opt => (
-                                        <button
-                                            key={opt.id}
-                                            onClick={() => setLogDirection(opt.id)}
-                                            className={`px-3 h-8 text-xs font-bold rounded-md transition-colors
-                                                ${logDirection === opt.id
-                                                    ? opt.id === 'in'
-                                                        ? 'bg-emerald-500 text-white'
-                                                        : opt.id === 'out'
-                                                            ? 'bg-rose-500 text-white'
-                                                            : 'bg-white text-slate-800 shadow-sm'
-                                                    : 'text-slate-500 hover:text-slate-700'}`}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                        {/* Line chart sản lượng theo tuần */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-[13px] font-bold text-gray-800 flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-indigo-500" />
+                                    Sản lượng bán theo tuần
+                                </h2>
+                                <select className="text-[11px] text-gray-500 border border-gray-200 rounded-lg px-2 h-7 outline-none">
+                                    <option>Tuần trong tháng</option>
+                                </select>
+                            </div>
+                            {(() => {
+                                // Tổng theo tuần
+                                const byWeekTotal = new Map<string, { label: string; total: number; start: Date }>();
+                                for (const row of weeklySalesRows) {
+                                    const cur = byWeekTotal.get(row.weekKey);
+                                    if (!cur) byWeekTotal.set(row.weekKey, { label: `Tuần ${row.weekLabel.slice(0, 5)}`, total: row.grandTotal, start: row.weekStart });
+                                    else cur.total += row.grandTotal;
+                                }
+                                const lineData = [...byWeekTotal.values()]
+                                    .sort((a, b) => +a.start - +b.start)
+                                    .map((v, i) => ({ name: `Tuần ${i + 1}`, total: v.total }))
+                                    .slice(-6);
+                                return (
+                                    <div className="h-[200px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={lineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                                <Tooltip content={<CustomLineTooltip />} />
+                                                <Line type="monotone" dataKey="total" stroke="#10b981" strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} activeDot={{ r: 6 }} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+
+                    {/* Detail sales table */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                            <h2 className="text-[13px] font-bold text-gray-800">Chi tiết sản lượng bán hàng</h2>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                                 <Input
                                     placeholder="Tìm sản phẩm..."
                                     value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                    className="pl-9 h-9 text-xs bg-slate-50 border-none rounded-lg w-52"
+                                    onChange={e => { setSearchTerm(e.target.value); setStatsPage(1); }}
+                                    className="pl-9 h-9 text-xs bg-gray-50 border-gray-200 rounded-lg w-52"
                                 />
                             </div>
                         </div>
-                    </div>
-
-                    {/* Table body */}
-                    <div className="overflow-x-auto">
-                        {activeTab === 'sales' ? (
+                        <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-slate-50 border-b border-slate-100">
+                                <thead className="bg-gray-50 border-b border-gray-100">
                                     <tr>
-                                        {([
-                                            { label: 'Sản phẩm', align: 'text-left' },
-                                            { label: 'Loại', align: 'text-left' },
-                                            { label: 'Số lượng tổng (tạo + nhập)', align: 'text-center' },
-                                            { label: 'Bán trong phòng', align: 'text-center' },
-                                            { label: 'Xuất khác (tặng + mang về + hư hỏng)', align: 'text-center' },
-                                            { label: 'Doanh thu', align: 'text-right' },
-                                            { label: 'Số lượng còn lại', align: 'text-center' },
-                                        ] as const).map(h => (
-                                            <th
-                                                key={h.label}
-                                                className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}
-                                            >
+                                        {[
+                                            { label: 'SẢN PHẨM', align: 'text-left' },
+                                            { label: 'LOẠI', align: 'text-left' },
+                                            { label: 'SỐ LƯỢNG TỔNG (TẠO + NHẬP)', align: 'text-center' },
+                                            { label: 'BÁN TRONG PHÒNG', align: 'text-center' },
+                                            { label: 'XUẤT KHÁC (TẶNG + MANG VỀ + HƯ HỎNG)', align: 'text-center' },
+                                            { label: 'DOANH THU', align: 'text-right' },
+                                            { label: 'SỐ LƯỢNG CÒN LẠI', align: 'text-center' },
+                                        ].map(h => (
+                                            <th key={h.label} className={`px-4 py-3 text-[10px] font-bold text-gray-400 tracking-wider ${h.align}`}>
                                                 {h.label}
                                             </th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
+                                <tbody className="divide-y divide-gray-50">
                                     {isLoading ? (
-                                        <tr>
-                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
-                                                Đang tải dữ liệu...
-                                            </td>
-                                        </tr>
-                                    ) : filteredStats.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm italic">
-                                                Không có dữ liệu thống kê cho giai đoạn này
-                                            </td>
-                                        </tr>
-                                    ) : filteredStats.map(item => (
-                                        <tr key={item.productId} className="hover:bg-slate-50/60 transition-colors">
-                                            <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{item.productName}</td>
-                                            <td className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                {CAT_LABELS[item.category] ?? item.category}
-                                            </td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-blue-600">{item.totalCreated}</td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{item.inRoom}</td>
-                                            <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">{item.otherOutput}</td>
-                                            <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700 whitespace-nowrap">
-                                                {item.computedRevenue.toLocaleString('vi-VN')}đ
-                                            </td>
-                                            <td className="px-5 py-3 text-center">
-                                                <StockBadge stock={item.remaining} />
-                                            </td>
+                                        <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400 text-sm italic">Đang tải dữ liệu...</td></tr>
+                                    ) : paginatedStats.length === 0 ? (
+                                        <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400 text-sm italic">Không có dữ liệu thống kê cho giai đoạn này</td></tr>
+                                    ) : paginatedStats.map(item => (
+                                        <tr key={item.productId} className="hover:bg-gray-50/60 transition-colors">
+                                            <td className="px-4 py-3 text-[13px] font-bold text-gray-900">{item.productName}</td>
+                                            <td className="px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase">{CAT_LABELS[item.category] ?? item.category}</td>
+                                            <td className="px-4 py-3 text-[13px] text-center font-bold text-blue-600">{item.totalCreated.toLocaleString('vi-VN')}</td>
+                                            <td className="px-4 py-3 text-[13px] text-center font-bold text-emerald-600">{item.inRoom.toLocaleString('vi-VN')}</td>
+                                            <td className="px-4 py-3 text-[13px] text-center font-bold text-orange-500">{item.otherOutput.toLocaleString('vi-VN')}</td>
+                                            <td className="px-4 py-3 text-[13px] text-right font-semibold text-gray-700 whitespace-nowrap">{item.computedRevenue.toLocaleString('vi-VN')}đ</td>
+                                            <td className="px-4 py-3 text-center"><StockBadge stock={item.remaining} /></td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                        ) : (
-                            <table className="w-full">
-                                <thead className="bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        {['Thời gian nhập', 'Sản phẩm', 'Biến động', 'Ghi chú lý do', 'Trạng thái'].map((h, i) => (
-                                            <th
-                                                key={h}
-                                                className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider
-                                                    ${i === 2 || i === 4 ? 'text-center' : 'text-left'}`}
-                                            >
-                                                {h}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {isLoading ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-5 py-10 text-center text-slate-400 text-sm italic">
-                                                Đang tải dữ liệu...
-                                            </td>
-                                        </tr>
-                                    ) : filteredLogs.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-5 py-10 text-center text-slate-400 text-sm italic">
-                                                Chưa có lịch sử nhập kho cho kỳ này
-                                            </td>
-                                        </tr>
-                                    ) : logsByMonth.map(group => (
-                                        <Fragment key={group.key}>
-                                            {/* Dòng tiêu đề tháng + tổng nhập/xuất */}
-                                            <tr className="bg-slate-100/70">
-                                                <td colSpan={5} className="px-5 py-2.5">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <span className="text-[12px] font-bold text-slate-700 flex items-center gap-2">
-                                                            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                                                            {group.label}
-                                                            <span className="text-[11px] font-normal text-slate-400">({group.items.length} biến động)</span>
-                                                        </span>
-                                                        <span className="flex items-center gap-3 text-[11px] font-bold">
-                                                            <span className="text-emerald-600">Nhập +{group.totalIn}</span>
-                                                            <span className="text-rose-600">Xuất −{group.totalOut}</span>
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {group.items.map(log => (
-                                                <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
-                                                    <td className="px-5 py-3 text-[12px] text-slate-500">
-                                                        {new Date(log.createdAt).toLocaleString('vi-VN')}
-                                                    </td>
-                                                    <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{log.productName}</td>
-                                                    <td className={`px-5 py-3 text-[13px] text-center font-bold
-                                                        ${log.quantity >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                        {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
-                                                    </td>
-                                                    <td className="px-5 py-3 text-[12px] text-slate-500 italic">{log.note ?? '—'}</td>
-                                                    <td className="px-5 py-3 text-center">
-                                                        <StatusPill quantity={log.quantity} />
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </Fragment>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                </div>
-
-                {/* ── Sổ kho theo tháng (tồn đầu = dư tháng trước + nhập trong tháng) ── */}
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-                        <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-indigo-500" />
-                            Sổ kho theo tháng
-                            <span className="ml-1 text-[11px] font-normal text-slate-400">
-                                (Tồn đầu = tồn cuối tháng trước + nhập trong tháng)
-                            </span>
-                        </h2>
-                        <Button
-                            onClick={loadMonthlyStock}
-                            disabled={loadingMonthly}
-                            className="h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
-                        >
-                            {loadingMonthly ? 'Đang tính...' : monthlyStock.length ? 'Làm mới' : 'Xem tồn kho theo tháng'}
-                        </Button>
+                        </div>
+                        {renderPagination(statsPage, statsTotalPages, setStatsPage, filteredStats.length)}
                     </div>
 
-                    <div className="px-5 py-4 space-y-5">
-                        {monthlyStock.length === 0 ? (
-                            <p className="text-center text-slate-400 text-sm italic py-6">
-                                Bấm "Xem tồn kho theo tháng" để tính tồn kho từng tháng trong khoảng thời gian đang chọn.
-                            </p>
-                        ) : (
-                            monthlyStock.map(group => {
-                                const rows = group.rows.filter(r =>
-                                    r.productName.toLowerCase().includes(searchTerm.toLowerCase())
-                                );
+                    {/* ── Sổ kho theo tháng ── */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                                <h2 className="text-[13px] font-bold text-gray-800 flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-indigo-500" />
+                                    Sổ kho theo tháng
+                                </h2>
+                                <p className="text-[11px] text-gray-400 mt-0.5">Tồn đầu = tồn cuối tháng trước + nhập trong tháng</p>
+                            </div>
+                            <Button
+                                onClick={loadMonthlyStock}
+                                disabled={loadingMonthly}
+                                className="h-9 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg gap-2"
+                            >
+                                {loadingMonthly ? (
+                                    <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang tính...</>
+                                ) : monthlyStock.length ? (
+                                    <><RefreshCw className="w-3.5 h-3.5" /> Làm mới</>
+                                ) : 'Xem tồn kho theo tháng'}
+                            </Button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {monthlyStock.length === 0 ? (
+                                <p className="text-center text-gray-400 text-sm italic py-6">
+                                    Bấm "Xem tồn kho theo tháng" để tính tồn kho từng tháng trong khoảng thời gian đang chọn.
+                                </p>
+                            ) : monthlyStock.map(group => {
+                                const rows = group.rows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase()));
                                 if (rows.length === 0) return null;
                                 return (
-                                    <div key={group.key} className="border border-slate-100 rounded-xl overflow-hidden">
-                                        <div className="bg-slate-100/70 px-4 py-2.5 text-[12px] font-bold text-slate-700 flex items-center gap-2">
+                                    <div key={group.key} className="border border-gray-100 rounded-xl overflow-hidden">
+                                        <div className="bg-gray-50 px-4 py-2.5 text-[12px] font-bold text-gray-700 flex items-center gap-2">
                                             <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                                             {group.label}
                                         </div>
                                         <div className="overflow-x-auto">
                                             <table className="w-full">
-                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                <thead className="bg-white border-b border-gray-100">
                                                     <tr>
-                                                        {([
-                                                            { label: 'Sản phẩm', align: 'text-left' },
-                                                            { label: 'Tồn đầu (dư tháng trước)', align: 'text-center' },
-                                                            { label: '+ Nhập trong tháng', align: 'text-center' },
-                                                            { label: '= Tổng có', align: 'text-center' },
-                                                            { label: '− Bán', align: 'text-center' },
-                                                            { label: '− Xuất khác', align: 'text-center' },
-                                                            { label: 'Tồn cuối', align: 'text-center' },
-                                                        ] as const).map(h => (
-                                                            <th key={h.label} className={`px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}>
-                                                                {h.label}
-                                                            </th>
+                                                        {[
+                                                            { label: 'SẢN PHẨM', align: 'text-left' },
+                                                            { label: 'TỒN ĐẦU (DƯ THÁNG TRƯỚC)', align: 'text-center' },
+                                                            { label: '+ NHẬP TRONG THÁNG', align: 'text-center' },
+                                                            { label: '= TỔNG CÓ', align: 'text-center' },
+                                                            { label: '− BÁN', align: 'text-center' },
+                                                            { label: '− XUẤT KHÁC', align: 'text-center' },
+                                                            { label: 'TỒN CUỐI', align: 'text-center' },
+                                                        ].map(h => (
+                                                            <th key={h.label} className={`px-4 py-2.5 text-[10px] font-bold text-gray-400 ${h.align}`}>{h.label}</th>
                                                         ))}
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-50">
+                                                <tbody className="divide-y divide-gray-50">
                                                     {rows.map(r => (
-                                                        <tr key={r.productId} className="hover:bg-slate-50/60 transition-colors">
-                                                            <td className="px-4 py-2.5 text-[13px] font-bold text-slate-900">{r.productName}</td>
-                                                            <td className="px-4 py-2.5 text-[13px] text-center font-semibold text-slate-500">{r.opening}</td>
+                                                        <tr key={r.productId} className="hover:bg-gray-50/50 transition-colors">
+                                                            <td className="px-4 py-2.5 text-[13px] font-bold text-gray-900">{r.productName}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center text-gray-500">{r.opening}</td>
                                                             <td className="px-4 py-2.5 text-[13px] text-center font-bold text-emerald-600">+{r.restock}</td>
                                                             <td className="px-4 py-2.5 text-[13px] text-center font-bold text-blue-600">{r.opening + r.restock}</td>
-                                                            <td className="px-4 py-2.5 text-[13px] text-center font-semibold text-slate-600">{r.sold}</td>
-                                                            <td className="px-4 py-2.5 text-[13px] text-center font-semibold text-orange-500">{r.exported}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center text-gray-600">{r.sold}</td>
+                                                            <td className="px-4 py-2.5 text-[13px] text-center text-orange-500">{r.exported}</td>
                                                             <td className="px-4 py-2.5 text-center"><StockBadge stock={r.closing} /></td>
                                                         </tr>
                                                     ))}
@@ -1317,143 +1237,325 @@ export default function InventoryStatsPage() {
                                         </div>
                                     </div>
                                 );
-                            })
-                        )}
+                            })}
+                        </div>
                     </div>
-                </div>
 
-                {/* ── Sản lượng bán theo tuần — chỉ ở tab Bán hàng ── */}
-                {activeTab === 'sales' && (
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-                            <h2 className="text-[13px] font-bold text-slate-800 flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-indigo-500" />
-                                Sản lượng bán theo tuần
-                                <span className="ml-1 text-[11px] font-normal text-slate-400">(hóa đơn đã thanh toán — bấm Xem chi tiết để xem từng ngày)</span>
-                            </h2>
-                            <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                                {filteredWeeklySales.length} dòng
-                            </span>
+                    {/* ── Sản lượng bán theo ngày trong tháng (ma trận) ── */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-[13px] font-bold text-gray-800 flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-indigo-500" />
+                                    Sản lượng bán theo ngày trong tháng
+                                </h2>
+                                <p className="text-[11px] text-gray-400 mt-0.5">Tổng sản lượng bán hàng ngày</p>
+                            </div>
                         </div>
                         <div className="overflow-x-auto">
+                            {dailySalesMatrix.rows.length === 0 ? (
+                                <p className="text-center text-gray-400 text-sm italic py-8">Chưa có hóa đơn đã thanh toán</p>
+                            ) : (
+                                <table className="w-full text-xs">
+                                    <thead className="bg-gray-50 border-b border-gray-100">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-bold text-gray-500 sticky left-0 bg-gray-50 z-10 min-w-[120px]">SẢN PHẨM</th>
+                                            {dailySalesMatrix.dayLabels.map(d => (
+                                                <th key={d.key} className="px-2 py-3 text-center font-bold text-gray-400 min-w-[40px] whitespace-nowrap">
+                                                    {d.label.split('/')[0]}
+                                                </th>
+                                            ))}
+                                            <th className="px-4 py-3 text-center font-bold text-gray-700 min-w-[60px]">TỔNG</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {dailySalesMatrix.rows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())).map(row => (
+                                            <tr key={row.productId} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-4 py-2.5 font-bold text-gray-900 sticky left-0 bg-white z-10">{row.productName}</td>
+                                                {dailySalesMatrix.dayLabels.map(d => {
+                                                    const qty = row.days.get(d.key) || 0;
+                                                    return (
+                                                        <td key={d.key} className={`px-2 py-2.5 text-center font-semibold ${qty > 0 ? 'text-gray-700' : 'text-gray-200'}`}>
+                                                            {qty > 0 ? qty : '—'}
+                                                        </td>
+                                                    );
+                                                })}
+                                                <td className="px-4 py-2.5 text-center font-extrabold text-gray-900">{row.total}</td>
+                                            </tr>
+                                        ))}
+                                        {/* TỔNG row */}
+                                        <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
+                                            <td className="px-4 py-3 text-gray-700 font-extrabold sticky left-0 bg-gray-50 z-10">TỔNG</td>
+                                            {dailySalesMatrix.dayLabels.map(d => {
+                                                const qty = dailySalesMatrix.grandTotalByDay.get(d.key) || 0;
+                                                return (
+                                                    <td key={d.key} className={`px-2 py-3 text-center font-bold ${qty > 0 ? 'text-emerald-600' : 'text-gray-200'}`}>
+                                                        {qty > 0 ? qty : '—'}
+                                                    </td>
+                                                );
+                                            })}
+                                            <td className="px-4 py-3 text-center font-extrabold text-emerald-600">
+                                                {dailySalesMatrix.rows.reduce((a, r) => a + r.total, 0).toLocaleString('vi-VN')}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                </main>
+            )}
+
+            {/* ═══════════════════════════════════════════════════ */}
+            {/* TAB: LỊCH SỬ NHẬP HÀNG                            */}
+            {/* ═══════════════════════════════════════════════════ */}
+            {activeTab === 'history' && (
+                <main className="max-w-[1400px] mx-auto px-6 py-6 space-y-5">
+
+                    {/* Date filters (dưới header) */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Từ ngày</label>
+                            <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 h-9 bg-white text-xs text-gray-600 w-40">
+                                <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                <input type="date" value={startDate} onChange={e => { setStartDate(e.target.value); setLogsPage(1); }} className="border-none outline-none bg-transparent text-xs flex-1" />
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Đến ngày</label>
+                            <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 h-9 bg-white text-xs text-gray-600 w-40">
+                                <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                <input type="date" value={endDate} onChange={e => { setEndDate(e.target.value); setLogsPage(1); }} className="border-none outline-none bg-transparent text-xs flex-1" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* History KPI cards */}
+                    <div className="grid grid-cols-4 gap-4">
+                        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                                <ArrowDown className="w-5 h-5 text-blue-500" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Tổng lượt nhập</p>
+                                <p className="text-[22px] font-extrabold text-gray-900">{historyKpis.totalLogs}</p>
+                                <p className="text-[11px] text-blue-500 font-semibold">biến động</p>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                <Package className="w-5 h-5 text-emerald-500" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Tổng số lượng nhập</p>
+                                <p className="text-[22px] font-extrabold text-gray-900">
+                                    {historyKpis.totalIn > 0 ? '+' : ''}{historyKpis.totalIn.toLocaleString('vi-VN')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                                <TrendingUp className="w-5 h-5 text-orange-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Sản phẩm nhập nhiều nhất</p>
+                                <p className="text-[15px] font-extrabold text-gray-900 truncate">{historyKpis.mostIn?.productName || '---'}</p>
+                                <p className="text-[11px] text-orange-500 font-semibold">+{(historyKpis.mostIn?.totalRestocked || 0).toLocaleString('vi-VN')}</p>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                                <TrendingDown className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Sản phẩm nhập ít nhất</p>
+                                <p className="text-[15px] font-extrabold text-gray-900 truncate">{historyKpis.leastIn?.productName || '---'}</p>
+                                <p className="text-[11px] text-blue-400 font-semibold">+{(historyKpis.leastIn?.totalRestocked || 0).toLocaleString('vi-VN')}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* History charts */}
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Bar chart nhập kho theo tháng */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5">
+                            <h2 className="text-[13px] font-bold text-gray-800 mb-4">Nhập kho theo tháng</h2>
+                            <div className="h-[220px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={historyMonthlyChart} margin={{ top: 20, right: 10, left: -10, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                                        <Tooltip content={<CustomHistoryBarTooltip />} cursor={{ fill: '#f9fafb' }} />
+                                        <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} barSize={28}
+                                            label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: '#374151', formatter: (v: number) => v > 0 ? v.toLocaleString('vi-VN') : '' }}
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Donut cơ cấu nhập theo danh mục */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-5">
+                            <h2 className="text-[13px] font-bold text-gray-800 mb-4">Cơ cấu nhập theo danh mục</h2>
+                            <div className="flex gap-4">
+                                <div className="w-[180px] h-[180px] relative flex-shrink-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={categoryData} innerRadius={50} outerRadius={72} paddingAngle={3} dataKey="value" startAngle={90} endAngle={-270}>
+                                                {categoryData.map((_, i) => (
+                                                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip content={<CustomPieTooltip />} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span className="text-[10px] text-gray-400">Tổng</span>
+                                        <span className="text-[18px] font-extrabold text-gray-900">
+                                            {categoryData.reduce((a, b) => a + b.value, 0).toLocaleString('vi-VN')}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400">sản phẩm</span>
+                                    </div>
+                                </div>
+                                <div className="flex-1 flex flex-col justify-center gap-2.5">
+                                    {categoryData.map((d, i) => {
+                                        const total = categoryData.reduce((a, b) => a + b.value, 0);
+                                        const pct = total ? ((d.value / total) * 100).toFixed(1) : '0.0';
+                                        return (
+                                            <div key={d.name} className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-3 h-3 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                                                    <span className="text-[12px] text-gray-600 font-medium">{d.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-[12px] font-bold text-gray-900">{d.value.toLocaleString('vi-VN')}</span>
+                                                    <span className="text-[11px] text-gray-400 ml-1">({pct}%)</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* History detail table */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                            <h2 className="text-[13px] font-bold text-gray-800">Chi tiết lịch sử nhập kho</h2>
+                            <div className="flex items-center gap-3">
+                                {/* Group by selector */}
+                                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 h-9 bg-white text-xs text-gray-600">
+                                    <span>Nhóm theo tháng</span>
+                                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                                </div>
+                                {/* Filter direction */}
+                                <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 h-9 bg-white text-xs text-gray-600 cursor-pointer"
+                                    onClick={() => setLogDirection(logDirection === 'all' ? 'in' : logDirection === 'in' ? 'out' : 'all')}>
+                                    <Filter className="w-3.5 h-3.5 text-gray-400" />
+                                    <span>{logDirection === 'all' ? 'Tất cả' : logDirection === 'in' ? 'Nhập' : 'Xuất'}</span>
+                                </div>
+                                {/* Search */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                    <Input
+                                        placeholder="Tìm sản phẩm..."
+                                        value={searchTerm}
+                                        onChange={e => { setSearchTerm(e.target.value); setLogsPage(1); }}
+                                        className="pl-9 h-9 text-xs bg-gray-50 border-gray-200 rounded-lg w-52"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-slate-50 border-b border-slate-100">
+                                <thead className="bg-gray-50 border-b border-gray-100">
                                     <tr>
-                                        {([
-                                            { label: 'Tuần', align: 'text-left' },
-                                            { label: 'Sản phẩm', align: 'text-left' },
-                                            { label: 'Loại', align: 'text-left' },
-                                            { label: 'Bán phòng', align: 'text-center' },
-                                            { label: 'Mang về', align: 'text-center' },
-                                            { label: 'Tổng', align: 'text-center' },
-                                            { label: 'Doanh thu', align: 'text-right' },
-                                            { label: '', align: 'text-right' },
-                                        ] as const).map((h, i) => (
-                                            <th
-                                                key={`${h.label}-${i}`}
-                                                className={`px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider ${h.align}`}
-                                            >
-                                                {h.label}
-                                            </th>
+                                        {[
+                                            { label: 'THỜI GIAN', align: 'text-left' },
+                                            { label: 'SẢN PHẨM', align: 'text-left' },
+                                            { label: 'BIẾN ĐỘNG', align: 'text-left' },
+                                            { label: 'GHI CHÚ', align: 'text-left' },
+                                            { label: 'TRẠNG THÁI', align: 'text-right' },
+                                        ].map(h => (
+                                            <th key={h.label} className={`px-5 py-3 text-[10px] font-bold text-gray-400 tracking-wider ${h.align}`}>{h.label}</th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredWeeklySales.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={8} className="px-5 py-10 text-center text-slate-400 text-sm italic">
-                                                Chưa có hóa đơn đã thanh toán
-                                            </td>
-                                        </tr>
-                                    ) : filteredWeeklySales.flatMap(row => {
-                                        const expandKey = `${row.weekKey}-${row.productId}`;
-                                        const expanded = !!expandedWeeklyKeys[expandKey];
-                                        const out: React.ReactElement[] = [];
-                                        out.push(
-                                            <tr key={`main-${expandKey}`} className={`transition-colors ${expanded ? 'bg-blue-50/60' : 'hover:bg-slate-50/60'}`}>
-                                                <td className="px-5 py-3 text-[12px] font-semibold text-slate-700 whitespace-nowrap">
-                                                    {row.weekLabel}
-                                                </td>
-                                                <td className="px-5 py-3 text-[13px] font-bold text-slate-900">{row.productName}</td>
-                                                <td className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                    {CAT_LABELS[row.category] ?? row.category}
-                                                </td>
-                                                <td className="px-5 py-3 text-[13px] text-center font-bold text-emerald-600">{row.totalInRoom}</td>
-                                                <td className="px-5 py-3 text-[13px] text-center font-bold text-orange-500">{row.totalTakeawayGift}</td>
-                                                <td className="px-5 py-3 text-[13px] text-center font-extrabold text-slate-900">{row.grandTotal}</td>
-                                                <td className="px-5 py-3 text-[13px] text-right font-semibold text-slate-700 whitespace-nowrap">
-                                                    {row.totalRevenue.toLocaleString('vi-VN')}đ
-                                                </td>
-                                                <td className="px-5 py-3 text-right">
-                                                    <button
-                                                        onClick={() => setExpandedWeeklyKeys(prev => ({ ...prev, [expandKey]: !prev[expandKey] }))}
-                                                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${expanded
-                                                            ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
-                                                            : 'bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100'
-                                                            }`}
-                                                    >
-                                                        {expanded ? 'Thu gọn' : 'Xem chi tiết'}
-                                                    </button>
+                                <tbody className="divide-y divide-gray-50">
+                                    {isLoading ? (
+                                        <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-400 text-sm italic">Đang tải dữ liệu...</td></tr>
+                                    ) : logsByMonth.length === 0 ? (
+                                        <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-400 text-sm italic">Chưa có lịch sử nhập kho cho kỳ này</td></tr>
+                                    ) : logsByMonth.map(group => (
+                                        <Fragment key={group.key}>
+                                            {/* Group header */}
+                                            <tr className="bg-blue-50/40">
+                                                <td colSpan={5} className="px-5 py-2.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[12px] font-bold text-blue-700 flex items-center gap-2">
+                                                            <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                                            {group.label}
+                                                            <span className="text-[11px] font-normal text-gray-400">({group.items.length} biến động)</span>
+                                                        </span>
+                                                        <span className="text-[11px] font-bold text-emerald-600">
+                                                            Tổng nhập: +{group.totalIn.toLocaleString('vi-VN')}
+                                                        </span>
+                                                    </div>
                                                 </td>
                                             </tr>
-                                        );
-                                        if (expanded) {
-                                            row.daily.forEach(d => {
-                                                out.push(
-                                                    <tr key={`day-${expandKey}-${d.dayKey}`} className="bg-slate-50/40">
-                                                        <td className="px-5 py-2 pl-12 text-[11px] text-slate-500 whitespace-nowrap">
-                                                            ↳ {formatDayWithWeekday(d.dayDate)}
-                                                        </td>
-                                                        <td className="px-5 py-2 text-[11px] text-slate-400" colSpan={2}></td>
-                                                        <td className="px-5 py-2 text-[12px] text-center font-semibold text-emerald-600">{d.inRoom}</td>
-                                                        <td className="px-5 py-2 text-[12px] text-center font-semibold text-orange-500">{d.takeawayGift}</td>
-                                                        <td className="px-5 py-2 text-[12px] text-center font-bold text-slate-700">{d.inRoom + d.takeawayGift}</td>
-                                                        <td className="px-5 py-2 text-[12px] text-right text-slate-600 whitespace-nowrap">
-                                                            {d.revenue.toLocaleString('vi-VN')}đ
-                                                        </td>
-                                                        <td></td>
-                                                    </tr>
-                                                );
-                                            });
-                                        }
-                                        return out;
-                                    })}
+                                            {/* Show only paginated subset within current page */}
+                                            {group.items
+                                                .slice((logsPage - 1) * PAGE_SIZE, logsPage * PAGE_SIZE)
+                                                .map(log => (
+                                                <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
+                                                    <td className="px-5 py-3 text-[12px] text-gray-500 whitespace-nowrap">
+                                                        {new Date(log.createdAt).toLocaleString('vi-VN')}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-[13px] font-bold text-gray-900">{log.productName}</td>
+                                                    <td className={`px-5 py-3 text-[13px] font-bold ${log.quantity >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                        {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-[12px] text-gray-400">{log.note ?? '—'}</td>
+                                                    <td className="px-5 py-3 text-right">
+                                                        <StatusPill quantity={log.quantity} />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </Fragment>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
+                        {renderPagination(logsPage, logsTotalPages, setLogsPage, filteredLogs.length)}
                     </div>
-                )}
-            </main>
+                </main>
+            )}
 
             {/* ── Low-stock warning modal ── */}
             <Dialog open={isWarningModalOpen} onOpenChange={setIsWarningModalOpen}>
-                <DialogContent className="max-w-md rounded-3xl p-7 border border-slate-200 shadow-lg">
+                <DialogContent className="max-w-md rounded-2xl p-6 border border-gray-200 shadow-xl">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-amber-600 font-extrabold text-base">
+                        <DialogTitle className="flex items-center gap-2 text-amber-600 font-bold text-base">
                             <AlertTriangle className="w-5 h-5" />
                             Sản phẩm sắp hết hàng
                         </DialogTitle>
-                        <DialogDescription className="text-slate-500 text-[13px] font-medium">
+                        <DialogDescription className="text-gray-500 text-[13px]">
                             Các mặt hàng có tồn kho từ 5 đơn vị trở xuống.
                         </DialogDescription>
                     </DialogHeader>
-
-                    <div className="max-h-[50vh] overflow-y-auto -mr-1 pr-1 mt-2 divide-y divide-slate-100">
+                    <div className="max-h-[50vh] overflow-y-auto mt-3 divide-y divide-gray-100">
                         {lowStockProducts.length === 0 ? (
-                            <p className="py-10 text-center text-slate-400 italic text-[13px]">
-                                Hiện không có sản phẩm nào sắp hết
-                            </p>
+                            <p className="py-8 text-center text-gray-400 italic text-[13px]">Hiện không có sản phẩm nào sắp hết</p>
                         ) : lowStockProducts.map(p => (
-                            <div key={p.productId} className="py-3.5 flex items-center justify-between group hover:bg-slate-50 px-1 rounded transition-colors">
+                            <div key={p.productId} className="py-3 flex items-center justify-between">
                                 <div>
-                                    <p className="text-[13px] font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
-                                        {p.productName}
-                                    </p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                                        {CAT_LABELS[p.category] ?? p.category}
-                                    </p>
+                                    <p className="text-[13px] font-bold text-gray-900">{p.productName}</p>
+                                    <p className="text-[10px] font-semibold text-gray-400 uppercase mt-0.5">{CAT_LABELS[p.category] ?? p.category}</p>
                                 </div>
-                                <span className="bg-rose-50 text-rose-600 px-3.5 py-1.5 rounded-xl font-bold text-[13px] ring-1 ring-rose-100">
+                                <span className="bg-red-50 text-red-500 px-3 py-1 rounded-xl font-bold text-[13px]">
                                     Còn: {p.currentStock}
                                 </span>
                             </div>

@@ -88,7 +88,7 @@ export async function POST(request: Request) {
                         ProductName: item.name,
                         Quantity: item.quantity,
                         Price: item.price,
-                    } as any
+                    }
                 });
             }
 
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
                     RoomCost: 0,
                     // Liên kết tới phiên làm việc ảo đã tạo ở bước 0.1
                     RoomSessionId: sessionId,
-                } as any,
+                },
             });
 
             return invoice;
