@@ -470,7 +470,7 @@ export default function InventoryStatsPage() {
             else g.totalOut += Math.abs(log.quantity);
         }
         return groups;
-    }, [filteredLogs]);
+    }, [paginatedLogs]); // FIX: trước đây là [filteredLogs] khiến đổi pageSize/logsPage không cập nhật bảng
 
     /* ── Sản lượng bán theo ngày trong tháng (ma trận) ─── */
     const dailySalesMatrix = useMemo(() => {

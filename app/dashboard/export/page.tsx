@@ -156,7 +156,6 @@ export default function ExportPage() {
             if (res.ok) {
                 const result = await res.json();
                 setLastExport({ ...result.data, items: cart, exportTime: new Date().toLocaleString('vi-VN') });
-                toast.success('Xuất kho thành công');
                 setTimeout(() => {
                     window.print();
                     setCart([]);
