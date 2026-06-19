@@ -449,10 +449,15 @@ export default function InventoryStatsPage() {
         [logs, searchTerm, logDirection]
     );
 
+    const paginatedLogs = useMemo(() => {
+        const start = (logsPage - 1) * pageSize;
+        return filteredLogs.slice(start, start + pageSize);
+    }, [filteredLogs, logsPage, pageSize]);
+
     const logsByMonth = useMemo(() => {
         const groups: { key: string; label: string; items: InventoryLog[]; totalIn: number; totalOut: number }[] = [];
         const index: Record<string, number> = {};
-        for (const log of filteredLogs) {
+        for (const log of paginatedLogs) { // Thay đổi ở đây: lặp qua dữ liệu đã phân trang
             const d = new Date(log.createdAt);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             if (index[key] === undefined) {
@@ -611,11 +616,6 @@ export default function InventoryStatsPage() {
     }, [filteredStats, statsPage, pageSize]);
 
     const statsTotalPages = Math.max(1, Math.ceil(filteredStats.length / pageSize));
-
-    const paginatedLogs = useMemo(() => {
-        const start = (logsPage - 1) * pageSize;
-        return filteredLogs.slice(start, start + pageSize);
-    }, [filteredLogs, logsPage, pageSize]);
 
     const logsTotalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
 
