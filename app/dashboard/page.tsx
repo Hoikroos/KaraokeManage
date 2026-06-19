@@ -402,7 +402,7 @@ export default function Dashboard() {
                           {status === 'empty'
                             ? 'Trống'
                             : (isPaused
-                              ? 'Tạm dừng'
+                              ? 'Tạm Tính'
                               : 'Đang dùng')
                           }
                         </span>
@@ -413,9 +413,9 @@ export default function Dashboard() {
                   {/* Time & Money info */}
                   <div className={`${viewMode === 'list' ? 'flex gap-5 flex-shrink-0' : 'border-t border-slate-100 pt-3 space-y-2'}`}>
                     {/* Time */}
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                       <span className="text-[11px] sm:text-sm">
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Clock className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                       <span className="text-[12px] sm:text-sm font-bold">
                                 {(() => {
                                   const rId = room.id || (room as any).Id;
                                   const session = sessions[rId];
@@ -442,10 +442,10 @@ export default function Dashboard() {
                     </div>
 
                     {/* Money */}
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Banknote className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span className="text-xs sm:text-sm">
-                        Thành Tiền: {(() => {
+                    <div className="flex items-center gap-2 text-red-600">
+                      <Banknote className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-bold">
+                        {(() => {
                           const status = room.status || (room as any).Status;
                           const rId = room.id || (room as any).Id;
                           const session = sessions[rId] as any;

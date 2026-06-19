@@ -15,11 +15,11 @@ import Link from 'next/link';
 import { Store } from '@/lib/db';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, Legend
+    PieChart, Pie, Cell, Legend, LineChart, Line
 } from 'recharts';
 import {
     TrendingUp, TrendingDown, ArrowLeft, Calendar, AlertTriangle,
-    Search, Boxes, Download, History, Package
+    Search, Boxes, Download, History, Package, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -198,6 +198,16 @@ const CustomPieTooltip = ({ active, payload }: any) => {
     return (
         <div className="bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-2 text-sm font-semibold text-slate-700">
             {payload[0].name}: <span className="text-indigo-600">{payload[0].value}</span>
+        </div>
+    );
+};
+
+const CustomLineTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-white border border-slate-100 rounded-xl shadow-lg px-4 py-2 text-sm font-semibold text-slate-700">
+            <p className="text-slate-400 text-[11px] font-bold mb-0.5">{label}</p>
+            Tổng: <span className="text-emerald-600">{payload[0].value}</span>
         </div>
     );
 };
