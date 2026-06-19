@@ -9,7 +9,7 @@ import { Invoice, Store } from '@/lib/db';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import {
-    AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
+    ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 import {
@@ -121,14 +121,15 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
+// ✅ FIX: dùng p.dataKey thay vì p.name để phân biệt đúng series
 const RevenueTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
         <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-4 py-3 text-[12px]">
             <p className="font-bold text-slate-700 mb-1">{label}</p>
             {payload.map((p: any) => (
-                <p key={p.name} style={{ color: p.name === 'total' ? '#3b82f6' : '#f59e0b' }} className="font-semibold">
-                    {p.name === 'total'
+                <p key={p.dataKey} style={{ color: p.dataKey === 'total' ? '#3b82f6' : '#f59e0b' }} className="font-semibold">
+                    {p.dataKey === 'total'
                         ? `Doanh thu: ${fmtVND(p.value)}đ`
                         : `Lượt thuê: ${p.value}`}
                 </p>
@@ -284,6 +285,11 @@ export default function ReportsPage() {
         });
         return Object.entries(groups).map(([name, data]) => ({ name, ...data }));
     }, [filteredInvoices, reportType]);
+
+    // ✅ Tính max count để set domain trục phải hợp lý
+    const maxCount = useMemo(() =>
+        Math.max(...chartData.map(d => d.count), 1),
+        [chartData]);
 
     const totalRevenue = useMemo(() =>
         filteredInvoices.reduce((s, inv) => s + inv.totalPrice, 0), [filteredInvoices]);
@@ -581,8 +587,10 @@ export default function ReportsPage() {
                             <div className="h-[300px] relative">
                                 <span className="absolute -top-1 left-0 text-[10px] text-blue-500 font-medium">Doanh thu (đ)</span>
                                 <span className="absolute -top-1 right-0 text-[10px] text-amber-500 font-medium">Lượt thuê</span>
+
+                                {/* ✅ FIX: Đổi từ AreaChart → ComposedChart để Area và Line không xung đột yAxisId */}
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                                    <ComposedChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
@@ -597,6 +605,7 @@ export default function ReportsPage() {
                                             tick={{ fontSize: 11, fill: '#94a3b8', fontFamily: 'Be Vietnam Pro' }}
                                             dy={8}
                                         />
+                                        {/* ✅ Trục trái: doanh thu */}
                                         <YAxis
                                             yAxisId="left"
                                             axisLine={false}
@@ -604,6 +613,7 @@ export default function ReportsPage() {
                                             tick={{ fontSize: 10, fill: '#94a3b8' }}
                                             tickFormatter={v => `${Math.round(v / 1_000_000)}M`}
                                         />
+                                        {/* ✅ Trục phải: lượt thuê — thêm domain để không bị ẩn khi count nhỏ */}
                                         <YAxis
                                             yAxisId="right"
                                             orientation="right"
@@ -611,8 +621,12 @@ export default function ReportsPage() {
                                             tickLine={false}
                                             tick={{ fontSize: 10, fill: '#f59e0b' }}
                                             tickFormatter={v => `${v}`}
+                                            domain={[0, Math.ceil(maxCount * 1.3)]}
+                                            allowDecimals={false}
                                         />
                                         <Tooltip content={<RevenueTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '3 3' }} />
+
+                                        {/* ✅ Area doanh thu — yAxisId left */}
                                         <Area
                                             yAxisId="left"
                                             type="monotone"
@@ -623,6 +637,8 @@ export default function ReportsPage() {
                                             dot={{ r: 3, fill: '#fff', stroke: '#3b82f6', strokeWidth: 2 }}
                                             activeDot={{ r: 5 }}
                                         />
+
+                                        {/* ✅ Line lượt thuê — yAxisId right, render sau Area nên luôn nằm trên */}
                                         <Line
                                             yAxisId="right"
                                             type="monotone"
@@ -632,7 +648,7 @@ export default function ReportsPage() {
                                             dot={{ r: 3, fill: '#fff', stroke: '#f59e0b', strokeWidth: 2 }}
                                             activeDot={{ r: 5 }}
                                         />
-                                    </AreaChart>
+                                    </ComposedChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>

@@ -393,7 +393,7 @@ export default function Dashboard() {
                       return (
                         <span
                           className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-xs font-bold rounded-full flex-shrink-0 ${status === 'empty'
-                            ? 'bg-green-100 text-green-700'
+                            ? 'bg-blue-100 text-blue-600'
                             : (isPaused
                               ? 'bg-amber-100 text-amber-700'
                               : 'bg-red-100 text-red-600')
