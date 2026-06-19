@@ -946,13 +946,13 @@ export default function InventoryStatsPage() {
                             </select>
                         )}
 
-                        {/* <Button
+                        <Button
                             onClick={exportToExcel}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-9 px-4 gap-2"
                         >
                             <Download className="w-3.5 h-3.5" />
                             Xuất Excel
-                        </Button> */}
+                        </Button>
                     </div>
                 </div>
             </header>
@@ -1002,10 +1002,10 @@ export default function InventoryStatsPage() {
                                 <p className="text-[15px] font-extrabold text-gray-900">{lowStockProducts.length} mặt hàng</p>
                                 <p className="text-xs text-amber-500 font-semibold">Tồn kho dưới 5 đơn vị</p>
                             </div>
-                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-8 px-3 gap-1.5 ml-auto flex-shrink-0">
+                            {/* <Button className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-8 px-3 gap-1.5 ml-auto flex-shrink-0">
                                 <Download className="w-3 h-3" />
                                 Xuất Excel
-                            </Button>
+                            </Button> */}
                         </div>
                     </div>
 
