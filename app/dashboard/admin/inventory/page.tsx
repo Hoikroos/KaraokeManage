@@ -210,7 +210,7 @@ export default function InventoryStatsPage() {
     const [expandedWeeklyKeys, setExpandedWeeklyKeys] = useState<Record<string, boolean>>({});
     const [statsPage, setStatsPage] = useState(1);
     const [logsPage, setLogsPage] = useState(1);
-    const PAGE_SIZE = 10;
+    const [pageSize, setPageSize] = useState(10);
 
     /* ── Fetch stores on mount ─── */
     useEffect(() => {
@@ -606,18 +606,18 @@ export default function InventoryStatsPage() {
 
     /* ── Pagination ─── */
     const paginatedStats = useMemo(() => {
-        const start = (statsPage - 1) * PAGE_SIZE;
-        return filteredStats.slice(start, start + PAGE_SIZE);
-    }, [filteredStats, statsPage]);
+        const start = (statsPage - 1) * pageSize;
+        return filteredStats.slice(start, start + pageSize);
+    }, [filteredStats, statsPage, pageSize]);
 
-    const statsTotalPages = Math.max(1, Math.ceil(filteredStats.length / PAGE_SIZE));
+    const statsTotalPages = Math.max(1, Math.ceil(filteredStats.length / pageSize));
 
     const paginatedLogs = useMemo(() => {
-        const start = (logsPage - 1) * PAGE_SIZE;
-        return filteredLogs.slice(start, start + PAGE_SIZE);
-    }, [filteredLogs, logsPage]);
+        const start = (logsPage - 1) * pageSize;
+        return filteredLogs.slice(start, start + pageSize);
+    }, [filteredLogs, logsPage, pageSize]);
 
-    const logsTotalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+    const logsTotalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
 
     /* ── Excel export ─── */
     const exportToExcel = async () => {
@@ -822,7 +822,7 @@ export default function InventoryStatsPage() {
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-white">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span>Hiển thị</span>
-                    <span className="font-semibold text-gray-700">10</span>
+                    <span className="font-semibold text-gray-700">{pageSize}</span>
                     <span>kết quả mỗi trang</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -1455,6 +1455,16 @@ export default function InventoryStatsPage() {
                         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
                             <h2 className="text-[13px] font-bold text-gray-800">Chi tiết lịch sử nhập kho</h2>
                             <div className="flex items-center gap-3">
+                                {/* Page size selector */}
+                                <select
+                                    value={pageSize}
+                                    onChange={e => { setPageSize(Number(e.target.value)); setLogsPage(1); setStatsPage(1); }}
+                                    className="h-9 text-xs bg-gray-50 border-gray-200 rounded-lg px-2 outline-none"
+                                >
+                                    {[10, 30, 50, 9999].map(size => (
+                                        <option key={size} value={size}>{size === 9999 ? 'Tất cả' : `${size} / trang`}</option>
+                                    ))}
+                                </select>
                                 {/* Group by selector */}
                                 <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 h-9 bg-white text-xs text-gray-600">
                                     <span>Nhóm theo tháng</span>
@@ -1518,7 +1528,7 @@ export default function InventoryStatsPage() {
                                             </tr>
                                             {/* Show only paginated subset within current page */}
                                             {group.items
-                                                .slice((logsPage - 1) * PAGE_SIZE, logsPage * PAGE_SIZE)
+                                                .slice((logsPage - 1) * pageSize, logsPage * pageSize)
                                                 .map(log => (
                                                 <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
                                                     <td className="px-5 py-3 text-[12px] text-gray-500 whitespace-nowrap">
