@@ -457,7 +457,7 @@ export default function InventoryStatsPage() {
     const logsByMonth = useMemo(() => {
         const groups: { key: string; label: string; items: InventoryLog[]; totalIn: number; totalOut: number }[] = [];
         const index: Record<string, number> = {};
-        for (const log of paginatedLogs) { // Thay đổi ở đây: lặp qua dữ liệu đã phân trang
+        for (const log of paginatedLogs) {
             const d = new Date(log.createdAt);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             if (index[key] === undefined) {
@@ -470,48 +470,63 @@ export default function InventoryStatsPage() {
             else g.totalOut += Math.abs(log.quantity);
         }
         return groups;
-    }, [paginatedLogs]); // FIX: trước đây là [filteredLogs] khiến đổi pageSize/logsPage không cập nhật bảng
+    }, [paginatedLogs]);
 
-    /* ── Sản lượng bán theo ngày trong tháng (ma trận) ─── */
+    /* ── Sản lượng bán theo ngày trong tháng (ma trận) — ĐÃ FIX ─── */
     const dailySalesMatrix = useMemo(() => {
         // Tính tất cả các ngày trong period
-        const dayKeys: string[] = [];
         const dayLabels: { key: string; date: Date; label: string }[] = [];
         const cur = new Date(effectivePeriod.start);
         cur.setHours(0, 0, 0, 0);
         while (cur <= effectivePeriod.end && dayLabels.length < 31) {
             const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
-            dayKeys.push(key);
-            dayLabels.push({ key, date: new Date(cur), label: `${String(cur.getDate()).padStart(2, '0')}/${String(cur.getMonth() + 1).padStart(2, '0')}` });
+            dayLabels.push({
+                key,
+                date: new Date(cur),
+                label: `${String(cur.getDate()).padStart(2, '0')}/${String(cur.getMonth() + 1).padStart(2, '0')}`,
+            });
             cur.setDate(cur.getDate() + 1);
         }
 
-        // productId -> { productName, days: dayKey -> qty }
-        const productMap = new Map<string, { productName: string; days: Map<string, number> }>();
+        // productId -> { productName, days: dayKey -> { inRoom, takeaway } }
+        const productMap = new Map<string, {
+            productName: string;
+            days: Map<string, { inRoom: number; takeaway: number }>;
+        }>();
+
         for (const inv of invoices) {
             if (inv.status !== 'paid') continue;
             const t = new Date(inv.startTime);
             if (t < effectivePeriod.start || t > effectivePeriod.end) continue;
             const dayDate = getWorkingDay(t);
             const dayKey = `${dayDate.getFullYear()}-${String(dayDate.getMonth() + 1).padStart(2, '0')}-${String(dayDate.getDate()).padStart(2, '0')}`;
+            const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
+
             for (const item of (inv.items || [])) {
                 if (!productMap.has(item.productId)) {
                     productMap.set(item.productId, { productName: item.productName, days: new Map() });
                 }
                 const p = productMap.get(item.productId)!;
-                p.days.set(dayKey, (p.days.get(dayKey) || 0) + item.quantity);
+                const cur = p.days.get(dayKey) ?? { inRoom: 0, takeaway: 0 };
+                if (isOffsite) cur.takeaway += item.quantity;
+                else cur.inRoom += item.quantity;
+                p.days.set(dayKey, cur);
             }
         }
 
         const rows = [...productMap.entries()].map(([productId, p]) => {
-            const total = [...p.days.values()].reduce((a, b) => a + b, 0);
+            const total = [...p.days.values()].reduce((a, b) => a + b.inRoom + b.takeaway, 0);
             return { productId, productName: p.productName, days: p.days, total };
         }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
 
-        const grandTotalByDay = new Map<string, number>();
+        // grandTotalByDay: dayKey -> { inRoom, takeaway }
+        const grandTotalByDay = new Map<string, { inRoom: number; takeaway: number }>();
         for (const row of rows) {
-            for (const [dk, qty] of row.days.entries()) {
-                grandTotalByDay.set(dk, (grandTotalByDay.get(dk) || 0) + qty);
+            for (const [dk, v] of row.days.entries()) {
+                const cur = grandTotalByDay.get(dk) ?? { inRoom: 0, takeaway: 0 };
+                cur.inRoom += v.inRoom;
+                cur.takeaway += v.takeaway;
+                grandTotalByDay.set(dk, cur);
             }
         }
 
@@ -616,7 +631,6 @@ export default function InventoryStatsPage() {
     }, [filteredStats, statsPage, pageSize]);
 
     const statsTotalPages = Math.max(1, Math.ceil(filteredStats.length / pageSize));
-
     const logsTotalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
 
     /* ── Excel export ─── */
@@ -1002,10 +1016,6 @@ export default function InventoryStatsPage() {
                                 <p className="text-[15px] font-extrabold text-gray-900">{lowStockProducts.length} mặt hàng</p>
                                 <p className="text-xs text-amber-500 font-semibold">Tồn kho dưới 5 đơn vị</p>
                             </div>
-                            {/* <Button className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg h-8 px-3 gap-1.5 ml-auto flex-shrink-0">
-                                <Download className="w-3 h-3" />
-                                Xuất Excel
-                            </Button> */}
                         </div>
                     </div>
 
@@ -1094,7 +1104,6 @@ export default function InventoryStatsPage() {
                                 </select>
                             </div>
                             {(() => {
-                                // Tổng theo tuần
                                 const byWeekTotal = new Map<string, { label: string; total: number; start: Date }>();
                                 for (const row of weeklySalesRows) {
                                     const cur = byWeekTotal.get(row.weekKey);
@@ -1251,7 +1260,7 @@ export default function InventoryStatsPage() {
                         </div>
                     </div>
 
-                    {/* ── Sản lượng bán theo ngày trong tháng (ma trận) ── */}
+                    {/* ── Sản lượng bán theo ngày trong tháng (ma trận) — ĐÃ FIX ── */}
                     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
                             <div>
@@ -1259,52 +1268,115 @@ export default function InventoryStatsPage() {
                                     <Calendar className="w-4 h-4 text-indigo-500" />
                                     Sản lượng bán theo ngày trong tháng
                                 </h2>
-                                <p className="text-[11px] text-gray-400 mt-0.5">Tổng sản lượng bán hàng ngày</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">
+                                    Mỗi ngày gồm 2 cột:&nbsp;
+                                    <span className="text-emerald-600 font-semibold">Phòng</span>
+                                    &nbsp;và&nbsp;
+                                    <span className="text-orange-500 font-semibold">Tặng/Mang về</span>
+                                </p>
+                            </div>
+                            {/* Legend mini */}
+                            <div className="flex items-center gap-4 text-[11px] font-semibold">
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                                    <span className="text-emerald-700">Bán trong phòng</span>
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />
+                                    <span className="text-orange-600">Tặng / Mang về</span>
+                                </span>
                             </div>
                         </div>
                         <div className="overflow-x-auto">
                             {dailySalesMatrix.rows.length === 0 ? (
                                 <p className="text-center text-gray-400 text-sm italic py-8">Chưa có hóa đơn đã thanh toán</p>
                             ) : (
-                                <table className="w-full text-xs">
-                                    <thead className="bg-gray-50 border-b border-gray-100">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-bold text-gray-500 sticky left-0 bg-gray-50 z-10 min-w-[120px]">SẢN PHẨM</th>
+                                <table className="w-full text-xs border-collapse">
+                                    <thead className="bg-gray-50">
+                                        {/* Hàng 1: tên ngày, mỗi ngày span 2 cột */}
+                                        <tr className="border-b border-gray-200">
+                                            <th
+                                                rowSpan={2}
+                                                className="px-4 py-3 text-left font-bold text-gray-500 sticky left-0 bg-gray-50 z-10 min-w-[140px] border-r border-gray-200"
+                                            >
+                                                SẢN PHẨM
+                                            </th>
                                             {dailySalesMatrix.dayLabels.map(d => (
-                                                <th key={d.key} className="px-2 py-3 text-center font-bold text-gray-400 min-w-[40px] whitespace-nowrap">
-                                                    {d.label.split('/')[0]}
+                                                <th
+                                                    key={d.key}
+                                                    colSpan={2}
+                                                    className="px-1 py-2 text-center font-bold text-gray-500 min-w-[64px] whitespace-nowrap border-l border-gray-200 text-[10px]"
+                                                >
+                                                    {d.label}
                                                 </th>
                                             ))}
-                                            <th className="px-4 py-3 text-center font-bold text-gray-700 min-w-[60px]">TỔNG</th>
+                                            <th
+                                                rowSpan={2}
+                                                className="px-3 py-3 text-center font-bold text-gray-700 min-w-[56px] border-l border-gray-200 text-[10px] align-middle"
+                                            >
+                                                TỔNG
+                                            </th>
+                                        </tr>
+                                        {/* Hàng 2: sub-header Phòng / T.Về cho từng ngày */}
+                                        <tr className="border-b border-gray-200">
+                                            {dailySalesMatrix.dayLabels.map(d => (
+                                                <Fragment key={d.key}>
+                                                    <th className="px-1 pb-2 pt-1 text-center text-[9px] font-bold text-emerald-600 border-l border-gray-200 whitespace-nowrap w-[32px]">
+                                                        Phòng
+                                                    </th>
+                                                    <th className="px-1 pb-2 pt-1 text-center text-[9px] font-bold text-orange-500 whitespace-nowrap w-[32px]">
+                                                        T.Về
+                                                    </th>
+                                                </Fragment>
+                                            ))}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {dailySalesMatrix.rows.filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase())).map(row => (
-                                            <tr key={row.productId} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-4 py-2.5 font-bold text-gray-900 sticky left-0 bg-white z-10">{row.productName}</td>
-                                                {dailySalesMatrix.dayLabels.map(d => {
-                                                    const qty = row.days.get(d.key) || 0;
-                                                    return (
-                                                        <td key={d.key} className={`px-2 py-2.5 text-center font-semibold ${qty > 0 ? 'text-gray-700' : 'text-gray-200'}`}>
-                                                            {qty > 0 ? qty : '—'}
-                                                        </td>
-                                                    );
-                                                })}
-                                                <td className="px-4 py-2.5 text-center font-extrabold text-gray-900">{row.total}</td>
-                                            </tr>
-                                        ))}
-                                        {/* TỔNG row */}
-                                        <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
-                                            <td className="px-4 py-3 text-gray-700 font-extrabold sticky left-0 bg-gray-50 z-10">TỔNG</td>
-                                            {dailySalesMatrix.dayLabels.map(d => {
-                                                const qty = dailySalesMatrix.grandTotalByDay.get(d.key) || 0;
-                                                return (
-                                                    <td key={d.key} className={`px-2 py-3 text-center font-bold ${qty > 0 ? 'text-emerald-600' : 'text-gray-200'}`}>
-                                                        {qty > 0 ? qty : '—'}
+                                        {dailySalesMatrix.rows
+                                            .filter(r => r.productName.toLowerCase().includes(searchTerm.toLowerCase()))
+                                            .map(row => (
+                                                <tr key={row.productId} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-4 py-2.5 font-bold text-gray-900 sticky left-0 bg-white z-10 text-[13px] border-r border-gray-100">
+                                                        {row.productName}
                                                     </td>
+                                                    {dailySalesMatrix.dayLabels.map(d => {
+                                                        const v = row.days.get(d.key) ?? { inRoom: 0, takeaway: 0 };
+                                                        return (
+                                                            <Fragment key={d.key}>
+                                                                <td className={`px-1 py-2.5 text-center font-semibold border-l border-gray-100 w-[32px] ${v.inRoom > 0 ? 'text-emerald-700' : 'text-gray-200'}`}>
+                                                                    {v.inRoom > 0 ? v.inRoom : '—'}
+                                                                </td>
+                                                                <td className={`px-1 py-2.5 text-center font-semibold w-[32px] ${v.takeaway > 0 ? 'text-orange-500' : 'text-gray-200'}`}>
+                                                                    {v.takeaway > 0 ? v.takeaway : '—'}
+                                                                </td>
+                                                            </Fragment>
+                                                        );
+                                                    })}
+                                                    <td className="px-3 py-2.5 text-center font-extrabold text-gray-900 text-[13px] border-l border-gray-100">
+                                                        {row.total}
+                                                    </td>
+                                                </tr>
+                                            ))}
+
+                                        {/* TỔNG row */}
+                                        <tr className="bg-gray-50 border-t-2 border-gray-200">
+                                            <td className="px-4 py-3 text-gray-700 font-extrabold sticky left-0 bg-gray-50 z-10 text-[13px] border-r border-gray-200">
+                                                TỔNG
+                                            </td>
+                                            {dailySalesMatrix.dayLabels.map(d => {
+                                                const v = dailySalesMatrix.grandTotalByDay.get(d.key) ?? { inRoom: 0, takeaway: 0 };
+                                                return (
+                                                    <Fragment key={d.key}>
+                                                        <td className={`px-1 py-3 text-center font-bold border-l border-gray-200 w-[32px] ${v.inRoom > 0 ? 'text-emerald-600' : 'text-gray-200'}`}>
+                                                            {v.inRoom > 0 ? v.inRoom : '—'}
+                                                        </td>
+                                                        <td className={`px-1 py-3 text-center font-bold w-[32px] ${v.takeaway > 0 ? 'text-orange-500' : 'text-gray-200'}`}>
+                                                            {v.takeaway > 0 ? v.takeaway : '—'}
+                                                        </td>
+                                                    </Fragment>
                                                 );
                                             })}
-                                            <td className="px-4 py-3 text-center font-extrabold text-emerald-600">
+                                            <td className="px-3 py-3 text-center font-extrabold text-emerald-600 text-[13px] border-l border-gray-200">
                                                 {dailySalesMatrix.rows.reduce((a, r) => a + r.total, 0).toLocaleString('vi-VN')}
                                             </td>
                                         </tr>
@@ -1526,9 +1598,7 @@ export default function InventoryStatsPage() {
                                                     </div>
                                                 </td>
                                             </tr>
-                                            {/* Show only paginated subset within current page */}
-                                            {group.items
-                                                .map(log => (
+                                            {group.items.map(log => (
                                                 <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
                                                     <td className="px-5 py-3 text-[12px] text-gray-500 whitespace-nowrap">
                                                         {new Date(log.createdAt).toLocaleString('vi-VN')}

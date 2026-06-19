@@ -449,45 +449,102 @@ export default function Dashboard() {
       </div>
 
       {/* ── PIN Modal ── */}
-      <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
-        <DialogContent className="w-[240px] rounded-[2.5rem] p-5 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-xl">
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center mb-3">
-              <Lock className="w-5 h-5 text-indigo-600" />
+       <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
+        <DialogContent className="w-[300px] max-w-[90vw] rounded-3xl p-0 border-none shadow-2xl overflow-hidden bg-white">
+ 
+          {/* ── Header gradient ── */}
+          <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 pt-7 pb-9 px-6 flex flex-col items-center gap-3 overflow-hidden">
+            {/* Decorative blur blobs */}
+            <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
+            <div className="absolute -bottom-8 -left-4 w-20 h-20 rounded-full bg-white/10" />
+ 
+            {/* Lock icon */}
+            <div className="relative z-10 w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-lg">
+              <Lock className="w-6 h-6 text-white" strokeWidth={2.5} />
             </div>
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-0.5 text-center">Xác thực PIN</h2>
-            <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-5 text-center">Quản lý hệ thống</p>
-
-            <div className={`flex gap-2.5 mb-6 ${isPinError ? 'animate-bounce' : ''}`}>
+ 
+            {/* Heading */}
+            <div className="relative z-10 text-center">
+              <p className="text-white font-black text-base tracking-tight">Xác thực PIN</p>
+              <p className="text-blue-200 text-[10px] font-bold uppercase tracking-[0.15em] mt-0.5">Quản lý hệ thống</p>
+            </div>
+ 
+            {/* PIN dot indicators */}
+            <div className={`relative z-10 flex gap-3 mt-1 ${isPinError ? 'animate-bounce' : ''}`}>
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className={`w-2.5 h-2.5 rounded-full border-2 transition-all duration-200 
-                  ${pinInput.length >= i ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-transparent border-slate-200'}`} />
+                <div
+                  key={i}
+                  className={`w-3 h-3 rounded-full border-2 transition-all duration-150 ${
+                    pinInput.length >= i
+                      ? 'bg-white border-white scale-110'
+                      : 'bg-transparent border-white/40'
+                  }`}
+                />
               ))}
             </div>
-
-            <div className="grid grid-cols-3 gap-2 w-full">
+          </div>
+ 
+          {/* ── Numpad ── */}
+          <div className="bg-slate-50 px-5 pt-5 pb-5">
+            <div className="grid grid-cols-3 gap-2.5">
               {['1','2','3','4','5','6','7','8','9'].map((num) => (
-                <button key={num} onClick={() => handlePinClick(num)}
-                  className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all">
+                <button
+                  key={num}
+                  onClick={() => handlePinClick(num)}
+                  className="
+                    h-[52px] rounded-2xl bg-white border border-slate-100
+                    text-[18px] font-black text-slate-800
+                    shadow-sm
+                    hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 hover:shadow
+                    active:scale-95 active:bg-indigo-100
+                    transition-all duration-100 select-none
+                  "
+                >
                   {num}
                 </button>
               ))}
+ 
+              {/* Row 4: blank | 0 | backspace */}
               <div />
-              <button onClick={() => handlePinClick('0')}
-                className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all">
+ 
+              <button
+                onClick={() => handlePinClick('0')}
+                className="
+                  h-[52px] rounded-2xl bg-white border border-slate-100
+                  text-[18px] font-black text-slate-800
+                  shadow-sm
+                  hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 hover:shadow
+                  active:scale-95 active:bg-indigo-100
+                  transition-all duration-100 select-none
+                "
+              >
                 0
               </button>
-              <button onClick={() => setPinInput(prev => prev.slice(0, -1))}
-                className="w-full aspect-square rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all">
-                <Delete className="w-5 h-5" />
+ 
+              <button
+                onClick={() => setPinInput(prev => prev.slice(0, -1))}
+                className="
+                  h-[52px] rounded-2xl bg-white border border-slate-100
+                  flex items-center justify-center
+                  shadow-sm
+                  hover:bg-rose-50 hover:border-rose-200 hover:text-rose-500 hover:shadow
+                  active:scale-95
+                  transition-all duration-100 select-none text-slate-400
+                "
+              >
+                <Delete className="w-[18px] h-[18px]" />
               </button>
             </div>
-
-            <button onClick={() => setIsLockModalOpen(false)}
-              className="mt-5 text-slate-400 text-[9px] font-bold uppercase hover:text-slate-600 transition tracking-widest">
+ 
+            {/* Cancel */}
+            <button
+              onClick={() => setIsLockModalOpen(false)}
+              className="mt-4 w-full py-2.5 rounded-xl text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+            >
               Hủy bỏ
             </button>
           </div>
+ 
         </DialogContent>
       </Dialog>
     </div>

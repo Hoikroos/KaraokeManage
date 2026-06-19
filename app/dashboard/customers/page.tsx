@@ -126,11 +126,7 @@ export default function CustomersPage() {
     }, [reportType]);
 
     const filteredInvoices = useMemo(() => invoices.filter(inv => {
-        // Không thống kê các hóa đơn xuất kho (Tặng/Mang về)
-        if (inv.id.startsWith('GFT') || inv.id.startsWith('TKW')) {
-            return false;
-        }
-
+        if (inv.id.startsWith('GFT') || inv.id.startsWith('TKW')) return false;
         const matchSearch = (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
         if (!matchSearch) return false;
         if (startDate || endDate) {
@@ -156,7 +152,7 @@ export default function CustomersPage() {
 
     const totalSpendingAll = filteredInvoices.reduce((sum, inv) => sum + inv.totalPrice, 0);
 
-    // ─── VẼ BIỂU ĐỒ GROUPED BAR: số lần ghé + chi tiêu ───
+    // ─── VẼ BIỂU ĐỒ GROUPED BAR ───
     const drawDualChart = useCallback(() => {
         if (!chartReady || !spendingChartRef.current) return;
         const top10 = customerStats.slice(0, 10);
@@ -224,12 +220,7 @@ export default function CustomersPage() {
                     x: {
                         grid: { display: false },
                         border: { display: false },
-                        ticks: {
-                            font: { size: 11 },
-                            color: '#64748b',
-                            maxRotation: 30,
-                            autoSkip: false,
-                        },
+                        ticks: { font: { size: 11 }, color: '#64748b', maxRotation: 30, autoSkip: false },
                     },
                     yCount: {
                         type: 'linear',
@@ -256,7 +247,7 @@ export default function CustomersPage() {
         });
     }, [chartReady, customerStats]);
 
-    // ─── VẼ BIỂU ĐỒ NGANG: top lượt ghé ───
+    // ─── VẼ BIỂU ĐỒ NGANG TOP LƯỢT GHÉ ───
     const drawVisitsChart = useCallback(() => {
         if (!chartReady || !visitsChartRef.current) return;
         const top10 = [...customerStats].sort((a, b) => b.count - a.count).slice(0, 10);
@@ -334,7 +325,6 @@ export default function CustomersPage() {
     useEffect(() => { drawDualChart(); }, [drawDualChart]);
     useEffect(() => { drawVisitsChart(); }, [drawVisitsChart]);
 
-    // Cleanup khi unmount
     useEffect(() => {
         return () => {
             spendingChartInstance.current?.destroy();
@@ -361,161 +351,224 @@ export default function CustomersPage() {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Link href="/dashboard">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Quay lại
-                            </Button>
-                        </Link>
-                        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <Users className="w-5 h-5 text-indigo-600" />
-                            Khách Hàng
-                        </h1>
-                    </div>
+        <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Inter', sans-serif" }}>
+
+            {/* ── Header ── */}
+            <div className="bg-white border-b border-slate-100 sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-6 h-14 flex items-center gap-4">
+                    <Link href="/dashboard">
+                        <button className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+                            <ArrowLeft className="w-4 h-4" />
+                            Quay lại
+                        </button>
+                    </Link>
+                    <div className="w-px h-5 bg-slate-200" />
+                    <h1 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-indigo-500" />
+                        Khách Hàng
+                    </h1>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Bộ lọc */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-8 items-end">
-                    {user?.role === 'admin' && (
-                        <div className="md:col-span-3">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
-                            <select
-                                value={selectedStoreId}
-                                onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none"
-                            >
-                                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
+            <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+                {/* ── Filter bar — matches screenshot layout ── */}
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4">
+                    <div className="flex flex-wrap items-end gap-4">
+
+                        {/* Store selector (admin only) */}
+                        {user?.role === 'admin' && stores.length > 1 && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chi nhánh</label>
+                                <select
+                                    value={selectedStoreId}
+                                    onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }}
+                                    className="h-9 bg-white border border-slate-200 rounded-xl px-3 text-sm text-slate-700 outline-none focus:border-indigo-400 min-w-[140px]"
+                                >
+                                    {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Quick period pills */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest invisible">.</label>
+                            <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-0.5 h-9">
+                                {QUICK_FILTERS.map(type => (
+                                    <button
+                                        key={type.id}
+                                        onClick={() => setReportType(type.id as any)}
+                                        className={`px-4 h-7 rounded-lg text-xs font-bold transition-all ${
+                                            reportType === type.id
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700'
+                                        }`}
+                                    >
+                                        {type.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    )}
 
-                    <div className="md:col-span-3 flex bg-white p-1 rounded-xl border border-slate-200 h-10">
-                        {QUICK_FILTERS.map(type => (
-                            <button
-                                key={type.id}
-                                onClick={() => setReportType(type.id as any)}
-                                className={`flex-1 rounded-lg text-xs font-bold transition-all ${reportType === type.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                {type.label}
-                            </button>
-                        ))}
-                    </div>
+                        {/* From date */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Từ ngày</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => { setStartDate(e.target.value); setReportType('custom'); }}
+                                className="h-9 border border-slate-200 rounded-xl px-3 text-sm text-slate-700 outline-none focus:border-indigo-400 bg-white"
+                            />
+                        </div>
 
-                    <div className="md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label>
-                        <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setReportType('custom'); }} />
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label>
-                        <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setReportType('custom'); }} />
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Tìm khách</label>
-                        <Input placeholder="Tên khách hàng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        {/* To date */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đến ngày</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => { setEndDate(e.target.value); setReportType('custom'); }}
+                                className="h-9 border border-slate-200 rounded-xl px-3 text-sm text-slate-700 outline-none focus:border-indigo-400 bg-white"
+                            />
+                        </div>
+
+                        {/* Search */}
+                        <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tìm khách</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Tên khách hàng..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-9 w-full border border-slate-200 rounded-xl pl-3 pr-9 text-sm text-slate-700 outline-none focus:border-indigo-400 bg-white"
+                                />
+                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* ── Biểu đồ dual-axis: số lần + tổng tiền ── */}
-                    <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                {/* ── Charts row ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+                    {/* Grouped bar chart */}
+                    <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-indigo-500" />
                                 Số lần ghé &amp; Chi tiêu (top 10)
                             </h2>
-                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                            <div className="flex items-center gap-4 text-[11px] text-slate-400 font-semibold">
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />
+                                    <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" />
                                     Số lần ghé
                                 </span>
                                 <span className="flex items-center gap-1.5">
-                                    <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+                                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
                                     Chi tiêu
                                 </span>
                             </div>
                         </div>
                         {customerStats.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-300">
+                            <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-200">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                                 <p className="text-sm text-slate-400 font-medium">Không có dữ liệu trong khoảng thời gian này</p>
-                                <p className="text-xs text-slate-300">Thử chọn khoảng ngày khác</p>
                             </div>
                         ) : (
-                            <div style={{ position: 'relative', width: '100%', height: 360 }}>
-                                <canvas
-                                    ref={spendingChartRef}
-                                    role="img"
-                                    aria-label="Biểu đồ cột số lần ghé và đường tổng chi tiêu của top 10 khách hàng"
-                                />
+                            <div style={{ position: 'relative', width: '100%', height: 340 }}>
+                                <canvas ref={spendingChartRef} role="img" aria-label="Biểu đồ cột số lần ghé và chi tiêu top 10 khách hàng" />
                             </div>
                         )}
-                    </Card>
+                    </div>
 
-                    {/* ── Panel tổng hợp + top lượt ghé ngang ── */}
-                    <Card className="p-6 border-none shadow-sm rounded-2xl">
-                        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <BarChart3 className="w-4 h-4 text-indigo-600" />
+                    {/* Horizontal bar chart */}
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                        <h2 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-indigo-500" />
                             Top lượt ghé
                         </h2>
                         {customerStats.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-300">
+                            <div className="flex flex-col items-center justify-center h-48 gap-2 text-slate-200">
                                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                 <p className="text-xs text-slate-400">Chưa có dữ liệu</p>
                             </div>
                         ) : (
                             <div style={{ position: 'relative', width: '100%', height: Math.max(customerStats.slice(0, 10).length * 40 + 40, 200) }}>
-                                <canvas
-                                    ref={visitsChartRef}
-                                    role="img"
-                                    aria-label="Biểu đồ ngang số lần ghé của top 10 khách hàng"
-                                />
+                                <canvas ref={visitsChartRef} role="img" aria-label="Biểu đồ ngang số lần ghé top 10 khách hàng" />
                             </div>
                         )}
-                    </Card>
+                    </div>
+                </div>
 
-                    {/* ── Xếp hạng chi tiết ── */}
-                    <Card className="lg:col-span-2 p-6 border-none shadow-sm rounded-2xl">
-                        <h2 className="text-base font-bold text-slate-800 mb-4">Xếp hạng chi tiết</h2>
-                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                {/* ── Ranking table — matches screenshot ── */}
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+                        <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            {/* mini grid icon */}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-500"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                            Xếp hạng chi tiết
+                        </h2>
+                        <button className="text-xs font-semibold text-indigo-500 hover:text-indigo-700 border border-indigo-100 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition-colors">
+                            Xem tất cả
+                        </button>
+                    </div>
+
+                    {customerStats.length === 0 ? (
+                        <p className="text-center text-sm text-slate-400 py-12">Không có khách hàng định danh trong khoảng thời gian này</p>
+                    ) : (
+                        <div className="divide-y divide-slate-50">
                             {customerStats.map((c, i) => {
-                                const percent = totalSpendingAll > 0 ? Math.round((c.total / totalSpendingAll) * 100) : 0;
+                                const percent = totalSpendingAll > 0 ? (c.total / totalSpendingAll) * 100 : 0;
                                 const initials = c.name.trim().split(' ').slice(-2).map((w: string) => w[0]).join('').toUpperCase();
+                                // Avatar color cycle
+                                const avatarColors = [
+                                    'bg-indigo-100 text-indigo-600',
+                                    'bg-emerald-100 text-emerald-600',
+                                    'bg-amber-100 text-amber-600',
+                                    'bg-rose-100 text-rose-600',
+                                    'bg-purple-100 text-purple-600',
+                                    'bg-cyan-100 text-cyan-600',
+                                ];
+                                const avatarColor = avatarColors[i % avatarColors.length];
+
                                 return (
-                                    <div key={c.name} className="group p-3 hover:bg-slate-50 rounded-xl transition-all">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xs font-black text-slate-300 w-4">{i + 1}.</span>
-                                                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold flex-shrink-0">
-                                                    {initials}
-                                                </div>
-                                                <span className="text-sm font-bold text-slate-700">{c.name}</span>
-                                            </div>
-                                            <div className="text-right flex-shrink-0 ml-2">
-                                                <div className="text-sm font-black text-indigo-600">{c.total.toLocaleString('vi-VN')}đ</div>
-                                                <div className="text-[10px] font-bold text-emerald-500 uppercase">{c.count} lượt ghé</div>
+                                    <div key={c.name} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50/60 transition-colors">
+                                        {/* Rank */}
+                                        <span className="text-sm font-black text-slate-300 w-5 flex-shrink-0 text-right">{i + 1}</span>
+
+                                        {/* Avatar */}
+                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor}`}>
+                                            {initials}
+                                        </div>
+
+                                        {/* Name + progress */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-slate-700 mb-1.5">{c.name}</p>
+                                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                                                    style={{ width: `${percent}%` }}
+                                                />
                                             </div>
                                         </div>
-                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden ml-11">
-                                            <div
-                                                className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${percent}%` }}
-                                            />
+
+                                        {/* Stats */}
+                                        <div className="text-right flex-shrink-0 ml-4">
+                                            <p className="text-sm font-black text-indigo-600 tabular-nums">
+                                                {c.total.toLocaleString('vi-VN')}đ
+                                            </p>
+                                            <p className="text-[11px] font-semibold text-emerald-500 mt-0.5">
+                                                {c.count} lượt ghé
+                                            </p>
                                         </div>
                                     </div>
                                 );
                             })}
-                            {customerStats.length === 0 && (
-                                <p className="text-center text-sm text-slate-400 py-8">Không có khách hàng định danh trong khoảng thời gian này</p>
-                            )}
                         </div>
-                    </Card>
+                    )}
                 </div>
             </div>
         </div>
