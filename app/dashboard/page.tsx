@@ -415,35 +415,37 @@ export default function Dashboard() {
                     {/* Time */}
                     <div className="flex items-center gap-2 text-blue-600">
                       <Clock className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                       <span className="text-[12px] sm:text-sm font-bold">
-                                {(() => {
-                                  const rId = room.id || (room as any).Id;
-                                  const session = sessions[rId];
-                                  if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
-                                  const start = new Date((session.startTime || (session as any).StartTime)).getTime();
+                      <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thời gian:</span>
+                      <span className="text-[12px] sm:text-sm font-bold">
+                        {(() => {
+                          const rId = room.id || (room as any).Id;
+                          const session = sessions[rId];
+                          if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
+                          const start = new Date((session.startTime || (session as any).StartTime)).getTime();
 
-                                  let end: number;
-                                  const savedEnd = session.endTime || (session as any).EndTime;
-                                  if (savedEnd) {
-                                    end = new Date(savedEnd).getTime();
-                                  } else {
-                                    const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
-                                    end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
-                                  }
+                          let end: number;
+                          const savedEnd = session.endTime || (session as any).EndTime;
+                          if (savedEnd) {
+                            end = new Date(savedEnd).getTime();
+                          } else {
+                            const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
+                            end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
+                          }
 
-                                  const diffMs = end - start;
-                                  if (diffMs <= 0) return '0p';
-                                  const totalMinutes = Math.ceil(diffMs / 60000);
-                                  const hours = Math.floor(totalMinutes / 60);
-                                  const minutes = totalMinutes % 60;
-                                  return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
-                                })()}
-                              </span>
+                          const diffMs = end - start;
+                          if (diffMs <= 0) return '0p';
+                          const totalMinutes = Math.ceil(diffMs / 60000);
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = totalMinutes % 60;
+                          return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
+                        })()}
+                      </span>
                     </div>
 
                     {/* Money */}
                     <div className="flex items-center gap-2 text-red-600">
                       <Banknote className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                      <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thành tiền:</span>
                       <span className="text-xs sm:text-sm font-bold">
                         {(() => {
                           const status = room.status || (room as any).Status;
