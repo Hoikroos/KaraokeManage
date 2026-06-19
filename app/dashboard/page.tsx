@@ -14,7 +14,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 
-// Ép trang này và các fetch bên trong chạy tại region Singapore để gần Database
 export const preferredRegion = 'sin1';
 
 export default function Dashboard() {
@@ -31,13 +30,11 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  // State cho khóa bảo vệ mới
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [targetPath, setTargetPath] = useState('');
   const [isPinError, setIsPinError] = useState(false);
 
-  // Mật khẩu quản lý (tự định nghĩa tại đây)
   const ADMIN_PIN = "2531";
 
   const handleProtectedNavigation = (path: string) => {
@@ -86,17 +83,12 @@ export default function Dashboard() {
         }
       });
       const rawData: Room[] = await response.json();
-
-      // Lọc bỏ phòng ảo "MANG VỀ" (Id: EXTERNAL) để không hiển thị trên sơ đồ phòng chính
       const data = rawData.filter(r => (r.id ?? (r as any).Id) !== 'EXTERNAL');
 
       const sortedData = [...data].sort((a, b) => {
         const numA = parseInt((a.roomNumber || (a as any).RoomNumber)?.toString().replace(/\D/g, '') || '0');
         const numB = parseInt((b.roomNumber || (b as any).RoomNumber)?.toString().replace(/\D/g, '') || '0');
-
-        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
-          return numA - numB;
-        }
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
         if (!isNaN(numA) && isNaN(numB)) return -1;
         if (isNaN(numA) && !isNaN(numB)) return 1;
         return String(a.roomNumber || (a as any).RoomNumber).localeCompare(String(b.roomNumber || (b as any).RoomNumber), undefined, { numeric: true });
@@ -110,24 +102,18 @@ export default function Dashboard() {
 
       await Promise.all(occupiedRooms.map(async (room) => {
         const roomId = room.id || (room as any).Id;
-        try { // Chỉ lấy session nếu thực sự cần thiết, hoặc gộp vào API rooms
+        try {
           const sessionRes = await fetch(`/api/rooms/session?roomId=${roomId}&t=${Date.now()}`, {
             cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
           });
           if (sessionRes.ok) {
             const session = await sessionRes.json();
             sessionData[roomId] = session;
-
             const sessionId = session.id || (session as any).Id || (session as any).id;
-            // TỐI ƯU: Nếu là nhân viên xem ngoài sảnh, có thể chưa cần load chi tiết đơn hàng ngay
-            // giúp giảm Function Invocations đáng kể
             const ordersRes = await fetch(`/api/orders?sessionId=${sessionId}&t=${Date.now()}`, {
               cache: 'no-store',
-              next: { revalidate: 60 } // Cho phép cache nhẹ 60s ngoài Dashboard
+              next: { revalidate: 60 }
             });
             if (ordersRes.ok) {
               const orders = await ordersRes.json();
@@ -153,14 +139,10 @@ export default function Dashboard() {
     try {
       const storesRes = await fetch(`/api/admin/stores?t=${Date.now()}`, {
         cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
       });
       const storesData = await storesRes.json();
       setStores(storesData);
-
       const userStore = storesData.find((store: Store) => store.id === user?.storeId);
       const initialStoreId = userStore?.id || storesData[0]?.id;
       if (initialStoreId) {
@@ -184,9 +166,7 @@ export default function Dashboard() {
   }, [user, router, fetchData]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -194,14 +174,11 @@ export default function Dashboard() {
   useEffect(() => {
     const handleFocus = () => {
       const now = Date.now();
-      // Tăng lên 5 phút (300.000ms). Dashboard chỉ cần cái nhìn tổng quan, 
-      // không cần cập nhật từng giây như trong phòng.
       if (selectedStoreId && (now - lastDashboardFetchRef.current > 300000)) {
         fetchRooms(selectedStoreId);
         lastDashboardFetchRef.current = now;
       }
     };
-
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [selectedStoreId, fetchRooms]);
@@ -227,60 +204,61 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div className="min-h-screen" style={{
+      backgroundImage: `url('/bg-karaoke.png')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+      backgroundColor: '#e8ecff',
+    }}>
+
+      {/* ── Header ── */}
+      <div className="bg-white/95 backdrop-blur-md border-b border-white/60 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             <img
               src="/LogoNew.jpg"
-              alt="Logo Hệ thống"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
+              alt="Logo"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-cover flex-shrink-0 shadow-sm"
             />
-            <h1 className="text-sm sm:text-xl font-bold text-blue-600 truncate">HỆ THỐNG QUẢN LÝ BÁN HÀNG</h1>
+            <h1 className="text-sm sm:text-lg font-extrabold text-blue-600 truncate tracking-tight">
+              HỆ THỐNG QUẢN LÝ BÁN HÀNG
+            </h1>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-3">
-            {/* User info - only sm+ */}
-            <div className="hidden sm:flex items-center gap-2.5 mr-1">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm flex-shrink-0 ring-2 ring-white">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* User avatar + info */}
+            <div className="hidden sm:flex items-center gap-2.5 mr-2">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow flex-shrink-0 ring-2 ring-blue-100">
                 <span className="text-white text-xs font-bold leading-none select-none">
                   {user?.name?.split(' ').map((w: string) => w[0]).slice(-2).join('').toUpperCase() || 'U'}
                 </span>
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-slate-700 font-semibold text-sm leading-tight">{user?.name}</span>
-                <span className="text-slate-400 text-[10px] uppercase tracking-wider">{user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</span>
+                <span className="text-slate-400 text-[10px] uppercase tracking-wider">
+                  {user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+                </span>
               </div>
             </div>
 
-            {/* Desktop nav buttons - hidden on mobile */}
-            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/invoice')} className="hidden md:flex text-slate-600 hover:text-blue-600 gap-1.5 text-sm font-medium">
-              <History className="w-4 h-4" />
-              <span>Lịch sử</span>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/invoice')} className="hidden md:flex text-slate-600 hover:text-blue-600 hover:bg-blue-50 gap-1.5 text-sm font-medium rounded-xl">
+              <History className="w-4 h-4" /><span>Lịch sử</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/customers')} className="hidden md:flex text-slate-600 hover:text-indigo-600 gap-1.5 text-sm font-medium">
-              <Users className="w-4 h-4" />
-              <span>Khách hàng</span>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/customers')} className="hidden md:flex text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 gap-1.5 text-sm font-medium rounded-xl">
+              <Users className="w-4 h-4" /><span>Khách hàng</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/products')} className="hidden md:flex text-slate-600 hover:text-blue-600 gap-1.5 text-sm font-medium">
-              <Package className="w-4 h-4" />
-              <span>Thực đơn/ Kho</span>
+            <Button variant="ghost" size="sm" onClick={() => handleProtectedNavigation('/dashboard/products')} className="hidden md:flex text-slate-600 hover:text-blue-600 hover:bg-blue-50 gap-1.5 text-sm font-medium rounded-xl">
+              <Package className="w-4 h-4" /><span>Thực đơn/ Kho</span>
             </Button>
             <Link href="/dashboard/export" className="hidden md:flex">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 gap-1.5 text-sm font-medium">
-                <ShoppingBag className="w-4 h-4" />
-                <span>Bán mang về/ Tặng</span>
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 gap-1.5 text-sm font-medium rounded-xl">
+                <ShoppingBag className="w-4 h-4" /><span>Bán mang về/ Tặng</span>
               </Button>
             </Link>
 
-            {/* Logout - visible on all screen sizes */}
-            <Button
-              onClick={handleLogout}
-              variant="ghost"
-              size="sm"
-              className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 gap-1 font-semibold px-2 sm:px-3"
-            >
+            <Button onClick={handleLogout} variant="ghost" size="sm"
+              className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 gap-1 font-semibold px-2 sm:px-3 rounded-xl">
               <LogOut className="w-4 h-4" />
               <span className="hidden md:inline">Thoát</span>
             </Button>
@@ -288,20 +266,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* ── Main Content ── */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
 
-        {/* Store selector for admin */}
+        {/* Store selector */}
         {user?.role === 'admin' && stores.length > 1 && (
           <div className="flex flex-wrap gap-2 items-center mb-4">
             {stores.map((store) => (
               <button
                 key={store.id}
                 onClick={() => handleStoreChange(store.id)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all border ${selectedStoreId === store.id
-                  ? 'bg-blue-600 border-blue-600 text-white'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
-                  }`}
+                className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-all border shadow-sm ${
+                  selectedStoreId === store.id
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200'
+                    : 'bg-white/80 border-white text-slate-600 hover:border-blue-300 hover:bg-white'
+                }`}
               >
                 {store.name}
               </button>
@@ -310,14 +289,12 @@ export default function Dashboard() {
         )}
 
         {/* Page Title */}
-        <div className="mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Phòng / Bàn</h2>
-          <p className="text-slate-400 text-xs sm:text-sm mt-0.5">Quản lý trạng thái phòng / bàn trong hệ thống</p>
+        <div className="mb-5">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-800">Phòng / Bàn</h2>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">Quản lý trạng thái phòng / bàn trong hệ thống</p>
         </div>
 
-        {/* Search + View Toggle row */}
-
-        {/* Tabs - horizontal scroll on mobile */}
+        {/* Tabs */}
         <div className="flex gap-2 mb-5 overflow-x-auto pb-0.5 -mx-3 px-3 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
             { id: 'all', label: 'Tất cả', count: rooms.length },
@@ -327,13 +304,16 @@ export default function Dashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 ${activeTab === tab.id
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white border border-slate-200 text-slate-600'
-                }`}
+              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-blue-200'
+                  : 'bg-white/80 border border-white/60 text-slate-600 hover:bg-white'
+              }`}
             >
               {tab.label}
-              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold ${activeTab === tab.id ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`px-1.5 py-0.5 rounded-lg text-[11px] font-extrabold ${
+                activeTab === tab.id ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
                 {tab.count}
               </span>
             </button>
@@ -342,151 +322,133 @@ export default function Dashboard() {
 
         {/* Room Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 text-slate-400 font-medium">Đang tải dữ liệu...</div>
+          <div className="flex items-center justify-center h-64 text-slate-400 font-medium bg-white/60 rounded-2xl">
+            Đang tải dữ liệu...
+          </div>
         ) : filteredRooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white rounded-2xl border border-slate-100">
+          <div className="flex flex-col items-center justify-center h-64 text-slate-400 bg-white/70 rounded-2xl border border-white/60">
             <Home className="w-12 h-12 mb-2 opacity-20" />
             <p className="text-sm">{activeTab === 'all' ? 'Chưa có dữ liệu phòng' : 'Không có phòng nào ở trạng thái này'}</p>
           </div>
         ) : (
           <div className={viewMode === 'grid'
-            ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
-            : "flex flex-col gap-2.5"
+            ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4"
+            : "flex flex-col gap-3"
           }>
-            {filteredRooms.map((room) => (
-              <Link key={room.id || (room as any).Id} href={`/dashboard/room/${room.id || (room as any).Id}`}>
-                <div
-                  className={`relative bg-white border-2 rounded-2xl shadow-sm active:scale-[0.98] hover:shadow-md transition-all duration-150 cursor-pointer overflow-hidden
-                    ${(() => {
-                      const status = room.status || (room as any).Status;
-                      const rId = room.id || (room as any).Id;
-                      if (status === 'empty') return 'border-blue-400';
-                      const isPaused = (sessions[rId] as any)?.status === 'paused' || (sessions[rId] as any)?.Status === 'paused';
-                      return isPaused ? 'border-amber-400' : 'border-red-400';
-                    })()}
+            {filteredRooms.map((room) => {
+              const rId = room.id || (room as any).Id;
+              const status = room.status || (room as any).Status;
+              const isPaused = (sessions[rId] as any)?.status === 'paused' || (sessions[rId] as any)?.Status === 'paused';
+
+              // Border color per status
+              const borderClass = status === 'empty'
+                ? 'border-blue-300'
+                : isPaused
+                  ? 'border-amber-400'
+                  : 'border-red-400';
+
+              // Badge
+              const badgeClass = status === 'empty'
+                ? 'bg-blue-100 text-blue-600'
+                : isPaused
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-red-100 text-red-600';
+              const badgeLabel = status === 'empty' ? 'Trống' : isPaused ? 'Tạm Tính' : 'Đang dùng';
+
+              return (
+                <Link key={rId} href={`/dashboard/room/${rId}`}>
+                  <div className={`relative bg-white/90 backdrop-blur-sm border-2 ${borderClass} rounded-2xl shadow-sm hover:shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer overflow-hidden
                     ${viewMode === 'list' ? 'flex items-center gap-3 px-4 py-3.5' : 'p-3 sm:p-5'}
-                  `}
-                >
-                  {/* Watermark */}
-                  {viewMode === 'grid' && (
-                    <div className="absolute right-2 bottom-2 opacity-[0.035] pointer-events-none">
-                      <Home className="w-16 h-16 text-blue-600" />
-                    </div>
-                  )}
+                  `}>
 
-                  <div className={`flex items-center gap-2 ${viewMode === 'grid' ? 'mb-3' : 'flex-1 min-w-0'}`}>
-                    {/* Icon */}
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Home className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                    </div>
+                    {/* Watermark */}
+                    {viewMode === 'grid' && (
+                      <div className="absolute right-2 bottom-2 opacity-[0.04] pointer-events-none">
+                        <Home className="w-16 h-16 text-blue-600" />
+                      </div>
+                    )}
 
-                    {/* Room name */}
-                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 flex-1 min-w-0 leading-tight">
-                      P. {room.roomNumber || (room as any).RoomNumber}
-                    </h3>
-
-                    {/* Status badge */}
-                    {(() => {
-                      const status = room.status || (room as any).Status;
-                      const rId = room.id || (room as any).Id;
-                      const isPaused = (sessions[rId] as any)?.status === 'paused' || (sessions[rId] as any)?.Status === 'paused';
-                      return (
-                        <span
-                          className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-xs font-bold rounded-full flex-shrink-0 ${status === 'empty'
-                            ? 'bg-blue-100 text-blue-600'
-                            : (isPaused
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-red-100 text-red-600')
-                            }`}
-                        >
-                          {status === 'empty'
-                            ? 'Trống'
-                            : (isPaused
-                              ? 'Tạm Tính'
-                              : 'Đang dùng')
-                          }
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Time & Money info */}
-                  <div className={`${viewMode === 'list' ? 'flex gap-5 flex-shrink-0' : 'border-t border-slate-100 pt-3 space-y-2'}`}>
-                    {/* Time */}
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <Clock className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                      <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thời gian:</span>
-                      <span className="text-[12px] sm:text-sm font-bold">
-                        {(() => {
-                          const rId = room.id || (room as any).Id;
-                          const session = sessions[rId];
-                          if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
-                          const start = new Date((session.startTime || (session as any).StartTime)).getTime();
-
-                          let end: number;
-                          const savedEnd = session.endTime || (session as any).EndTime;
-                          if (savedEnd) {
-                            end = new Date(savedEnd).getTime();
-                          } else {
-                            const isPaused = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
-                            end = isPaused ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
-                          }
-
-                          const diffMs = end - start;
-                          if (diffMs <= 0) return '0p';
-                          const totalMinutes = Math.ceil(diffMs / 60000);
-                          const hours = Math.floor(totalMinutes / 60);
-                          const minutes = totalMinutes % 60;
-                          return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
-                        })()}
+                    {/* Top row: icon + name + badge */}
+                    <div className={`flex items-center gap-2 ${viewMode === 'grid' ? 'mb-3' : 'flex-1 min-w-0'}`}>
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Home className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                      </div>
+                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 flex-1 min-w-0 leading-tight">
+                        P. {room.roomNumber || (room as any).RoomNumber}
+                      </h3>
+                      <span className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[9px] sm:text-xs font-bold rounded-full flex-shrink-0 ${badgeClass}`}>
+                        {badgeLabel}
                       </span>
                     </div>
 
-                    {/* Money */}
-                    <div className="flex items-center gap-2 text-red-600">
-                      <Banknote className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
-                      <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thành tiền:</span>
-                      <span className="text-xs sm:text-sm font-bold">
-                        {(() => {
-                          const status = room.status || (room as any).Status;
-                          const rId = room.id || (room as any).Id;
-                          const session = sessions[rId] as any;
-                          const pricePerHour = room.pricePerHour || (room as any).PricePerHour || 0;
-
-                          if (status !== 'occupied' || !session) return '0 đ';
-
-                          let roomCharge = 0;
-                          const isPending = session.status === 'pending' || session.Status === 'pending';
-
-                          if (!isPending) {
-                            const start = new Date(session.startTime || session.StartTime).getTime();
-                            const savedEnd = session.endTime || session.EndTime;
-                            const isPaused = session.status === 'paused' || session.Status === 'paused';
-
-                            const end = savedEnd
-                              ? new Date(savedEnd).getTime()
-                              : (isPaused ? new Date(session.updatedAt || session.UpdatedAt || currentTime).getTime() : currentTime.getTime());
-
-                            const diffMs = end - start;
-                            if (diffMs > 0) {
-                              const minutes = Math.ceil(diffMs / 60000);
-                              roomCharge = Math.ceil((minutes * pricePerHour) / 60);
+                    {/* Time & Money */}
+                    <div className={`${viewMode === 'list' ? 'flex gap-5 flex-shrink-0' : 'border-t border-slate-100 pt-3 space-y-2'}`}>
+                      {/* Time */}
+                      <div className="flex items-center gap-2 text-blue-600">
+                        <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thời gian:</span>
+                        <span className="text-[12px] sm:text-sm font-bold">
+                          {(() => {
+                            const session = sessions[rId];
+                            if (!session || (session as any).status === 'pending' || (session as any)?.Status === 'pending') return '0p';
+                            const start = new Date((session.startTime || (session as any).StartTime)).getTime();
+                            let end: number;
+                            const savedEnd = session.endTime || (session as any).EndTime;
+                            if (savedEnd) {
+                              end = new Date(savedEnd).getTime();
+                            } else {
+                              const iP = (session as any).status === 'paused' || (session as any)?.Status === 'paused';
+                              end = iP ? new Date(((session as any).updatedAt || (session as any).UpdatedAt || currentTime)).getTime() : currentTime.getTime();
                             }
-                          }
-                          const productTotal = sessionTotals[rId] || 0;
-                          return `${(Math.ceil((roomCharge + productTotal) / 1000) * 1000).toLocaleString('vi-VN')} đ`;
-                        })()}
-                      </span>
+                            const diffMs = end - start;
+                            if (diffMs <= 0) return '0p';
+                            const totalMinutes = Math.ceil(diffMs / 60000);
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+                            return hours > 0 ? `${hours}h ${minutes}p` : `${minutes}p`;
+                          })()}
+                        </span>
+                      </div>
+
+                      {/* Money */}
+                      <div className="flex items-center gap-2 text-red-500">
+                        <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thành tiền:</span>
+                        <span className="text-xs sm:text-sm font-bold">
+                          {(() => {
+                            const session = sessions[rId] as any;
+                            const pricePerHour = room.pricePerHour || (room as any).PricePerHour || 0;
+                            if (status !== 'occupied' || !session) return '0 đ';
+                            let roomCharge = 0;
+                            const isPending = session.status === 'pending' || session.Status === 'pending';
+                            if (!isPending) {
+                              const start = new Date(session.startTime || session.StartTime).getTime();
+                              const savedEnd = session.endTime || session.EndTime;
+                              const iP = session.status === 'paused' || session.Status === 'paused';
+                              const end = savedEnd
+                                ? new Date(savedEnd).getTime()
+                                : (iP ? new Date(session.updatedAt || session.UpdatedAt || currentTime).getTime() : currentTime.getTime());
+                              const diffMs = end - start;
+                              if (diffMs > 0) {
+                                const minutes = Math.ceil(diffMs / 60000);
+                                roomCharge = Math.ceil((minutes * pricePerHour) / 60);
+                              }
+                            }
+                            const productTotal = sessionTotals[rId] || 0;
+                            return `${(Math.ceil((roomCharge + productTotal) / 1000) * 1000).toLocaleString('vi-VN')} đ`;
+                          })()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* ── Custom PIN Pad Modal ── */}
+      {/* ── PIN Modal ── */}
       <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
         <DialogContent className="w-[240px] rounded-[2.5rem] p-5 border-none shadow-2xl overflow-hidden bg-white/95 backdrop-blur-xl">
           <div className="flex flex-col items-center">
@@ -496,49 +458,33 @@ export default function Dashboard() {
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight mb-0.5 text-center">Xác thực PIN</h2>
             <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-5 text-center">Quản lý hệ thống</p>
 
-            {/* PIN Dots Display */}
             <div className={`flex gap-2.5 mb-6 ${isPinError ? 'animate-bounce' : ''}`}>
               {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className={`w-2.5 h-2.5 rounded-full border-2 transition-all duration-200 
-                    ${pinInput.length >= i
-                      ? 'bg-indigo-600 border-indigo-600 scale-110'
-                      : 'bg-transparent border-slate-200'}`}
-                />
+                <div key={i} className={`w-2.5 h-2.5 rounded-full border-2 transition-all duration-200 
+                  ${pinInput.length >= i ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-transparent border-slate-200'}`} />
               ))}
             </div>
 
-            {/* Keypad */}
             <div className="grid grid-cols-3 gap-2 w-full">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => handlePinClick(num)}
-                  className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all"
-                >
+              {['1','2','3','4','5','6','7','8','9'].map((num) => (
+                <button key={num} onClick={() => handlePinClick(num)}
+                  className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all">
                   {num}
                 </button>
               ))}
               <div />
-              <button
-                onClick={() => handlePinClick('0')}
-                className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all"
-              >
+              <button onClick={() => handlePinClick('0')}
+                className="w-full aspect-square rounded-xl bg-slate-50 hover:bg-indigo-50 active:scale-90 text-base font-black text-slate-700 transition-all">
                 0
               </button>
-              <button
-                onClick={() => setPinInput(prev => prev.slice(0, -1))}
-                className="w-full aspect-square rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all"
-              >
+              <button onClick={() => setPinInput(prev => prev.slice(0, -1))}
+                className="w-full aspect-square rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 active:scale-90 transition-all">
                 <Delete className="w-5 h-5" />
               </button>
             </div>
 
-            <button
-              onClick={() => setIsLockModalOpen(false)}
-              className="mt-5 text-slate-400 text-[9px] font-bold uppercase hover:text-slate-600 transition tracking-widest"
-            >
+            <button onClick={() => setIsLockModalOpen(false)}
+              className="mt-5 text-slate-400 text-[9px] font-bold uppercase hover:text-slate-600 transition tracking-widest">
               Hủy bỏ
             </button>
           </div>
