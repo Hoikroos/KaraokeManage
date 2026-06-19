@@ -1528,7 +1528,6 @@ export default function InventoryStatsPage() {
                                             </tr>
                                             {/* Show only paginated subset within current page */}
                                             {group.items
-                                                .slice((logsPage - 1) * pageSize, logsPage * pageSize)
                                                 .map(log => (
                                                 <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
                                                     <td className="px-5 py-3 text-[12px] text-gray-500 whitespace-nowrap">
