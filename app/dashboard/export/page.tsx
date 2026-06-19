@@ -192,11 +192,25 @@ export default function ExportPage() {
         } catch (e) { toast.error('Lỗi khi tải chi tiết để in'); }
     };
 
+    /* ── Tính dữ liệu in ── */
+    const printItems = lastExport?.items || [];
+    const printTotal = printItems.reduce((s: number, i: any) => s + (Number(i.price) * Number(i.quantity)), 0) || totalAmount;
+    const isGiftPrint = lastExport?.id?.startsWith('GFT') || exportType === 'gift';
+    const printCustomerName = (() => {
+        const fullName = lastExport?.customerName || lastExport?.CustomerName || customerName || '';
+        return fullName.split(': ')[0].split(' [')[0];
+    })();
+    const printNote = (() => {
+        const fullName = lastExport?.customerName || lastExport?.CustomerName || '';
+        const parts = fullName.split(' | Ghichu: ');
+        return parts.length > 1 ? parts[1] : (lastExport?.note || note);
+    })();
+
     return (
         <div className="min-h-screen font-sans" style={{ background: '#f8f9fb' }}>
 
-            {/* ── Header ── */}
-            <div className="bg-white border-b sticky top-0 z-30 shadow-sm print:hidden" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* ── Header (ẩn khi in) ── */}
+            <div id="no-print" className="bg-white border-b sticky top-0 z-30 shadow-sm" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button
                         onClick={() => router.push('/dashboard')}
@@ -239,8 +253,8 @@ export default function ExportPage() {
                 </div>
             </div>
 
-            {/* ── Body ── */}
-            <div className="print:hidden" style={{ display: 'flex', height: 'calc(100vh - 57px)', overflow: 'hidden' }}>
+            {/* ── Body (ẩn khi in) ── */}
+            <div id="no-print" style={{ display: 'flex', height: 'calc(100vh - 57px)', overflow: 'hidden' }}>
 
                 {/* Left panel */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }} className="no-scrollbar">
@@ -477,95 +491,96 @@ export default function ExportPage() {
                 </div>
             </div>
 
-            {/* ── Print Template (80mm) ── */}
-            <div className="hidden print:block w-[80mm] mx-auto p-4 bg-white text-black font-bold text-[14px]" style={{ fontFamily: 'monospace' }}>
-                <div className="text-center mb-4 border-b-2 border-black pb-2">
-                    <h2 className="text-xl font-black uppercase">PHIẾU XUẤT KHO</h2>
-                    <p className="text-xs uppercase">{exportType === 'gift' ? 'Hàng Tặng / Biếu' : 'Hàng Mang Về'}</p>
-                </div>
+            {/* ══════════════════════════════════════════════════════
+                PHIẾU IN — dùng id="print-area", KHÔNG dùng Tailwind
+                print:block vì Tailwind escape không hoạt động trong
+                <style jsx global> với @media print
+            ══════════════════════════════════════════════════════ */}
+            <div id="print-area" style={{ display: 'none' }}>
+                <div style={{ width: '72mm', margin: '0 auto', padding: '4mm', background: '#fff', color: '#000', fontFamily: 'monospace', fontSize: 13 }}>
 
-                <div className="space-y-1 mb-4">
-                    <div className="flex justify-between">
-                        <span>Ngày giờ:</span>
-                        <span>{lastExport?.exportTime}</span>
+                    {/* Tiêu đề */}
+                    <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 10 }}>
+                        <div style={{ fontSize: 18, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}>PHIẾU XUẤT KHO</div>
+                        <div style={{ fontSize: 11, textTransform: 'uppercase', marginTop: 2 }}>
+                            {isGiftPrint ? 'Hàng Tặng / Biếu' : 'Hàng Mang Về'}
+                        </div>
                     </div>
-                    <div className="flex justify-between">
-                        <span>Mã phiếu:</span>
-                        <span>{lastExport?.id?.substring(0, 10)}</span>
+
+                    {/* Thông tin */}
+                    <div style={{ marginBottom: 10, lineHeight: 1.8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Ngày giờ:</span>
+                            <span style={{ fontWeight: 700 }}>{lastExport?.exportTime}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Mã phiếu:</span>
+                            <span style={{ fontWeight: 700 }}>{lastExport?.id?.substring(0, 10)}</span>
+                        </div>
+                        {printCustomerName && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Người nhận:</span>
+                                <span style={{ fontWeight: 700 }}>{printCustomerName}</span>
+                            </div>
+                        )}
                     </div>
-                    {(customerName || lastExport?.customerName || lastExport?.CustomerName) && (
-                        <div className="flex justify-between">
-                            <span>Người nhận:</span>
-                            <span>
-                                {(() => {
-                                    const fullName = lastExport?.customerName || lastExport?.CustomerName || customerName || '';
-                                    return fullName.split(': ')[0].split(' [')[0];
-                                    return fullName.split(': ')[0].split(' | ')[0];
-                                })()}
-                            </span>
+
+                    {/* Bảng sản phẩm */}
+                    <table style={{ width: '100%', marginBottom: 10, borderCollapse: 'collapse', borderTop: '1px solid #000' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid #000' }}>
+                                <th style={{ textAlign: 'left', padding: '4px 0', fontSize: 12 }}>Tên món</th>
+                                <th style={{ textAlign: 'center', padding: '4px 2px', fontSize: 12 }}>SL</th>
+                                <th style={{ textAlign: 'right', padding: '4px 0', fontSize: 12 }}>T.Tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {printItems.map((item: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: '1px dashed #aaa' }}>
+                                    <td style={{ padding: '5px 0', fontSize: 13 }}>{item.name}</td>
+                                    <td style={{ textAlign: 'center', padding: '5px 2px', fontSize: 13 }}>{item.quantity}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 0', fontSize: 13 }}>
+                                        {(Number(item.price) * Number(item.quantity)).toLocaleString('vi-VN')}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {/* Tổng */}
+                    <div style={{ borderTop: '2px solid #000', paddingTop: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 900 }}>
+                            <span>TỔNG GIÁ TRỊ:</span>
+                            <span>{printTotal.toLocaleString('vi-VN')}đ</span>
+                        </div>
+                        {isGiftPrint && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 900 }}>
+                                <span>THANH TOÁN:</span>
+                                <span>0đ</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Ghi chú */}
+                    {printNote && (
+                        <div style={{ marginTop: 12, borderTop: '2px solid #000', paddingTop: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', marginBottom: 4 }}>Ghi chú:</div>
+                            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.4, wordBreak: 'break-word' }}>{printNote}</div>
                         </div>
                     )}
-                </div>
-
-                <table className="w-full mb-4 border-t border-black pt-2">
-                    <thead>
-                        <tr className="border-b border-black">
-                            <th className="text-left py-1">Tên món</th>
-                            <th className="text-center">SL</th>
-                            <th className="text-right">T.Tiền</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {lastExport?.items?.map((item: any, idx: number) => (
-                            <tr key={idx} className="border-b border-dashed border-slate-300">
-                                <td className="py-2">{item.name}</td>
-                                <td className="text-center">{item.quantity}</td>
-                                <td className="text-right">{(item.price * item.quantity).toLocaleString('vi-VN')}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-
-                <div className="space-y-1">
-                    {(() => {
-                        const val = lastExport?.items?.reduce((s: number, i: any) => s + (Number(i.price) * Number(i.quantity)), 0) || totalAmount;
-                        const isGift = lastExport?.id?.startsWith('GFT') || exportType === 'gift';
-                        return (
-                            <>
-                                <div className="flex justify-between text-lg font-black pt-2 border-t-2 border-black">
-                                    <span>TỔNG GIÁ TRỊ:</span>
-                                    <span>{val.toLocaleString('vi-VN')}đ</span>
-                                </div>
-                                {isGift && (
-                                    <div className="flex justify-between text-lg font-black">
-                                        <span>THANH TOÁN:</span>
-                                        <span>0đ</span>
-                                    </div>
-                                )}
-                            </>
-                        );
-                    })()}
-                    {(() => {
-                        const fullName = lastExport?.customerName || lastExport?.CustomerName || '';
-                        const noteMatchFromLog = fullName.split(' | Ghichu: ');
-                        const displayNote = noteMatchFromLog.length > 1 ? noteMatchFromLog[1] : (lastExport?.note || note);
-                        return displayNote ? (
-                            <div className="mt-4 pt-2 border-t-2 border-black">
-                                <p className="text-[12px] font-black uppercase mb-1">Ghi chú:</p>
-                                <p className="text-[18px] leading-tight font-black break-words" style={{ textTransform: 'none' }}>{displayNote}</p>
-                            </div>
-                        ) : null;
-                    })()}
                 </div>
             </div>
 
             <style jsx global>{`
+        /* ── Ẩn giao diện khi in ── */
         @media print {
-          body * { visibility: hidden; }
-          .print\\:block, .print\\:block * { visibility: visible; }
-          .print\\:block { position: absolute; left: 0; top: 0; width: 100%; }
+          #no-print { display: none !important; }
+          #print-area { display: block !important; }
+          body { background: #fff !important; }
           @page { size: 80mm auto; margin: 0; }
         }
+
+        /* ── Scrollbar ẩn ── */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>

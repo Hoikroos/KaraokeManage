@@ -868,25 +868,35 @@ export default function InventoryStatsPage() {
 
             {/* ── Header ── */}
             <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-                <div className="flex items-center justify-between px-6 h-14">
-                    {/* Tabs */}
-                    <div className="flex items-center gap-0">
-                        <button
-                            onClick={() => { setActiveTab('sales'); setSearchTerm(''); setLogDirection('all'); }}
-                            className={`px-5 h-14 text-[13px] font-semibold border-b-2 transition-all ${activeTab === 'sales'
-                                ? 'border-emerald-500 text-emerald-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                        >
-                            Tổng quan tồn kho &amp; bán hàng
-                        </button>
-                        <button
-                            onClick={() => { setActiveTab('history'); setSearchTerm(''); setLogDirection('all'); }}
-                            className={`px-5 h-14 text-[13px] font-semibold border-b-2 transition-all ${activeTab === 'history'
-                                ? 'border-emerald-500 text-emerald-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                        >
-                            Lịch sử nhập hàng
-                        </button>
+                <div className="flex items-center justify-between px-4 h-14">
+                    <div className="flex items-center gap-4">
+                        {/* Back Button */}
+                        <Link href="/dashboard/admin">
+                            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-emerald-600 gap-1.5">
+                                <ArrowLeft className="w-4 h-4" />
+                                <span className="hidden sm:inline">Quay lại</span>
+                            </Button>
+                        </Link>
+                        <div className="w-px h-6 bg-gray-200" />
+                        {/* Tabs */}
+                        <div className="flex items-center gap-0">
+                            <button
+                                onClick={() => { setActiveTab('sales'); setSearchTerm(''); setLogDirection('all'); }}
+                                className={`px-5 h-14 text-[13px] font-semibold border-b-2 transition-all ${activeTab === 'sales'
+                                    ? 'border-emerald-500 text-emerald-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Tổng quan tồn kho &amp; bán hàng
+                            </button>
+                            <button
+                                onClick={() => { setActiveTab('history'); setSearchTerm(''); setLogDirection('all'); }}
+                                className={`px-5 h-14 text-[13px] font-semibold border-b-2 transition-all ${activeTab === 'history'
+                                    ? 'border-emerald-500 text-emerald-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Lịch sử nhập hàng
+                            </button>
+                        </div>
                     </div>
 
                     {/* Right controls */}
