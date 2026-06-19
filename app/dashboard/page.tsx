@@ -34,30 +34,43 @@ export default function Dashboard() {
   const [pinInput, setPinInput] = useState('');
   const [targetPath, setTargetPath] = useState('');
   const [isPinError, setIsPinError] = useState(false);
+  const [expectedPin, setExpectedPin] = useState('');
 
   const ADMIN_PIN = "2531";
+  const CUSTOMER_PIN = "180806";
 
   const handleProtectedNavigation = (path: string) => {
-    if (sessionStorage.getItem('dashboard_unlocked') === 'true') {
+    const isCustomer = path === '/dashboard/customers';
+
+    // Các mục thường: đã unlock session thì đi thẳng
+    if (!isCustomer && sessionStorage.getItem('dashboard_unlocked') === 'true') {
       router.push(path);
       return;
     }
+
+    // Luôn hỏi PIN (khách hàng luôn hỏi, mục khác hỏi lần đầu)
     setTargetPath(path);
     setPinInput('');
+    setExpectedPin(isCustomer ? CUSTOMER_PIN : ADMIN_PIN);
     setIsLockModalOpen(true);
   };
 
   const handlePinClick = (num: string) => {
-    if (pinInput.length < 4) {
+    if (pinInput.length < 6) {
       const newPin = pinInput + num;
       setPinInput(newPin);
-      if (newPin.length === 4) verifyPin(newPin);
+      // Kiểm tra đủ độ dài PIN tương ứng
+      const requiredLength = targetPath === '/dashboard/customers' ? 6 : 4;
+      if (newPin.length === requiredLength) verifyPin(newPin);
     }
   };
 
   const verifyPin = (pin: string) => {
-    if (pin === ADMIN_PIN) {
-      sessionStorage.setItem('dashboard_unlocked', 'true');
+    if (pin === expectedPin) {
+      // Chỉ lưu session cho các mục thường, không lưu cho khách hàng
+      if (targetPath !== '/dashboard/customers') {
+        sessionStorage.setItem('dashboard_unlocked', 'true');
+      }
       setIsLockModalOpen(false);
       router.push(targetPath);
     } else {
@@ -203,6 +216,9 @@ export default function Dashboard() {
     return matchTab && matchSearch;
   });
 
+  // Số chấm PIN hiển thị tùy theo mục
+  const pinLength = targetPath === '/dashboard/customers' ? 6 : 4;
+
   return (
     <div className="min-h-screen" style={{
       backgroundImage: `url('/bg-karaoke.png')`,
@@ -340,14 +356,12 @@ export default function Dashboard() {
               const status = room.status || (room as any).Status;
               const isPaused = (sessions[rId] as any)?.status === 'paused' || (sessions[rId] as any)?.Status === 'paused';
 
-              // Border color per status
               const borderClass = status === 'empty'
                 ? 'border-blue-300'
                 : isPaused
                   ? 'border-amber-400'
                   : 'border-red-400';
 
-              // Badge
               const badgeClass = status === 'empty'
                 ? 'bg-blue-100 text-blue-600'
                 : isPaused
@@ -361,14 +375,12 @@ export default function Dashboard() {
                     ${viewMode === 'list' ? 'flex items-center gap-3 px-4 py-3.5' : 'p-3 sm:p-5'}
                   `}>
 
-                    {/* Watermark */}
                     {viewMode === 'grid' && (
                       <div className="absolute right-2 bottom-2 opacity-[0.04] pointer-events-none">
                         <Home className="w-16 h-16 text-blue-600" />
                       </div>
                     )}
 
-                    {/* Top row: icon + name + badge */}
                     <div className={`flex items-center gap-2 ${viewMode === 'grid' ? 'mb-3' : 'flex-1 min-w-0'}`}>
                       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
                         <Home className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
@@ -381,9 +393,7 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    {/* Time & Money */}
                     <div className={`${viewMode === 'list' ? 'flex gap-5 flex-shrink-0' : 'border-t border-slate-100 pt-3 space-y-2'}`}>
-                      {/* Time */}
                       <div className="flex items-center gap-2 text-blue-600">
                         <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thời gian:</span>
@@ -410,7 +420,6 @@ export default function Dashboard() {
                         </span>
                       </div>
 
-                      {/* Money */}
                       <div className="flex items-center gap-2 text-red-500">
                         <Banknote className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="hidden sm:inline text-[11px] font-semibold text-slate-400">Thành tiền:</span>
@@ -449,33 +458,34 @@ export default function Dashboard() {
       </div>
 
       {/* ── PIN Modal ── */}
-       <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
+      <Dialog open={isLockModalOpen} onOpenChange={setIsLockModalOpen}>
         <DialogContent className="w-[300px] max-w-[90vw] rounded-3xl p-0 border-none shadow-2xl overflow-hidden bg-white">
- 
+
           {/* ── Header gradient ── */}
           <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 pt-7 pb-9 px-6 flex flex-col items-center gap-3 overflow-hidden">
-            {/* Decorative blur blobs */}
             <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/10" />
             <div className="absolute -bottom-8 -left-4 w-20 h-20 rounded-full bg-white/10" />
- 
+
             {/* Lock icon */}
             <div className="relative z-10 w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-lg">
               <Lock className="w-6 h-6 text-white" strokeWidth={2.5} />
             </div>
- 
+
             {/* Heading */}
             <div className="relative z-10 text-center">
               <p className="text-white font-black text-base tracking-tight">Xác thực PIN</p>
-              <p className="text-blue-200 text-[10px] font-bold uppercase tracking-[0.15em] mt-0.5">Quản lý hệ thống</p>
+              <p className="text-blue-200 text-[10px] font-bold uppercase tracking-[0.15em] mt-0.5">
+                {targetPath === '/dashboard/customers' ? 'Quản lý khách hàng' : 'Quản lý hệ thống'}
+              </p>
             </div>
- 
-            {/* PIN dot indicators */}
+
+            {/* PIN dot indicators — số chấm theo độ dài PIN */}
             <div className={`relative z-10 flex gap-3 mt-1 ${isPinError ? 'animate-bounce' : ''}`}>
-              {[1, 2, 3, 4].map((i) => (
+              {Array.from({ length: pinLength }).map((_, i) => (
                 <div
                   key={i}
                   className={`w-3 h-3 rounded-full border-2 transition-all duration-150 ${
-                    pinInput.length >= i
+                    pinInput.length > i
                       ? 'bg-white border-white scale-110'
                       : 'bg-transparent border-white/40'
                   }`}
@@ -483,7 +493,7 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
- 
+
           {/* ── Numpad ── */}
           <div className="bg-slate-50 px-5 pt-5 pb-5">
             <div className="grid grid-cols-3 gap-2.5">
@@ -503,10 +513,10 @@ export default function Dashboard() {
                   {num}
                 </button>
               ))}
- 
+
               {/* Row 4: blank | 0 | backspace */}
               <div />
- 
+
               <button
                 onClick={() => handlePinClick('0')}
                 className="
@@ -520,7 +530,7 @@ export default function Dashboard() {
               >
                 0
               </button>
- 
+
               <button
                 onClick={() => setPinInput(prev => prev.slice(0, -1))}
                 className="
@@ -535,7 +545,7 @@ export default function Dashboard() {
                 <Delete className="w-[18px] h-[18px]" />
               </button>
             </div>
- 
+
             {/* Cancel */}
             <button
               onClick={() => setIsLockModalOpen(false)}
@@ -544,7 +554,7 @@ export default function Dashboard() {
               Hủy bỏ
             </button>
           </div>
- 
+
         </DialogContent>
       </Dialog>
     </div>
