@@ -2,13 +2,17 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import Swal from 'sweetalert2';
 import { useAuth } from '@/app/context';
 import { Store } from '@/lib/db';
-import { History, Search, Eye, ArrowLeft, Calendar, X, BarChart3, Users, Download, Trash2 } from 'lucide-react';
+import {
+    History, Search, Eye, ArrowLeft, Calendar,
+    X, BarChart3, Download, Trash2, Receipt,
+    DoorOpen, Clock, Coins, UserCircle, User,
+    Hash, BuildingStorefront,
+} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 
@@ -32,26 +36,20 @@ export default function InvoiceHistoryPage() {
     const [endDate, setEndDate] = useState('');
     const [isMounted, setIsMounted] = useState(false);
 
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    useEffect(() => { setIsMounted(true); }, []);
 
     useEffect(() => {
-        if (user !== undefined) {
-            fetchInitialData();
-        }
+        if (user !== undefined) fetchInitialData();
     }, [user]);
 
     const fetchInitialData = async () => {
         try {
             const storesRes = await fetch('/api/admin/stores');
             let storesData = (await storesRes.json()) || [];
-
             if (user?.storeId && user?.storeId !== 'all') {
                 storesData = storesData.filter((s: Store) => s.id === user.storeId);
             }
             setStores(storesData);
-
             const initialStoreId = user?.storeId || (storesData.length > 0 ? storesData[0].id : '');
             setSelectedStoreId(initialStoreId);
             await fetchInvoices(initialStoreId);
@@ -67,10 +65,8 @@ export default function InvoiceHistoryPage() {
             const params = new URLSearchParams();
             if (storeId && storeId !== 'all') params.append('storeId', storeId);
             params.append('t', Date.now().toString());
-
             const res = await fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' });
             const data = await res.json();
-
             const rawInvoices = Array.isArray(data) ? data : (data?.invoices || data?.data || []);
             const normalized: DisplayInvoice[] = rawInvoices.map((inv: any) => ({
                 ...inv,
@@ -89,10 +85,10 @@ export default function InvoiceHistoryPage() {
     };
 
     const filteredInvoices = useMemo(() => invoices.filter(inv => {
-        const matchSearch = inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        const matchSearch =
+            inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
         if (!matchSearch) return false;
-
         if (startDate || endDate) {
             const invDate = new Date(inv.createdAt);
             if (startDate) {
@@ -129,9 +125,7 @@ export default function InvoiceHistoryPage() {
     const customerStats = useMemo(() => {
         const groups: { [key: string]: number } = {};
         filteredInvoices.forEach(inv => {
-            // Loại bỏ hóa đơn Tặng/Mang về khỏi biểu đồ và danh sách thống kê khách hàng
             if (inv.id.startsWith('GFT') || inv.id.startsWith('TKW')) return;
-
             const name = inv.customerName?.trim() || 'Khách lẻ';
             groups[name] = (groups[name] || 0) + 1;
         });
@@ -141,9 +135,7 @@ export default function InvoiceHistoryPage() {
     }, [filteredInvoices]);
 
     const totalLe = customerStats.find(c => c.name === 'Khách lẻ')?.count || 0;
-    const totalNamed = customerStats
-        .filter(c => c.name !== 'Khách lẻ')
-        .reduce((sum, c) => sum + c.count, 0);
+    const totalNamed = customerStats.filter(c => c.name !== 'Khách lẻ').reduce((sum, c) => sum + c.count, 0);
     const namedCustomers = customerStats.filter(c => c.name !== 'Khách lẻ');
 
     const handleDeleteInvoice = async (id: string) => {
@@ -157,16 +149,13 @@ export default function InvoiceHistoryPage() {
             confirmButtonText: 'Chuyển vào thùng rác',
             cancelButtonText: 'Hủy',
         });
-
         if (!result.isConfirmed) return;
-
         try {
             const response = await fetch('/api/invoices', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id }),
             });
-
             if (response.ok) {
                 setInvoices(invoices.filter((inv) => inv.id !== id));
                 toast.success('Đã chuyển hóa đơn vào thùng rác');
@@ -180,11 +169,7 @@ export default function InvoiceHistoryPage() {
     };
 
     const handleExportExcel = () => {
-        if (filteredInvoices.length === 0) {
-            toast.error('Không có dữ liệu để xuất');
-            return;
-        }
-
+        if (filteredInvoices.length === 0) { toast.error('Không có dữ liệu để xuất'); return; }
         const headers = ['Mã HD', 'Phòng', 'Khách hàng', 'Thời gian', 'Tổng tiền (VNĐ)'];
         const csvData = filteredInvoices.map(inv => [
             `#${inv.id.substring(0, 8).toUpperCase()}`,
@@ -193,7 +178,6 @@ export default function InvoiceHistoryPage() {
             new Date(inv.createdAt).toLocaleString('vi-VN'),
             Math.ceil(inv.totalPrice / 1000) * 1000,
         ]);
-
         const csvContent = [headers.join(','), ...csvData.map(e => e.join(','))].join('\n');
         const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -207,246 +191,265 @@ export default function InvoiceHistoryPage() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Link href="/dashboard">
-                            <Button variant="ghost" size="sm" className="text-slate-600">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
-                            </Button>
-                        </Link>
-                        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <History className="w-5 h-5 text-blue-600" /> Lịch sử hóa đơn
-                        </h1>
-                    </div>
-                    {/* Nút thùng rác */}
-                    <Link href="/dashboard/invoice/trash">
+
+            {/* ── Topbar ── */}
+            <div className="bg-white border-b border-slate-100 sticky top-0 z-40">
+                <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-3">
+                    <Link href="/dashboard">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 border border-rose-100 gap-2"
+                            className="text-slate-500 hover:text-slate-700 hover:bg-slate-100 gap-1.5 rounded-lg"
                         >
-                            <Trash2 className="w-4 h-4" /> Thùng rác
+                            <ArrowLeft className="w-4 h-4" />
+                            Quay lại
                         </Button>
                     </Link>
+                    <div className="h-5 w-px bg-slate-200" />
+                    <h1 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                        <History className="w-4 h-4 text-blue-500" />
+                        Lịch sử hóa đơn
+                    </h1>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Bộ lọc */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 items-end">
-                    <div className={`w-full ${(user?.role !== 'admin' || (user?.storeId && user.storeId !== 'all')) ? 'hidden' : ''}`}>
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
-                        <select
-                            value={selectedStoreId}
-                            onChange={(e) => {
-                                setSelectedStoreId(e.target.value);
-                                fetchInvoices(e.target.value);
-                            }}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">Tất cả chi nhánh</option>
-                            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
+            <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
 
-                    <div className="w-full">
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="pl-10 bg-white border-slate-200 shadow-sm h-10"
-                            />
-                        </div>
-                    </div>
+                {/* ── Bộ lọc ── */}
+                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
 
-                    <div className="w-full">
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="pl-10 bg-white border-slate-200 shadow-sm h-10"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="w-full">
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Tìm kiếm</label>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                placeholder="Mã HD hoặc tên khách..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 bg-white border-slate-200 shadow-sm h-10"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="w-full flex items-end gap-2">
-                        <Button
-                            onClick={handleExportExcel}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 flex-1 gap-2 rounded-lg shadow-sm"
-                        >
-                            <Download className="w-4 h-4" /> Xuất Excel
-                        </Button>
-                        {(startDate || endDate || searchTerm) && (
-                            <Button
-                                variant="ghost"
-                                onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); }}
-                                className="text-slate-400 hover:text-rose-500 h-10 px-3 border border-slate-200 rounded-lg hover:bg-rose-50"
+                        {/* Chi nhánh */}
+                        <div className={`w-full ${(user?.role !== 'admin' || (user?.storeId && user.storeId !== 'all')) ? 'hidden' : ''}`}>
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                <BuildingStorefront className="w-3.5 h-3.5" /> Chi nhánh
+                            </label>
+                            <select
+                                value={selectedStoreId}
+                                onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
                             >
-                                <X className="w-4 h-4" />
+                                <option value="">Tất cả chi nhánh</option>
+                                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Từ ngày */}
+                        <div className="w-full">
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                <Calendar className="w-3.5 h-3.5" /> Từ ngày
+                            </label>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+                                <Input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="pl-9 bg-slate-50 border-slate-200 rounded-xl h-10 text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Đến ngày */}
+                        <div className="w-full">
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                <Calendar className="w-3.5 h-3.5" /> Đến ngày
+                            </label>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+                                <Input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="pl-9 bg-slate-50 border-slate-200 rounded-xl h-10 text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Tìm kiếm */}
+                        <div className="w-full">
+                            <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                <Search className="w-3.5 h-3.5" /> Tìm kiếm
+                            </label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+                                <Input
+                                    placeholder="Mã HD hoặc tên khách..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-9 bg-slate-50 border-slate-200 rounded-xl h-10 text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Nút xuất + xóa lọc */}
+                        <div className="flex items-end gap-2">
+                            <Button
+                                onClick={handleExportExcel}
+                                className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl gap-2 shadow-sm transition"
+                            >
+                                <Download className="w-4 h-4" /> Xuất Excel
                             </Button>
-                        )}
+                            {(startDate || endDate || searchTerm) && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); }}
+                                    className="h-10 px-3 border border-slate-200 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-200 transition"
+                                >
+                                    <X className="w-4 h-4" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Biểu đồ lượt khách theo ngày */}
+                {/* ── Biểu đồ ── */}
                 {isMounted && chartData.length > 0 && (
-                    <Card className="p-6 border-none shadow-sm bg-white rounded-2xl mb-6">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-blue-600" /> Thống kê lượt khách theo ngày
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
+                        <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-5">
+                            <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <BarChart3 className="w-4 h-4 text-blue-500" />
+                            </span>
+                            Lượt khách theo ngày
                         </h2>
-                        <div style={{ width: '100%', height: 250 }}>
+                        <div style={{ width: '100%', height: 220 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartData}>
+                                <BarChart data={chartData} barSize={28}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} allowDecimals={false} />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
                                     <Tooltip
                                         cursor={{ fill: '#f8fafc' }}
-                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                        contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', fontSize: 13 }}
                                     />
-                                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Số lượt khách" />
+                                    <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Số lượt khách" />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
-                    </Card>
+                    </div>
                 )}
 
-                {/* Thống kê khách hàng */}
-                {isMounted && filteredInvoices.length > 0 && (
-                    <Card className="p-6 border-none shadow-sm bg-white rounded-2xl mb-6">
-                        <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-600" /> Thống kê khách hàng
-                        </h2>
-
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-blue-50 rounded-xl p-4 text-center">
-                                <p className="text-xs font-bold text-blue-400 uppercase mb-1">Khách hàng</p>
-                                <p className="text-3xl font-black text-blue-600">{totalNamed}</p>
-                                <p className="text-xs text-blue-400 mt-1">lượt</p>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-4 text-center">
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Khách lẻ</p>
-                                <p className="text-3xl font-black text-slate-600">{totalLe}</p>
-                                <p className="text-xs text-slate-400 mt-1">lượt</p>
-                            </div>
-                        </div>
-
-                        {namedCustomers.length > 0 && (
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase mb-4">Chi tiết khách hàng</p>
-                                <div className="space-y-3">
-                                    {namedCustomers.map(({ name, count }) => {
-                                        const percent = Math.round((count / filteredInvoices.length) * 100);
-                                        return (
-                                            <div key={name} className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold flex-shrink-0">
-                                                    {name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-sm font-semibold text-slate-700 truncate">{name}</span>
-                                                        <span className="text-xs font-bold text-blue-600 ml-2 flex-shrink-0">{count} lượt</span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                                                            style={{ width: `${percent}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs text-slate-400 w-9 text-right flex-shrink-0">{percent}%</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {namedCustomers.length === 0 && (
-                            <p className="text-center text-slate-400 text-sm italic py-4">
-                                Tất cả đều là khách lẻ trong khoảng thời gian này
-                            </p>
-                        )}
-                    </Card>
-                )}
-
-                {/* Bảng danh sách hóa đơn */}
-                <Card className="bg-white border-none shadow-sm overflow-hidden rounded-2xl">
+                {/* ── Bảng hóa đơn ── */}
+                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
                     {isLoading ? (
-                        <div className="p-12 text-center text-slate-400">Đang tải dữ liệu...</div>
+                        <div className="py-16 flex flex-col items-center gap-3 text-slate-400">
+                            <Receipt className="w-8 h-8 animate-pulse text-slate-300" />
+                            <span className="text-sm">Đang tải dữ liệu...</span>
+                        </div>
                     ) : filteredInvoices.length === 0 ? (
-                        <div className="p-12 text-center text-slate-400 italic">Không tìm thấy hóa đơn nào</div>
+                        <div className="py-16 flex flex-col items-center gap-3 text-slate-400">
+                            <Receipt className="w-8 h-8 text-slate-200" />
+                            <span className="text-sm">Không tìm thấy hóa đơn nào</span>
+                        </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Mã HD</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Phòng</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Thời gian</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Tổng tiền</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Khách hàng</th>
-                                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase">Thao tác</th>
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="px-5 py-3.5 text-left">
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                                <Hash className="w-3.5 h-3.5" /> Mã HD
+                                            </span>
+                                        </th>
+                                        <th className="px-5 py-3.5 text-left">
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                                <DoorOpen className="w-3.5 h-3.5" /> Phòng
+                                            </span>
+                                        </th>
+                                        <th className="px-5 py-3.5 text-left">
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                                <Clock className="w-3.5 h-3.5" /> Thời gian
+                                            </span>
+                                        </th>
+                                        <th className="px-5 py-3.5 text-left">
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                                <Coins className="w-3.5 h-3.5" /> Tổng tiền
+                                            </span>
+                                        </th>
+                                        <th className="px-5 py-3.5 text-left">
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                                <User className="w-3.5 h-3.5" /> Khách hàng
+                                            </span>
+                                        </th>
+                                        <th className="px-5 py-3.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                            Thao tác
+                                        </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
+                                <tbody>
                                     {filteredInvoices.map((inv) => (
-                                        <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                                                #{inv.id.substring(0, 8).toUpperCase()}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-700">
-                                                Phòng {inv.roomNumber}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">
-                                                {new Date(inv.createdAt).toLocaleString('vi-VN')}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-blue-600">
-                                                {(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${inv.customerName === 'Khách lẻ'
-                                                    ? 'bg-slate-100 text-slate-600'
-                                                    : 'bg-blue-100 text-blue-700'
-                                                    }`}>
-                                                    {inv.customerName}
+                                        <tr
+                                            key={inv.id}
+                                            className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors"
+                                        >
+                                            {/* Mã HD */}
+                                            <td className="px-5 py-3.5">
+                                                <span className="flex items-center gap-1.5 font-mono text-xs font-medium text-slate-500">
+                                                    <Receipt className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" />
+                                                    #{inv.id.substring(0, 8).toUpperCase()}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right space-x-2">
-                                                <Link href={`/dashboard/invoice/${inv.id}`}>
-                                                    <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-1">
-                                                        <Eye className="w-4 h-4" /> Xem
+
+                                            {/* Phòng */}
+                                            <td className="px-5 py-3.5">
+                                                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                                                    <DoorOpen className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                                    Phòng {inv.roomNumber}
+                                                </span>
+                                            </td>
+
+                                            {/* Thời gian */}
+                                            <td className="px-5 py-3.5">
+                                                <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                                                    <Clock className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                                                    {new Date(inv.createdAt).toLocaleString('vi-VN')}
+                                                </span>
+                                            </td>
+
+                                            {/* Tổng tiền */}
+                                            <td className="px-5 py-3.5">
+                                                <span className="flex items-center gap-1 text-sm font-semibold text-emerald-600">
+                                                    <Coins className="w-3.5 h-3.5 flex-shrink-0" />
+                                                    {(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ
+                                                </span>
+                                            </td>
+
+                                            {/* Khách hàng */}
+                                            <td className="px-5 py-3.5">
+                                                {inv.customerName === 'Khách lẻ' ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                                                        <User className="w-3 h-3" />
+                                                        {inv.customerName}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600">
+                                                        <UserCircle className="w-3 h-3" />
+                                                        {inv.customerName}
+                                                    </span>
+                                                )}
+                                            </td>
+
+                                            {/* Thao tác */}
+                                            <td className="px-5 py-3.5 text-right">
+                                                <div className="inline-flex items-center gap-1">
+                                                    <Link href={`/dashboard/invoice/${inv.id}`}>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 px-3 text-xs text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg gap-1.5 transition"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5" /> Xem
+                                                        </Button>
+                                                    </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 px-3 text-xs text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-lg gap-1.5 transition"
+                                                        onClick={() => handleDeleteInvoice(inv.id)}
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" /> Xóa
                                                     </Button>
-                                                </Link>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-slate-600 hover:text-rose-600 gap-1"
-                                                    onClick={() => handleDeleteInvoice(inv.id)}
-                                                >
-                                                    <Trash2 className="w-4 h-4" /> Xóa
-                                                </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -454,7 +457,8 @@ export default function InvoiceHistoryPage() {
                             </table>
                         </div>
                     )}
-                </Card>
+                </div>
+
             </div>
         </div>
     );
