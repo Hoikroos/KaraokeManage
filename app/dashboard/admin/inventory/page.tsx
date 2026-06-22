@@ -288,30 +288,57 @@ export default function InventoryStatsPage() {
             months.push({ y: cur.getFullYear(), m: cur.getMonth() });
             cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
         }
+
         const results = await Promise.all(months.map(async ({ y, m }) => {
             const mStart = fmt(new Date(y, m, 1));
             const mEnd = fmt(new Date(y, m + 1, 0));
+
+            const periodStart = new Date(y, m, 1);
+            periodStart.setHours(0, 0, 0, 0);
+            const periodEnd = new Date(y, m + 1, 0);
+            periodEnd.setHours(23, 59, 59, 999);
+
             const res = await fetch(
                 `/api/admin/inventory?storeId=${selectedStoreId}&startDate=${mStart}&endDate=${mEnd}&type=monthly`,
                 { cache: 'no-store' }
             );
             const data = res.ok ? await res.json() : { stats: [] };
             const stats: ProductStat[] = Array.isArray(data.stats) ? data.stats : [];
+
+            // Tính sold (inRoom) và exported (offsite) từ invoices — giống augmentedStats
+            const monthlySales = new Map<string, { inRoom: number; offsite: number }>();
+            for (const inv of invoices) {
+                if (inv.status !== 'paid') continue;
+                const t = new Date(inv.startTime);
+                if (t < periodStart || t > periodEnd) continue;
+                const isOffsite = typeof inv.id === 'string' && (inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
+                for (const item of (inv.items || [])) {
+                    const cur = monthlySales.get(item.productId) || { inRoom: 0, offsite: 0 };
+                    if (isOffsite) cur.offsite += item.quantity;
+                    else cur.inRoom += item.quantity;
+                    monthlySales.set(item.productId, cur);
+                }
+            }
+
             return {
                 key: `${y}-${String(m + 1).padStart(2, '0')}`,
                 label: `Tháng ${m + 1}/${y}`,
-                rows: stats.map(s => ({
-                    productId: s.productId,
-                    productName: s.productName,
-                    category: s.category,
-                    opening: Math.max(0, Math.round(s.openingStock)),
-                    restock: Math.round(s.totalRestocked),
-                    sold: Math.round(s.totalSold),
-                    exported: Math.round(s.totalExported),
-                    closing: Math.round(s.closingStock),
-                })),
+                rows: stats.map(s => {
+                    const sales = monthlySales.get(s.productId) || { inRoom: 0, offsite: 0 };
+                    return {
+                        productId: s.productId,
+                        productName: s.productName,
+                        category: s.category,
+                        opening: Math.max(0, Math.round(s.openingStock)),
+                        restock: Math.round(s.totalRestocked),
+                        sold: sales.inRoom,           // ← từ invoices, không dùng s.totalSold
+                        exported: sales.offsite + s.totalExported, // ← offsite invoices + xuất thủ công
+                        closing: Math.round(s.closingStock),
+                    };
+                }),
             };
         }));
+
         results.sort((a, b) => b.key.localeCompare(a.key));
         return results;
     };
