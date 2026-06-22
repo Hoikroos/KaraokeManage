@@ -116,6 +116,12 @@ export async function GET(req: NextRequest) {
                 StoreId: storeId,
                 CreatedAt: { gte: startDate, lte: endDate },
                 Quantity: { gt: 0 },
+                NOT: {
+                    OR: [
+                        { Id: { startsWith: 'RETURN-' } },
+                        { Note: { startsWith: 'Hoàn kho do hủy phòng' } },
+                    ]
+                }
             },
             _sum: { Quantity: true },
         });
@@ -142,6 +148,12 @@ export async function GET(req: NextRequest) {
                 StoreId: storeId,
                 CreatedAt: { gte: startDate },
                 Quantity: { gt: 0 },
+                NOT: {
+                    OR: [
+                        { Id: { startsWith: 'RETURN-' } },
+                        { Note: { startsWith: 'Hoàn kho do hủy phòng' } },
+                    ]
+                }
             },
             _sum: { Quantity: true },
         });
