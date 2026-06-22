@@ -8,7 +8,7 @@ import Link from 'next/link';
 import Swal from 'sweetalert2';
 import { useAuth } from '@/app/context';
 import { Store } from '@/lib/db';
-import { History, Search, Eye, Printer, ArrowLeft, Calendar, X, Download, Trash2, Users } from 'lucide-react';
+import { History, Search, Eye, ArrowLeft, Calendar, X, Download, Trash2, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DisplayInvoice {
@@ -20,6 +20,44 @@ interface DisplayInvoice {
     customerName?: string;
 }
 
+const INVOICE_ICON_COLORS = [
+    { bg: 'bg-green-100', text: 'text-green-600' },
+    { bg: 'bg-blue-100', text: 'text-blue-600' },
+    { bg: 'bg-purple-100', text: 'text-purple-600' },
+    { bg: 'bg-yellow-100', text: 'text-yellow-600' },
+    { bg: 'bg-red-100', text: 'text-red-500' },
+    { bg: 'bg-pink-100', text: 'text-pink-500' },
+];
+
+function getIconColor(id: string) {
+    const sum = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return INVOICE_ICON_COLORS[sum % INVOICE_ICON_COLORS.length];
+}
+
+function CustomerBadge({ name }: { name: string }) {
+    if (!name || name === 'Khách lẻ') {
+        return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                Khách lẻ
+            </span>
+        );
+    }
+    if (name.startsWith('Khách tặng')) {
+        return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                {name}
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+            {name}
+        </span>
+    );
+}
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
 export default function InvoiceHistoryPage() {
     const { user } = useAuth();
     const [invoices, setInvoices] = useState<DisplayInvoice[]>([]);
@@ -30,27 +68,23 @@ export default function InvoiceHistoryPage() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [isMounted, setIsMounted] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    useEffect(() => { setIsMounted(true); }, []);
 
     useEffect(() => {
-        setIsMounted(true);
-    }, []);
-
-    useEffect(() => {
-        if (user !== undefined) {
-            fetchInitialData();
-        }
+        if (user !== undefined) fetchInitialData();
     }, [user]);
 
     const fetchInitialData = async () => {
         try {
             const storesRes = await fetch('/api/admin/stores');
             let storesData = (await storesRes.json()) || [];
-
             if (user?.storeId && user?.storeId !== 'all') {
                 storesData = storesData.filter((s: Store) => s.id === user.storeId);
             }
             setStores(storesData);
-
             const initialStoreId = user?.storeId || (storesData.length > 0 ? storesData[0].id : '');
             setSelectedStoreId(initialStoreId);
             await fetchInvoices(initialStoreId);
@@ -66,10 +100,8 @@ export default function InvoiceHistoryPage() {
             const params = new URLSearchParams();
             if (storeId && storeId !== 'all') params.append('storeId', storeId);
             params.append('t', Date.now().toString());
-
             const res = await fetch(`/api/invoices?${params.toString()}`, { cache: 'no-store' });
             const data = await res.json();
-
             const rawInvoices = Array.isArray(data) ? data : (data?.invoices || data?.data || []);
             const normalized: DisplayInvoice[] = rawInvoices.map((inv: any) => ({
                 ...inv,
@@ -91,7 +123,6 @@ export default function InvoiceHistoryPage() {
         const matchSearch = inv.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (inv.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
         if (!matchSearch) return false;
-
         if (startDate || endDate) {
             const invDate = new Date(inv.createdAt);
             if (startDate) {
@@ -108,7 +139,9 @@ export default function InvoiceHistoryPage() {
         return true;
     }), [invoices, searchTerm, startDate, endDate]);
 
-    // ✅ Chỉ xóa tạm (soft delete) — hóa đơn vào thùng rác, KHÔNG mất dữ liệu
+    const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / pageSize));
+    const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
     const handleDeleteInvoice = async (id: string) => {
         const result = await Swal.fire({
             title: 'Chuyển vào thùng rác?',
@@ -120,18 +153,15 @@ export default function InvoiceHistoryPage() {
             confirmButtonText: 'Chuyển vào thùng rác',
             cancelButtonText: 'Hủy',
         });
-
         if (!result.isConfirmed) return;
-
         try {
             const response = await fetch('/api/invoices', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id }),
             });
-
             if (response.ok) {
-                setInvoices(prev => prev.filter((inv) => inv.id !== id));
+                setInvoices(prev => prev.filter(inv => inv.id !== id));
                 toast.success('Đã chuyển hóa đơn vào thùng rác', {
                     description: 'Vào Thùng rác để khôi phục nếu cần.',
                 });
@@ -144,10 +174,8 @@ export default function InvoiceHistoryPage() {
         }
     };
 
-    // ✅ Xóa tất cả hóa đơn (chuyển vào thùng rác)
     const handleDeleteAll = async () => {
         if (invoices.length === 0) return;
-
         const result = await Swal.fire({
             title: 'Chuyển tất cả vào thùng rác?',
             text: 'Tất cả hóa đơn sẽ được chuyển vào thùng rác. Bạn có thể khôi phục lại sau.',
@@ -158,16 +186,13 @@ export default function InvoiceHistoryPage() {
             confirmButtonText: 'Chuyển tất cả',
             cancelButtonText: 'Hủy',
         });
-
         if (!result.isConfirmed) return;
-
         try {
             const response = await fetch('/api/invoices', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ all: true, storeId: selectedStoreId }),
             });
-
             if (response.ok) {
                 setInvoices([]);
                 toast.success('Đã chuyển tất cả hóa đơn vào thùng rác');
@@ -185,7 +210,6 @@ export default function InvoiceHistoryPage() {
             toast.error('Không có dữ liệu để xuất');
             return;
         }
-
         const headers = ['Mã HD', 'Phòng', 'Khách hàng', 'Thời gian', 'Tổng tiền (VNĐ)'];
         const csvData = filteredInvoices.map(inv => [
             `#${inv.id.substring(0, 8).toUpperCase()}`,
@@ -194,7 +218,6 @@ export default function InvoiceHistoryPage() {
             new Date(inv.createdAt).toLocaleString('vi-VN'),
             Math.ceil(inv.totalPrice / 1000) * 1000
         ]);
-
         const csvContent = [headers.join(','), ...csvData.map(e => e.join(','))].join('\n');
         const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -206,6 +229,19 @@ export default function InvoiceHistoryPage() {
         document.body.removeChild(link);
     };
 
+    const handlePageChange = (page: number) => {
+        if (page < 1 || page > totalPages) return;
+        setCurrentPage(page);
+    };
+
+    const handlePageSizeChange = (size: number) => {
+        setPageSize(size);
+        setCurrentPage(1);
+    };
+
+    const rangeStart = filteredInvoices.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const rangeEnd = Math.min(currentPage * pageSize, filteredInvoices.length);
+
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
@@ -213,179 +249,303 @@ export default function InvoiceHistoryPage() {
                 <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Link href="/dashboard">
-                            <Button variant="ghost" size="sm" className="text-slate-600">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
+                            <Button variant="ghost" size="sm" className="text-slate-600 hover:bg-slate-100">
+                                <ArrowLeft className="w-4 h-4 mr-1.5" /> Quay lại
                             </Button>
                         </Link>
-                        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <History className="w-5 h-5 text-blue-600" /> Lịch sử hóa đơn
-                        </h1>
+                        <div className="flex flex-col">
+                            <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                <History className="w-5 h-5 text-blue-600" /> Lịch sử hóa đơn
+                            </h1>
+                            <span className="text-xs text-slate-400 ml-7">Tra cứu và quản lý hóa đơn dễ dàng</span>
+                        </div>
                     </div>
-                    {/* <div className="flex items-center gap-2">
-                        <Link href="/dashboard/invoice/trash">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 border border-rose-100 gap-2"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </Button>
-                        </Link>
-                    </div> */}
+                    <Button
+                        onClick={handleExportExcel}
+                        className="bg-green-700 hover:bg-green-800 text-white font-semibold gap-2 rounded-lg shadow-sm"
+                    >
+                        <Download className="w-4 h-4" /> Xuất Excel
+                    </Button>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Bộ lọc */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 items-end">
-                    <div className={`w-full ${user?.role !== 'admin' ? 'hidden' : ''}`}>
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Chi nhánh</label>
-                        <select
-                            value={selectedStoreId}
-                            onChange={(e) => {
-                                setSelectedStoreId(e.target.value);
-                                fetchInvoices(e.target.value);
-                            }}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">Tất cả chi nhánh</option>
-                            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="w-full">
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Từ ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="pl-10 bg-white border-slate-200 shadow-sm h-10"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="w-full">
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Đến ngày</label>
-                        <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="pl-10 bg-white border-slate-200 shadow-sm h-10"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="w-full">
-                        <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Tìm kiếm</label>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                                placeholder="Mã HD hoặc tên khách..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 bg-white border-slate-200 shadow-sm h-10"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="w-full flex items-end gap-2">
-                        <Button
-                            onClick={handleExportExcel}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 flex-1 gap-2 rounded-lg shadow-sm"
-                        >
-                            <Download className="w-4 h-4" /> Xuất Excel
-                        </Button>
-                        {(startDate || endDate || searchTerm) && (
-                            <Button
-                                variant="ghost"
-                                onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); }}
-                                className="text-slate-400 hover:text-rose-500 h-10 px-3 border border-slate-200 rounded-lg hover:bg-rose-50"
+            <div className="max-w-7xl mx-auto px-6 py-6">
+                {/* Filter Card */}
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        {/* Chi nhánh - admin only */}
+                        <div className={user?.role !== 'admin' ? 'hidden' : ''}>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">Chi nhánh</label>
+                            <select
+                                value={selectedStoreId}
+                                onChange={(e) => { setSelectedStoreId(e.target.value); fetchInvoices(e.target.value); }}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 h-10"
                             >
-                                <X className="w-4 h-4" />
-                            </Button>
-                        )}
+                                <option value="">Tất cả chi nhánh</option>
+                                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Từ ngày */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">Từ ngày</label>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <Input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+                                    className="pl-9 bg-white border-slate-200 shadow-sm h-10 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Đến ngày */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">Đến ngày</label>
+                            <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <Input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+                                    className="pl-9 bg-white border-slate-200 shadow-sm h-10 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Tìm kiếm */}
+                        <div>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">Tìm kiếm</label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    <Input
+                                        placeholder="Mã HD hoặc tên khách hàng..."
+                                        value={searchTerm}
+                                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                        className="pl-9 bg-white border-slate-200 shadow-sm h-10 text-sm"
+                                    />
+                                </div>
+                                {(startDate || endDate || searchTerm) && (
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); setCurrentPage(1); }}
+                                        className="text-slate-400 hover:text-rose-500 h-10 px-3 border border-slate-200 rounded-lg hover:bg-rose-50"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end mb-4 gap-2">
-                    {/* ✅ Nút xóa tất cả */}
+                {/* Table header row */}
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-slate-700 font-semibold text-sm">
+                        <FileText className="w-4 h-4 text-blue-500" />
+                        Danh sách hóa đơn
+                    </div>
                     {invoices.length > 0 && (
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleDeleteAll}
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-100 gap-2"
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200 gap-1.5 text-xs font-medium rounded-lg"
                         >
-                            <Trash2 className="w-4 h-4" /> Xóa tất cả
+                            <Trash2 className="w-3.5 h-3.5" /> Xóa tất cả
                         </Button>
                     )}
                 </div>
-                {/* Bảng danh sách hóa đơn */}
-                <Card className="bg-white border-none shadow-sm overflow-hidden rounded-2xl">
+
+                {/* Table */}
+                <Card className="bg-white border border-slate-100 shadow-sm rounded-2xl overflow-hidden">
                     {isLoading ? (
-                        <div className="p-12 text-center text-slate-400">Đang tải dữ liệu...</div>
+                        <div className="p-16 text-center text-slate-400 text-sm">Đang tải dữ liệu...</div>
                     ) : filteredInvoices.length === 0 ? (
-                        <div className="p-12 text-center text-slate-400 italic">Không tìm thấy hóa đơn nào</div>
+                        <div className="p-16 text-center text-slate-400 italic text-sm">Không tìm thấy hóa đơn nào</div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-slate-50 border-b border-slate-100">
-                                    <tr>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Mã HD</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Phòng</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Thời gian</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Tổng tiền</th>
-                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase">Khách hàng</th>
-                                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredInvoices.map((inv) => (
-                                        <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                                                #{inv.id.substring(0, 8).toUpperCase()}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-700">
-                                                Phòng {inv.roomNumber}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">
-                                                {new Date(inv.createdAt).toLocaleString('vi-VN')}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-blue-600">
-                                                {(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${inv.customerName === 'Khách lẻ'
-                                                    ? 'bg-slate-100 text-slate-600'
-                                                    : 'bg-blue-100 text-blue-700'
-                                                    }`}>
-                                                    {inv.customerName}
+                        <>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-slate-50 border-b border-slate-100">
+                                        <tr>
+                                            <th className="w-12 px-4 py-3"></th>
+                                            <th className="px-4 py-3 text-left">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none">
+                                                    Mã hóa đơn <ChevronsUpDown className="w-3 h-3 opacity-50" />
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right space-x-2">
-                                                <Link href={`/dashboard/invoice/${inv.id}`}>
-                                                    <Button variant="ghost" size="sm" className="text-slate-600 hover:text-blue-600 gap-1">
-                                                        <Eye className="w-4 h-4" /> Xem
-                                                    </Button>
-                                                </Link>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none">
+                                                    Phòng <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                                                </span>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none">
+                                                    Thời gian <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                                                </span>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none">
+                                                    Tổng tiền <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                                                </span>
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                <span className="flex items-center gap-1 text-xs font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none">
+                                                    Khách hàng <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                                                </span>
+                                            </th>
+                                            <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {paginatedInvoices.map((inv) => {
+                                            const color = getIconColor(inv.id);
+                                            return (
+                                                <tr key={inv.id} className="hover:bg-slate-50/60 transition-colors">
+                                                    <td className="px-4 py-3">
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color.bg}`}>
+                                                            <FileText className={`w-4 h-4 ${color.text}`} />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">
+                                                        #{inv.id.substring(0, 8).toUpperCase()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-semibold text-slate-700">
+                                                        Phòng {inv.roomNumber}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-slate-500">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <span className="w-3.5 h-3.5 rounded-full border border-slate-300 flex items-center justify-center">
+                                                                <span className="w-1 h-1 rounded-full bg-slate-400"></span>
+                                                            </span>
+                                                            {new Date(inv.createdAt).toLocaleString('vi-VN')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-bold text-blue-600">
+                                                        {inv.totalPrice === 0
+                                                            ? '0đ'
+                                                            : `${(Math.ceil(inv.totalPrice / 1000) * 1000).toLocaleString('vi-VN')}đ`}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <CustomerBadge name={inv.customerName || 'Khách lẻ'} />
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <Link href={`/dashboard/invoice/${inv.id}`}>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 gap-1 text-xs h-8 px-3 rounded-lg"
+                                                                >
+                                                                    <Eye className="w-3.5 h-3.5" /> Xem
+                                                                </Button>
+                                                            </Link>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 gap-1 text-xs h-8 px-3 rounded-lg"
+                                                                onClick={() => handleDeleteInvoice(inv.id)}
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" /> Xóa
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
+                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    Hiển thị
+                                    <select
+                                        value={pageSize}
+                                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                                        className="border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-700 bg-white outline-none focus:ring-1 focus:ring-blue-400"
+                                    >
+                                        {PAGE_SIZE_OPTIONS.map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
+                                    trên mỗi trang
+                                </div>
+
+                                <span className="text-sm text-slate-500">
+                                    {rangeStart}-{rangeEnd} trên {filteredInvoices.length} hóa đơn
+                                </span>
+
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-8 h-8 p-0 border border-slate-200 rounded-md text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                                        onClick={() => handlePageChange(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronsLeft className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-8 h-8 p-0 border border-slate-200 rounded-md text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                                        onClick={() => handlePageChange(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft className="w-3.5 h-3.5" />
+                                    </Button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                        .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                                            if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push('...');
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((p, i) =>
+                                            p === '...' ? (
+                                                <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-slate-400 text-sm">…</span>
+                                            ) : (
                                                 <Button
+                                                    key={p}
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="text-slate-600 hover:text-amber-600 gap-1"
-                                                    onClick={() => handleDeleteInvoice(inv.id)}
+                                                    className={`w-8 h-8 p-0 border rounded-md text-sm font-medium ${
+                                                        currentPage === p
+                                                            ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                                                            : 'border-slate-200 text-slate-600 hover:text-slate-900'
+                                                    }`}
+                                                    onClick={() => handlePageChange(p as number)}
                                                 >
-                                                    <Trash2 className="w-4 h-4" /> Xóa
+                                                    {p}
                                                 </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            )
+                                        )}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-8 h-8 p-0 border border-slate-200 rounded-md text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                                        onClick={() => handlePageChange(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-8 h-8 p-0 border border-slate-200 rounded-md text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                                        onClick={() => handlePageChange(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        <ChevronsRight className="w-3.5 h-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </Card>
             </div>
