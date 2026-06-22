@@ -325,15 +325,21 @@ export default function InventoryStatsPage() {
                 label: `Tháng ${m + 1}/${y}`,
                 rows: stats.map(s => {
                     const sales = monthlySales.get(s.productId) || { inRoom: 0, offsite: 0 };
+                    const restock = Math.round(s.totalRestocked);
+                    const sold = sales.inRoom;
+                    const exported = sales.offsite;
+                    const closing = Math.round(s.closingStock);
+                    const total = closing + sold + exported;
+                    const opening = total - restock;
                     return {
                         productId: s.productId,
                         productName: s.productName,
                         category: s.category,
-                        opening: Math.max(0, Math.round(s.openingStock)),
-                        restock: Math.round(s.totalRestocked),
-                        sold: sales.inRoom,
-                        exported: sales.offsite,  // ← SỬA: chỉ lấy tặng/mang về từ invoices
-                        closing: Math.round(s.closingStock),
+                        opening,
+                        restock,
+                        sold,
+                        exported,
+                        closing,
                     };
                 }),
             };
