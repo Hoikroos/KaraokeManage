@@ -331,8 +331,8 @@ export default function InventoryStatsPage() {
                         category: s.category,
                         opening: Math.max(0, Math.round(s.openingStock)),
                         restock: Math.round(s.totalRestocked),
-                        sold: sales.inRoom,           // ← từ invoices, không dùng s.totalSold
-                        exported: sales.offsite + s.totalExported, // ← offsite invoices + xuất thủ công
+                        sold: sales.inRoom,
+                        exported: sales.offsite,  // ← SỬA: chỉ lấy tặng/mang về từ invoices
                         closing: Math.round(s.closingStock),
                     };
                 }),
