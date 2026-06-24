@@ -149,7 +149,7 @@ export default function ExportPage() {
                     storeId: user?.storeId,
                     items: cart,
                     note: note || (exportType === 'gift' ? 'Xuất tặng khách' : 'Bán mang về'),
-                    customerName: customerName || (exportType === 'gift' ? 'Khách tặng' : 'Khách mang về'),
+                    customerName: customerName || (exportType === 'gift' ? 'Tặng khách' : 'Bán mang về'),
                     type: exportType
                 }),
             });
