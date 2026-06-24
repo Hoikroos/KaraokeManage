@@ -53,7 +53,7 @@ export default function ExportPage() {
             const data = await res.json();
             const list = Array.isArray(data) ? data : (data.data || []);
             const exportOnly = list.filter((inv: any) => inv.id.startsWith('TKW') || inv.id.startsWith('GFT'));
-            setHistory(exportOnly.slice(0, 20));
+            setHistory(exportOnly.slice(0, 50));
         } catch (e) { console.error(e); }
         finally { setIsHistoryLoading(false); }
     };
